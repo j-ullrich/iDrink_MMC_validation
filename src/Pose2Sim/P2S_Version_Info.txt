@@ -1,0 +1,11 @@
+This Code is based on Pose2Sim Version 0.9
+
+
+Some changes were made to integrate Pose2Sim properly into the Dataflow of iDrink.
+
+If an Update of Pose2Sim is wanted, thes changes have to be done on the new version as well.
+
+Use to install onnxruntime-gpu:
+pip install https://aiinfra.pkgs.visualstudio.com/PublicPackages/_apis/packaging/feeds/9387c3aa-d9ad-4513-968c-383f6f7f53b8/pypi/packages/onnxruntime-gpu/versions/1.18/onnxruntime_gpu-1.18.0-cp312-cp312-win_amd64.whl/content 
+
+or donwload the file from https://aiinfra.visualstudio.com/PublicPackages/_artifacts/feed/onnxruntime-cuda-12/PyPI/onnxruntime-gpu/overview/1.18.0 and install it loccally
