@@ -59,7 +59,7 @@ root_data = r"C:\iDrink\validation_root"  # Root directory of all iDrink Data fo
 default_dir = os.path.join(root_data, "default_files")  # Default Files for the iDrink Validation
 df_settings = pd.read_csv(os.path.join(root_data, "validation_settings.csv"), sep=';')
 
-def run_pipeline(trial_list, mode):
+def run_full_pipeline(trial_list, mode):
     """
     Runs the pipeline for the given trial list.
 
@@ -72,7 +72,7 @@ def run_pipeline(trial_list, mode):
         if mode == "pose_estimation":
             print("Running Pose Estimation")
 
-def create_trial_objects(mode):
+def create_trial_objects():
     """
     TODO: Script writes a csv file, that contains information of which steps are done for which trial and setting.
 
@@ -89,7 +89,7 @@ def create_trial_objects(mode):
     full: uses video_files as Pose Estimation does.
 
 
-    :param mode:
+    :param:
     :return trial_list: List of Trial Objects
     """
     def trials_from_video():
@@ -109,12 +109,15 @@ def create_trial_objects(mode):
         if args.verbose >= 1:
             progress_bar = tqdm(total=n_settings, desc="Creating Trial-DataFrame", unit="Setting")
 
+        if args.mode == "pose_estimation":
+            n_settings = 1
 
         for setting_id in range(1, n_settings+1):
             id_s = f"S{setting_id:03d}"  # get Setting ID for use as Session ID in the Pipeline
             cam_setting = df_settings.loc[df_settings["setting_id"] == setting_id, "cam_setting"].values[0]
             # Check whether Cam is used for Setting
             cams_tuple = eval(df_settings.loc[df_settings["setting_id"] == setting_id, "cams"].values[ 0])  # Get the tuple of cams for the setting
+
 
             # Create Setting folder if not yet done
             dir_setting = os.path.join(root_data, "data", f"setting_{setting_id}")
@@ -140,8 +143,12 @@ def create_trial_objects(mode):
                     os.makedirs(part_dir, exist_ok=True)
 
                 # Make sure, we only iterate over videos, that correspond to the correct camera
-                pattern = "".join([f"{i}" for i in cams_tuple])
-                pattern = re.compile(f'cam[{pattern}]').pattern
+                if args.mode == "pose_estimation":  # If mode is pose estimation, use all present cam_folders
+                    pattern = r'0-9'
+                else:  # use only cams that are in setting
+                    pattern = "".join([f"{i}" for i in cams_tuple])
+
+                pattern = re.compile(f'cam[{pattern}]*').pattern
                 cam_folders = glob.glob(os.path.join(p_dir, "01_measurement", "04_Video", "03_Cut", "drinking", pattern))
 
                 # Get all video files of patient
@@ -151,7 +158,7 @@ def create_trial_objects(mode):
 
                 for video_file in video_files:
                     # Extract trial ID and format it
-                    trial_number = int(os.path.basename(video_file).split('_')[0].replace('trial', ''))
+                    trial_number = int(re.search(r'trial_\d+', video_file).group(0).split('_')[1])
                     id_t = f'T{trial_number:03d}'
                     identifier = f"{id_s}_{id_p}_{id_t}"
                     if args.verbose >=2:
@@ -161,10 +168,7 @@ def create_trial_objects(mode):
                     if not os.path.exists(trial_dir):
                         os.makedirs(trial_dir, exist_ok=True)
 
-                    trials_df.loc[trials_df["identifier"] == identifier, "session_dir"] = dir_session
-                    trials_df.loc[trials_df["identifier"] == identifier, "participant_dir"] = part_dir
-                    trials_df.loc[trials_df["identifier"] == identifier, "trial_dir"] = trial_dir
-                    trials_df.loc[trials_df["identifier"] == identifier, "dir_calib"] = dir_calib
+
 
                     if identifier not in trials_df["identifier"].values:
                         # Add new row to dataframe only containing the trial_id
@@ -196,6 +200,11 @@ def create_trial_objects(mode):
                     trials_df.loc[trials_df["identifier"] == identifier, "affected"] = affected
                     trials_df.loc[trials_df["identifier"] == identifier, "side"] = side
                     trials_df.loc[trials_df["identifier"] == identifier, "cam_setting"] = cam_setting
+
+                    trials_df.loc[trials_df["identifier"] == identifier, "session_dir"] = dir_session
+                    trials_df.loc[trials_df["identifier"] == identifier, "participant_dir"] = part_dir
+                    trials_df.loc[trials_df["identifier"] == identifier, "trial_dir"] = trial_dir
+                    trials_df.loc[trials_df["identifier"] == identifier, "dir_calib"] = dir_calib
 
             if args.verbose >= 1:
                 progress_bar.update(1)
@@ -232,7 +241,7 @@ def create_trial_objects(mode):
                                                 dir_root=root_data, dir_default=default_dir,
                                                 dir_trial=s_dir, dir_participant=p_dir, dir_session=t_dir,
                                                 affected=affected, measured_side=side,
-                                                path_recordings=videos, used_cams=cams))
+                                                video_files=videos, used_cams=cams))
             if args.verbose >= 1:
                 progress_bar.update(1)
         if args.verbose >= 1:
@@ -256,10 +265,12 @@ def create_trial_objects(mode):
     def trials_from_csv():
         pass
 
-    match mode:
+    match args.mode:
         case "pose_estimation":
             print("creating trial objects for Pose Estimation")
-            trials_from_video()
+            trial_list = trials_from_video()
+            return trial_list
+
 
         case "pose2sim":
             print("creating trial objects for Pose2Sim")
@@ -322,6 +333,40 @@ def run_mode(mode):
         case "pose_estimation":  # Runs only the Pose Estimation
             print("Pose Estimaton Method: ", args.poseback)
 
+            match args.poseback:
+                case "openpose":
+                    print("Running Openpose")
+                    #trial_list = create_trial_objects(mode)
+                    raise NotImplementedError("Openpose is not yet implemented")
+
+
+                case "mmpose":
+                    print("Running MMPose")
+                    trial_list = create_trial_objects(mode)
+                    for curr_trial in trial_list:
+                        if args.verbose >= 1:
+                            print(f"starting Pose Estimation for: {curr_trial.identifier}")
+                            print(f"starting with unfiltered .json")
+
+                        iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False, filter_2d=False, DEBUG=False)
+
+                        if args.verbose >= 1:
+                            print(f"starting with filtered .json")
+                        iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False,
+                                                                           filter_2d=True, DEBUG=False)
+
+
+
+
+                case "pose2sim":
+                    print("Running Pose2Sim")
+                    trial_list = create_trial_objects(mode)
+
+
+                case _:  # If no mode is given
+                    print("Invalid Mode was given. Please specify a valid mode.")
+                    sys.exit(1)
+
 
         case "pose2sim":  # Runs only the Pose2Sim
             print("Johann, take this out")
@@ -351,9 +396,22 @@ if __name__ == '__main__':
     if args.DEBUG or sys.gettrace() is not None:
         print("Debug Mode is activated\n"
               "Starting debugging script.")
-        mode = 'pose_estimation'
+        args.mode = 'pose_estimation'
 
-        trial_list = create_trial_objects(mode)
+        trial_list = create_trial_objects()
+
+        for curr_trial in trial_list:
+            if args.verbose >= 1:
+                print(f"starting Pose Estimation for: {curr_trial.identifier}")
+                print(f"starting with unfiltered .json")
+
+            iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False,
+                                                               filter_2d=False, DEBUG=False)
+
+            if args.verbose >= 1:
+                print(f"starting with filtered .json")
+            iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False,
+                                                               filter_2d=True, DEBUG=False)
 
 
 

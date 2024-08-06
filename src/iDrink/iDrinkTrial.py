@@ -79,7 +79,7 @@ class Trial:
                  dir_calib_videos=None, dir_calib_files=None, dir_participant=None, dir_trial=None,
                  date_time=None, path_config=None, skip=False, skip_reason=None, affected=False,
                  frame_rate=60, rec_resolution=(1920, 1080), clean_video=True,
-                 used_cams=None, path_recordings=None, path_calib_videos=None,
+                 used_cams=None, video_files=None, path_calib_videos=None,
 
                  config_dict=None, path_calib=None, calib=None, used_framework=None, pose_model=None, measured_side=None,
 
@@ -133,7 +133,7 @@ class Trial:
         self.rec_resolution = rec_resolution
         self.clean_video = clean_video
 
-        self.path_recordings = path_recordings  # List of Recordings if not in dir_recordings (Move them to dir_recordings before running the pipeline)
+        self.video_files = video_files  # List of Recordings if not in dir_recordings (Move them to dir_recordings before running the pipeline)
         self.path_calib_videos = path_calib_videos  # List of Calibration Videos if not in dir_calib_videos (Move them to dir_calib_videos before running the pipeline)
 
 
