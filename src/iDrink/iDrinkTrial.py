@@ -151,7 +151,7 @@ class Trial:
 
         # Pose Estimation
         self.PE_dim = 2  # Dimension of Pose Estimation
-        self.used_framework = "mmpose" # openpose, mmpose, etc.
+        self.used_framework = "mmpose" # openpose, mmpose, pose2sim
         self.pose_model = pose_model
         self.write_pose_videos = False
 
@@ -330,6 +330,9 @@ class Trial:
         """Place empty config file"""
 
         empty_file = os.path.join(self.dir_default, "Config_empty.toml")
+        if self.path_config is None:
+            self.path_config = os.path.realpath(os.path.join(self.dir_trial, f"{self.identifier}_Config.toml"))
+
         write_default_configuration(empty_file, self.path_config)
 
     def update_score(self, new_score):
@@ -454,6 +457,15 @@ class Trial:
             write_default_configuration(empty_file, self.path_config)
             get_config()
 
+        return self.config_dict
+
+    def save_condiguration(self):
+        """Saves config_digt to path in self.path_config"""
+        import toml
+
+        with open(self.path_config, 'w') as file:
+
+            toml.dump(self.config_dict, file)
         return self.config_dict
 
     def load_calibration(self):

@@ -119,7 +119,7 @@ def pose_data_to_json(pose_data_samples):
     # return json.dumps(json_data, indent=4)  # Convert the list of dictionaries into a JSON string
     return json_data
 
-def validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False, filter_2d=False, DEBUG=False):
+def validation_pose_estimation_2d(curr_trial, root_val, writevideofiles=False, filter_2d=False, DEBUG=False):
     from multiprocessing import Process, Queue
     from threading import Thread
 
@@ -173,7 +173,7 @@ def validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False, 
     ##########################################
     #############  DET MODEL  ################
     # Initialize the detection inferencer
-    device = torch.device("cuda:0") if torch.cuda.is_available() else 'cpu'
+    device = torch.device("cuda") if torch.cuda.is_available() else 'cpu'
     inferencer_detection = DetInferencer('rtmdet_tiny_8xb32-300e_coco', device=device, show_progress=False)
 
     # Class names (coco2017 dataset)
@@ -194,16 +194,24 @@ def validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False, 
 
     #############  POSE2D MODEL  ################
 
-    rel_model_cfg = r".mim\configs\body_2d_keypoint\topdown_heatmap\coco\td-hm_hrnet-w48_8xb32-210e_coco-256x192.py"
+    #rel_model_cfg = r".mim\configs\body_2d_keypoint\topdown_heatmap\coco\td-hm_hrnet-w48_8xb32-210e_coco-256x192.py"
+    rel_model_cfg = r".mim\configs\body_2d_keypoint\topdown_heatmap\coco\td-hm_hrnet-w48_dark-8xb32-210e_coco-384x288.py"
     model_cfg = pkg_resources.files('mmpose').joinpath(rel_model_cfg).__str__()
 
-    ckpt = 'https://download.openmmlab.com/mmpose/v1/body_2d_keypoint/topdown_heatmap/coco/td-hm_hrnet-w48_dark-8xb32-210e_coco-256x192-e1ebdd6f_20220913.pth'
+    #ckpt = 'https://download.openmmlab.com/mmpose/v1/body_2d_keypoint/topdown_heatmap/coco/td-hm_hrnet-w48_dark-8xb32-210e_coco-256x192-e1ebdd6f_20220913.pth'
+    ckpt = 'https://download.openmmlab.com/mmpose/v1/body_2d_keypoint/topdown_heatmap/coco/td-hm_hrnet-w48_dark-8xb32-210e_coco-384x288-39c3c381_20220916.pth'
 
     # # Initialize the pose inferencer
-    # inferencer_pose = MMPoseInferencer('human', device='cpu')
+    # inferencer_pose = MMPoseInferencer('human', device=device)
 
     # Initialize the pose inferencer
     model_pose = init_model(model_cfg, ckpt, device=device)
+
+    # Adjust settings of the model
+    model_pose.test_cfg.flip_test = False
+
+
+
     # build the visualizer
     visualizer_2d = PoseLocalVisualizer()
     # set skeleton, colormap and joint connection rule
@@ -221,19 +229,19 @@ def validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False, 
             exit()
 
         # Prepare Output Paths for json and videos.
-        used_cam = f"{curr_trial.id_p}_" + re.search(r'(cam\d+)', video).group(0)
+        used_cam = re.search(r'(cam\d+)', video).group(0)
         if filter_2d:
-            json_dir = os.path.realpath(os.path.join(root_data, "02_pose_estimation", "01_filtered",
-                                                     f"{curr_trial.id_p}", f"{used_cam}", "mmpose",
+            json_dir = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "02_filtered",
+                                                     f"{curr_trial.id_p}", f"{curr_trial.id_p}_{used_cam}", "mmpose",
                                                      f"{os.path.basename(video).split('.mp4')[0]}_json"))
-            out_video = os.path.realpath(os.path.join(root_data, "02_pose_estimation", "01_filtered",
-                                                      f"{curr_trial.id_p}", f"{used_cam}", "mmpose"))
+            out_video = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "02_filtered",
+                                                      f"{curr_trial.id_p}", f"{curr_trial.id_p}_{used_cam}", "mmpose"))
         else:
-            json_dir = os.path.realpath(os.path.join(root_data, "02_pose_estimation", "02_unfiltered",
-                                                     f"{curr_trial.id_p}", f"{used_cam}", "mmpose",
+            json_dir = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "01_unfiltered",
+                                                     f"{curr_trial.id_p}", f"{curr_trial.id_p}_{used_cam}", "mmpose",
                                                      f"{os.path.basename(video).split('.mp4')[0]}_json"))
             out_video = os.path.realpath(
-                os.path.join(root_data, "02_pose_estimation", "02_unfiltered", f"{curr_trial.id_p}", f"{used_cam}",
+                os.path.join(root_val, "02_pose_estimation", "01_unfiltered", f"{curr_trial.id_p}", f"{curr_trial.id_p}_{used_cam}",
                              "mmpose"))
 
         if not os.path.exists(json_dir):

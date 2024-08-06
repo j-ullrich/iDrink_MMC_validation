@@ -10,6 +10,8 @@ import pandas as pd
 
 from iDrink import iDrinkTrial, iDrinkPoseEstimation
 
+from Pose2Sim import Pose2Sim
+
 """
 This File is the starting Point of the iDrink Validation.
 
@@ -55,9 +57,10 @@ parser.add_argument('--DEBUG', action='store_true', default=False,
 
 root_MMC = r"C:\iDrink\Test_folder_structures"  # Root directory of all MMC-Data --> Videos and Openpose json files
 root_OMC = r"C:\iDrink\OMC_data_newStruct"  # Root directory of all OMC-Data --> trc of trials.
-root_data = r"C:\iDrink\validation_root"  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
-default_dir = os.path.join(root_data, "default_files")  # Default Files for the iDrink Validation
-df_settings = pd.read_csv(os.path.join(root_data, "validation_settings.csv"), sep=';')
+root_val = r"C:\iDrink\validation_root"  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+root_data = os.path.join(root_val, "03_data")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
+df_settings = pd.read_csv(os.path.join(root_val, "validation_settings.csv"), sep=';')
 
 def run_full_pipeline(trial_list, mode):
     """
@@ -120,7 +123,7 @@ def create_trial_objects():
 
 
             # Create Setting folder if not yet done
-            dir_setting = os.path.join(root_data, "data", f"setting_{setting_id}")
+            dir_setting = os.path.join(root_data, f"setting_{setting_id}")
             if not os.path.exists(dir_setting):
                 os.makedirs(dir_setting, exist_ok=True)
 
@@ -237,11 +240,26 @@ def create_trial_objects():
             t_dir = trials_df.loc[trials_df["identifier"] == identifier, "trial_dir"].values[0]  # get Trial Directory for use in the Pipeline
 
             # Create the trial object
-            trial_list.append(iDrinkTrial.Trial(identifier=identifier, id_s=id_s, id_p=id_p, id_t=id_t,
-                                                dir_root=root_data, dir_default=default_dir,
-                                                dir_trial=s_dir, dir_participant=p_dir, dir_session=t_dir,
-                                                affected=affected, measured_side=side,
-                                                video_files=videos, used_cams=cams))
+            trial = iDrinkTrial.Trial(identifier=identifier, id_s=id_s, id_p=id_p, id_t=id_t,
+                                      dir_root=root_data, dir_default=default_dir,
+                                      dir_trial=t_dir, dir_participant=p_dir, dir_session=s_dir,
+                                      affected=affected, measured_side=side,
+                                      video_files=videos, used_cams=cams,
+                                      used_framework=args.poseback, pose_model="Coco17_UpperBody")
+            trial.create_trial()
+            trial.load_configuration()
+
+            trial.config_dict["pose"]["videos"] = videos
+            trial.config_dict["pose"]["cams"] = cams
+
+            trial.config_dict.get("project").update({"project_dir": trial.dir_trial})
+            trial.config_dict['pose']['pose_framework'] = trial.used_framework
+            trial.config_dict['pose']['pose_model'] = trial.pose_model
+
+            trial.save_condiguration()
+
+            trial_list.append(trial)
+
             if args.verbose >= 1:
                 progress_bar.update(1)
         if args.verbose >= 1:
@@ -274,6 +292,8 @@ def create_trial_objects():
 
         case "pose2sim":
             print("creating trial objects for Pose2Sim")
+            from Pose2Sim import Pose2Sim
+
 
         case "opensim":
             print("creating trial objects for Opensim")
@@ -321,13 +341,15 @@ def create_trial_objects():
 
 
 
-def run_mode(mode):
+def run_mode():
     """
     Runs the pipeline for given mode.
 
-    :param mode:
+    :param:
     :return:
     """
+    # First create list of trials to iterate through
+    trial_list = create_trial_objects()
 
     match args.mode:
         case "pose_estimation":  # Runs only the Pose Estimation
@@ -341,26 +363,30 @@ def run_mode(mode):
 
 
                 case "mmpose":
-                    print("Running MMPose")
-                    trial_list = create_trial_objects(mode)
-                    for curr_trial in trial_list:
+                    print("Pose Estimation mode: MMPose starting.")
+                    for trial in trial_list:
                         if args.verbose >= 1:
-                            print(f"starting Pose Estimation for: {curr_trial.identifier}")
-                            print(f"starting with unfiltered .json")
+                            print(f"starting Pose Estimation for: {trial.identifier}")
 
-                        iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False, filter_2d=False, DEBUG=False)
+                        iDrinkPoseEstimation.validation_pose_estimation_2d(trial, root_val, writevideofiles=True,
+                                                                           filter_2d=False, DEBUG=False)
 
-                        if args.verbose >= 1:
-                            print(f"starting with filtered .json")
-                        iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False,
-                                                                           filter_2d=True, DEBUG=False)
-
-
-
+                        # TODO: Implement kp filtering by using the existing 2d keypoints
+                        """iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False,
+                                                                           filter_2d=True, DEBUG=False)"""
 
                 case "pose2sim":
-                    print("Running Pose2Sim")
-                    trial_list = create_trial_objects(mode)
+                    print("Pose Estimation mode: Pose2Sim starting.")
+                    for trial in trial_list:
+                        # Change the config_dict so that the correct pose model is used
+
+                        if trial.pose_model == "Coco17_UpperBody":
+                            trial.config_dict['pose']['pose_model'] = 'COCO_17'
+                        Pose2Sim.poseEstimation(trial.config_dict)
+
+                        trial.config_dict['pose']['pose_model'] = trial.pose_model
+
+
 
 
                 case _:  # If no mode is given
@@ -384,7 +410,7 @@ def run_mode(mode):
             print("Johann, take this out")
 
         case _:  # If no mode is given
-            print("Invalid Mode was given. Please specify a valid mode.")
+            raise ValueError("Invalid Mode was given. Please specify a valid mode.")
             sys.exit(1)
 
 
@@ -397,28 +423,15 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
         args.mode = 'pose_estimation'
+        args.poseback = 'mmpose'
 
-        trial_list = create_trial_objects()
-
-        for curr_trial in trial_list:
-            if args.verbose >= 1:
-                print(f"starting Pose Estimation for: {curr_trial.identifier}")
-                print(f"starting with unfiltered .json")
-
-            iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False,
-                                                               filter_2d=False, DEBUG=False)
-
-            if args.verbose >= 1:
-                print(f"starting with filtered .json")
-            iDrinkPoseEstimation.validation_pose_estimation_2d(curr_trial, root_data, writevideofiles=False,
-                                                               filter_2d=True, DEBUG=False)
 
 
 
 
     if args.mode is not None:
         print("Starting with Mode: ", args.mode)
-        run_mode(args.mode)
+        run_mode()
     else:
         print("No Mode was given. Please specify a mode.")
         sys.exit(1)

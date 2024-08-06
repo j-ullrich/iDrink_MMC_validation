@@ -101,7 +101,7 @@ def save_to_openpose(json_file_path, keypoints, scores):
         json.dump(json_output, json_file)
 
 
-def process_video(video_path, pose_tracker, tracking, output_format, save_video, save_images, display_detection, frame_range):
+def process_video(video_path, pose_tracker, tracking, output_format, save_video, save_images, display_detection, frame_range, config_dict):
     '''
     Estimate pose from a video file
     
@@ -129,12 +129,21 @@ def process_video(video_path, pose_tracker, tracking, output_format, save_video,
     except:
         raise NameError(f"{video_path} is not a video. Images must be put in one subdirectory per camera.")
     
-    pose_dir = os.path.abspath(os.path.join(video_path, '..', '..', '..', 'pose'))
-    if not os.path.isdir(pose_dir): os.makedirs(pose_dir)
+    #pose_dir = os.path.abspath(os.path.join(video_path, '..', '..', '..', 'pose'))
+    #if not os.path.isdir(pose_dir): os.makedirs(pose_dir)
     video_name_wo_ext = os.path.splitext(os.path.basename(video_path))[0]
-    json_output_dir = os.path.join(pose_dir, f'{video_name_wo_ext}_json')
-    output_video_path = os.path.join(pose_dir, f'{video_name_wo_ext}_pose.mp4')
-    img_output_dir = os.path.join(pose_dir, f'{video_name_wo_ext}_img')
+    #json_output_dir = os.path.join(pose_dir, f'{video_name_wo_ext}_json')
+
+    root_val = os.path.abspath(os.path.join(config_dict.get('project').get('project_dir'), '..', '..', '..', '..', '..', '..'))
+    id_p = os.path.basename(os.path.abspath(os.path.join(config_dict.get('project').get('project_dir'), '..', '..', '..')))
+    used_cam = os.path.basename(os.path.abspath(os.path.join(video_path, '..')))
+
+    output_dir = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "01_unfiltered",
+                                                    f"{id_p}", f"{id_p}_{used_cam}", "pose2sim"))
+    json_output_dir = os.path.realpath(os.path.join(output_dir, f"{os.path.basename(video_path).split('.mp4')[0]}_json"))
+
+    output_video_path = os.path.join(output_dir, f'{video_name_wo_ext}_pose.mp4')
+    img_output_dir = os.path.join(output_dir, f'{video_name_wo_ext}_img')
     
     if save_video: # Set up video writer
         fourcc = cv2.VideoWriter_fourcc(*'mp4v') # Codec for the output video
@@ -347,7 +356,8 @@ def rtm_estimator(config_dict):
     tracking = config_dict['pose']['tracking']
 
     # Determine frame rate
-    video_files = glob.glob(os.path.join(video_dir, '*'+vid_img_extension))
+    #video_files = glob.glob(os.path.join(video_dir, '*'+vid_img_extension))
+    video_files = config_dict.get('pose').get('videos')
     frame_rate = config_dict.get('project').get('frame_rate')
     if frame_rate == 'auto': 
         try:
@@ -420,13 +430,13 @@ def rtm_estimator(config_dict):
             raise
             
     except:
-        video_files = glob.glob(os.path.join(video_dir, 'recordings', '*'+vid_img_extension))
+        video_files = config_dict.get('pose').get('videos')
         if not len(video_files) == 0: 
             # Process video files
             logging.info(f'Found video files with extension {vid_img_extension}.')
             for video_path in video_files:
                 pose_tracker.reset()
-                process_video(video_path, pose_tracker, tracking, output_format, save_video, save_images, display_detection, frame_range)
+                process_video(video_path, pose_tracker, tracking, output_format, save_video, save_images, display_detection, frame_range, config_dict)
 
         else:
             # Process image folders
