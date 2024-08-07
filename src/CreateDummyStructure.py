@@ -34,7 +34,7 @@ for p in range(1, n_p + 1):
                             for cam in range(1, n_cams + 1):
                                 folder = os.path.join(root, f"P{p:02d}", l1, l2, l3, l4, f"cam{cam}")
                                 os.makedirs(folder, exist_ok=True)
-                                for trial in range(n_trials):
+                                for trial in range(1, n_trials+1):
                                     # Video properties
                                     frame_width = 640
                                     frame_height = 480
@@ -43,7 +43,7 @@ for p in range(1, n_p + 1):
                                     aff = "R_unaffected"
                                     if trial > n_trials/2:
                                         aff = "L_affected"
-                                    output_file = os.path.join(folder, f'trial{trial}_{aff}_dummy_video.mp4')
+                                    output_file = os.path.join(folder, f'trial_{trial}_{aff}_dummy_video.mp4')
 
                                     # Define the codec and create VideoWriter object
                                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for .mp4 file
@@ -69,14 +69,40 @@ for p in range(1, n_p + 1):
                             if trial > n_trials / 2:
                                 aff = "L_affected"
 
-                            folder = os.path.join(root, f"P{p:02d}", l1, l2, l3, f"cam{cam}", f"trial{trial}_{aff}[...]_json")
+                            folder = os.path.join(root, f"P{p:02d}", l1, l2, l3, f"cam{cam}", f"trial_{trial}_{aff}_json")
                             os.makedirs(folder, exist_ok=True)
                             progress.update(1)
                             for frame in range(n_frames):
                                 dummy_json_data = {"data": f"Dummy data for frame {frame}"}
-                                json_file_path = os.path.join(folder, f"trial{trial}_{aff}_{frame:12d}_keypoints.json")
+                                json_file_path = os.path.join(folder, f"trial_{trial}_{aff}_{frame:06d}_keypoints.json")
                                 progress.update(1)
 
             else:
                 os.makedirs(os.path.join(root, f"P{p:02d}", l1, l2), exist_ok=True)
                 progress.update(1)
+
+progress.close()
+root_pe = r"C:\iDrink\validation_root\02_pose_estimation"
+list_filtered = ["01_unfiltered", "02_filtered"]
+pe_frameworks = ["mmpose", "pose2sim", "openpose"]
+
+progress = tqdm(total=len(list_filtered) * n_p * n_cams * len(pe_frameworks) * n_trials, desc="Creating dummy trials for p2s")
+for filt in list_filtered:
+    for p in range(1, n_p + 1):
+        for cam in range(1, n_cams + 1):
+            for framework in pe_frameworks:
+                for trial in range(1, n_trials + 1):
+                    aff = "R_unaffected"
+                    if trial > n_trials / 2:
+                        aff = "L_affected"
+
+                    folder = os.path.join(root_pe, filt, f"P{p:02d}", f"cam{cam}", framework,
+                                          f"trial_{trial}_{aff}")
+                    os.makedirs(folder, exist_ok=True)
+                    for frame in range(n_frames):
+                        dummy_json_data = {"data": f"Dummy data for frame {frame}"}
+                        json_file_path = os.path.join(folder, f"trial_{trial}_{aff}_{frame:06d}_keypoints.json")
+                        json.dump(dummy_json_data, open(json_file_path, "w"))
+                    progress.update(1)
+
+

@@ -667,13 +667,15 @@ class Trial:
         self.config_dict['triangulation']['interp_if_gap_smaller_than'] = 400"""
 
         Pose2Sim.calibration(config=self.config_dict)
-        if self.used_framework == "Pose2Sim":
+
+        # Pose Estimation not used for iDrink validation. It is done seperatly.
+        """if self.used_framework == "Pose2Sim":
             # Change the config_dict so that
             if self.pose_model == "Coco17_UpperBody":
                 self.config_dict['pose']['pose_model'] = 'COCO_17'
-            #Pose2Sim.poseEstimation(config=self.config_dict)
-
-            self.config_dict['pose']['pose_model'] = self.pose_model
+            Pose2Sim.poseEstimation(config=self.config_dict)
+            
+            self.config_dict['pose']['pose_model'] = self.pose_model"""
 
         Pose2Sim.synchronization(config=self.config_dict)
         Pose2Sim.personAssociation(config=self.config_dict)

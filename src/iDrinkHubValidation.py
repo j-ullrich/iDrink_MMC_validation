@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import re
+import shutil
 from tqdm import tqdm
 
 import argparse
@@ -60,7 +61,8 @@ root_OMC = r"C:\iDrink\OMC_data_newStruct"  # Root directory of all OMC-Data -->
 root_val = r"C:\iDrink\validation_root"  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 root_data = os.path.join(root_val, "03_data")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
-df_settings = pd.read_csv(os.path.join(root_val, "validation_settings.csv"), sep=';')
+
+df_settings = pd.read_csv(os.path.join(root_val, "validation_settings.csv"), sep=';')  # csv containing information for the various settings in use.
 
 def run_full_pipeline(trial_list, mode):
     """
@@ -95,25 +97,27 @@ def create_trial_objects():
     :param:
     :return trial_list: List of Trial Objects
     """
+
+    if sys.gettrace() is not None:  # If Debugger is in Use, limit settings to first 10
+        n_settings = 10
+    else:
+        n_settings = df_settings["setting_id"].max()
+
+
+
     def trials_from_video():
         """
         Creates the trial objects for the Pose Estimation Pipeline.
 
         :return:
         """
-        if sys.gettrace() is not None:  # If Debugger is in Use, limit settings to first 10
-            n_settings = 10
-        else:
-            n_settings = df_settings["setting_id"].max()
+
 
         trials_df = pd.DataFrame(
             columns=["setting_id", "patient_id", "trial_id", "identifier", "affected", "side", "cam_setting",
                      "cams_used", "videos_used", "session_dir", "participant_dir", "trial_dir", "dir_calib"])
         if args.verbose >= 1:
             progress_bar = tqdm(total=n_settings, desc="Creating Trial-DataFrame", unit="Setting")
-
-        if args.mode == "pose_estimation":
-            n_settings = 1
 
         for setting_id in range(1, n_settings+1):
             id_s = f"S{setting_id:03d}"  # get Setting ID for use as Session ID in the Pipeline
@@ -123,7 +127,7 @@ def create_trial_objects():
 
 
             # Create Setting folder if not yet done
-            dir_setting = os.path.join(root_data, f"setting_{setting_id}")
+            dir_setting = os.path.join(root_data, f"setting_{setting_id:03d}")
             if not os.path.exists(dir_setting):
                 os.makedirs(dir_setting, exist_ok=True)
 
@@ -184,7 +188,7 @@ def create_trial_objects():
                     except:
                         affected = 'affected'
 
-                    side = re.search(r'R|L', video_file).group(0)
+                    side = re.search(r'[RL]', video_file).group(0)
                     cam = re.search(r'(cam\d+)', video_file).group(0)
 
 
@@ -265,11 +269,201 @@ def create_trial_objects():
         if args.verbose >= 1:
             progress_bar.close()
 
-        # Run the pipeline
+        # Return the trial_list
         return trial_list
 
     def trials_from_json():
-        pass
+        """
+                Creates the trial objects for the Pose Estimation Pipeline.
+
+                :return:
+                """
+
+        # get number of settings from setting folders present in root_val\03_data
+
+        dirs_setting = glob.glob(os.path.join(root_data, "setting_*"))
+
+        trials_df = pd.DataFrame(
+            columns=["setting_id", "patient_id", "trial_id", "identifier", "affected", "side", "cam_setting",
+                     "cams_used", "videos_used", "session_dir", "participant_dir", "trial_dir", "dir_calib", 'json_list'])
+
+        n = len(dirs_setting)
+        for dir_setting in dirs_setting:
+            setting_id = int(os.path.basename(dir_setting).split('_')[1])
+
+            # get Setting ID for use as Session ID in the Pipeline
+            id_s = f"S{setting_id:03d}"
+            # Check whether Cam is used for Setting
+            cam_setting = df_settings.loc[df_settings["setting_id"] == setting_id, "cam_setting"].values[0]
+            # Get the tuple of cams for the setting
+            cams_tuple = eval(df_settings.loc[df_settings["setting_id"] == setting_id, "cams"].values[0])
+
+            dirs_participant = glob.glob(os.path.join(dir_setting, "P[0-9]*"))
+
+            n *= len(dirs_participant)
+            for dir_participant in dirs_participant:
+
+
+                dir_session = glob.glob(os.path.join(dir_participant, f"{id_s}"))[0]
+                dir_calib = glob.glob(os.path.join(dir_participant, f"{id_s}_Calibration"))[0]
+
+                id_p = re.search(r'(P\d+)', dir_participant).group()
+                dir_p = glob.glob(os.path.join(dir_session, f"{id_s}_{id_p}"))[0]
+
+                dirs_trial = glob.glob(os.path.join(dir_p, f"{id_s}_{id_p}_T[0-9]*"))
+                n *= len(dirs_trial)
+
+
+
+
+                for dir_trial in dirs_trial:
+                    id_t = re.search(r'(T\d+)', dir_trial).group()
+                    identifier = f"{id_s}_{id_p}_{id_t}"
+
+                    try:
+                        if args.verbose >= 1:
+                            progress_bar.update(1)
+                    except NameError:
+                        if args.verbose >= 1:
+                            progress_bar = tqdm(total=n, desc="Creating Trial-DataFrame", unit="Trial")
+
+                    if args.verbose >= 2:
+                        print("Creating: ", identifier)
+
+                    if identifier not in trials_df["identifier"].values:
+                        # Add new row to dataframe only containing the trial_id
+                        identifier = f"{id_s}_{id_p}_{id_t}"
+                        new_row = pd.Series(
+                            {"setting_id": id_s, "patient_id": id_p, "trial_id": id_t, "identifier": identifier,
+                             "cams_used": "", "videos_used": "",})
+                        trials_df = pd.concat([trials_df, new_row.to_frame().T], ignore_index=True)
+
+                    # Make sure, we only iterate over videos, that correspond to the correct camera
+                    filt = df_settings.loc[df_settings["setting_id"] == setting_id, "filtered_2d_keypoints"].values[0]
+                    filt = '01_unfiltered' if filt == 'unfiltered' else '02_filtered'
+
+                    cam_root = os.path.join(root_val, "02_pose_estimation", filt, id_p)
+                    pattern = "".join([f"{i}" for i in cams_tuple])
+
+                    pattern = re.compile(f'cam[{pattern}]*').pattern
+                    cam_folders = glob.glob(os.path.join(cam_root, pattern))
+                    dir_pose = os.path.join(dir_trial, 'pose')
+                    cams_used = []
+
+                    for cam_folder in cam_folders:
+                        trial_number = int(id_t.split('T')[1])
+                        dir_json_pose = glob.glob(os.path.join(cam_folder, args.poseback, f'trial_{trial_number}_*'))[0]
+
+                        try:
+                            affected = re.search(r'unaffected', dir_json_pose).group(0)
+                        except:
+                            affected = 'affected'
+
+                        side = re.search(r'[RL]', dir_json_pose).group(0)
+                        cam = re.search(r'(cam\d+)', dir_json_pose).group(0)
+                        cams_used.append(cam)
+
+                        json_list = glob.glob(os.path.join(dir_json_pose, "*.json"))
+                        # Create subfolder of trial\pose
+
+                        target_dir = os.path.join(dir_pose, f"{cam}_{identifier}_json")
+                        if not os.path.exists(target_dir):
+                            os.makedirs(target_dir, exist_ok=True)
+
+                        #Copy all json-files in json_list into target_dir
+                        for json_file in json_list:
+                            shutil.copy2(json_file, target_dir)
+
+                    trials_df.loc[trials_df["identifier"] == identifier, "affected"] = affected
+                    trials_df.loc[trials_df["identifier"] == identifier, "side"] = side
+                    trials_df.loc[trials_df["identifier"] == identifier, "cam_setting"] = cam_setting
+
+                    trials_df.loc[trials_df["identifier"] == identifier, "session_dir"] = dir_session
+                    trials_df.loc[trials_df["identifier"] == identifier, "participant_dir"] = dir_p
+                    trials_df.loc[trials_df["identifier"] == identifier, "trial_dir"] = dir_trial
+                    trials_df.loc[trials_df["identifier"] == identifier, "dir_calib"] = dir_calib
+
+                    trials_df.loc[trials_df["identifier"] == identifier, "cams_used"] = ", ".join(cams_used)
+                    trials_df.loc[trials_df["identifier"] == identifier, "json_list"] = ", ".join(json_list)
+
+                    root_video = os.path.join(root_MMC, id_p, "01_measurement", "04_Video", "03_Cut", "drinking")
+                    video_files = []
+                    for cam in cams_used:
+                        video = glob.glob(os.path.join(root_video, f"{cam}", f"trial_{trial_number}_*"))[0]
+
+
+                    trials_df.loc[trials_df["identifier"] == identifier, "videos_used"] = (
+                            trials_df.loc[trials_df["identifier"] == identifier, "videos_used"] +
+                            ", " + str(video_files))
+
+
+
+        if args.verbose >= 1:
+            progress_bar.close()
+
+        if args.verbose >= 1:
+            progress_bar = tqdm(total=trials_df["identifier"].shape[0], desc="Creating Trial Objects:",
+                                unit="Trial")
+
+        trial_list = []
+        for identifier in trials_df["identifier"]:
+
+            if args.verbose >= 2:
+                print(f"Setting and Videos for {identifier} are: ",
+                      trials_df.loc[trials_df["identifier"] == identifier, "setting_id"].values[0],
+                      trials_df.loc[trials_df["identifier"] == identifier, "videos_used"].values[0])
+
+            # get list from strings of videos and cams
+            videos = trials_df.loc[trials_df["identifier"] == identifier, "videos_used"].values[0].split(", ")
+            cams = trials_df.loc[trials_df["identifier"] == identifier, "cams_used"].values[0].split(", ")
+            affected = trials_df.loc[trials_df["identifier"] == identifier, "affected"].values[
+                0]  # get Participant ID for use in the Pipeline
+            side = trials_df.loc[trials_df["identifier"] == identifier, "side"].values[
+                0]  # get Participant ID for use in the Pipeline
+
+            id_s = trials_df.loc[trials_df["identifier"] == identifier, "setting_id"].values[
+                0]  # get Setting ID for use as Session ID in the Pipeline
+            id_p = trials_df.loc[trials_df["identifier"] == identifier, "patient_id"].values[
+                0]  # get Participant ID for use in the Pipeline
+            id_t = trials_df.loc[trials_df["identifier"] == identifier, "trial_id"].values[
+                0]  # get Trial ID for use in the Pipeline
+
+            s_dir = trials_df.loc[trials_df["identifier"] == identifier, "session_dir"].values[
+                0]  # get Session Directory for use in the Pipeline
+            p_dir = trials_df.loc[trials_df["identifier"] == identifier, "participant_dir"].values[
+                0]  # get Participant Directory for use in the Pipeline
+            t_dir = trials_df.loc[trials_df["identifier"] == identifier, "trial_dir"].values[
+                0]  # get Trial Directory for use in the Pipeline
+
+            # Create the trial object
+            trial = iDrinkTrial.Trial(identifier=identifier, id_s=id_s, id_p=id_p, id_t=id_t,
+                                      dir_root=root_data, dir_default=default_dir,
+                                      dir_trial=t_dir, dir_participant=p_dir, dir_session=s_dir,
+                                      affected=affected, measured_side=side,
+                                      video_files=videos, used_cams=cams,
+                                      used_framework=args.poseback, pose_model="Coco17_UpperBody")
+            trial.create_trial()
+            trial.load_configuration()
+
+            trial.config_dict["pose"]["videos"] = videos
+            trial.config_dict["pose"]["cams"] = cams
+
+            trial.config_dict.get("project").update({"project_dir": trial.dir_trial})
+            trial.config_dict['pose']['pose_framework'] = trial.used_framework
+            trial.config_dict['pose']['pose_model'] = trial.pose_model
+
+            trial.save_condiguration()
+
+            trial_list.append(trial)
+
+            if args.verbose >= 1:
+                progress_bar.update(1)
+        if args.verbose >= 1:
+            progress_bar.close()
+
+        # Return the trial_list
+        return trial_list
+
 
     def trials_from_p2s():
         pass
@@ -283,16 +477,15 @@ def create_trial_objects():
     def trials_from_csv():
         pass
 
+    # TODO: Write information about trials as csv and give the possibility to load the information from a .csv file. CAVE: trial_list still needs to be created seperatly.
     match args.mode:
         case "pose_estimation":
             print("creating trial objects for Pose Estimation")
-            trial_list = trials_from_video()
-            return trial_list
-
+            return trials_from_video()
 
         case "pose2sim":
             print("creating trial objects for Pose2Sim")
-            from Pose2Sim import Pose2Sim
+            return trials_from_json()
 
 
         case "opensim":
@@ -376,6 +569,7 @@ def run_mode():
                                                                            filter_2d=True, DEBUG=False)"""
 
                 case "pose2sim":
+                    from Pose2Sim import Pose2Sim
                     print("Pose Estimation mode: Pose2Sim starting.")
                     for trial in trial_list:
                         # Change the config_dict so that the correct pose model is used
@@ -394,8 +588,18 @@ def run_mode():
                     sys.exit(1)
 
 
-        case "pose2sim":  # Runs only the Pose2Sim
+        case "pose2sim":  # Runs only Pose2Sim
             print("Johann, take this out")
+            from Pose2Sim import Pose2Sim
+            p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
+            for trial in trial_list:
+                trial.run_pose2sim()
+
+                p2s_progress.update(1)
+
+            p2s_progress.close()
+
+
 
         case "opensim":  # Runs only Opensim
             print("Johann, take this out")
@@ -422,7 +626,8 @@ if __name__ == '__main__':
     if args.DEBUG or sys.gettrace() is not None:
         print("Debug Mode is activated\n"
               "Starting debugging script.")
-        args.mode = 'pose_estimation'
+        args.mode = "pose_estimation"
+        args.mode = 'pose2sim'
         args.poseback = 'mmpose'
 
 
