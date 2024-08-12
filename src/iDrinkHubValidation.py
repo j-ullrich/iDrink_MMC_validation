@@ -64,6 +64,14 @@ default_dir = os.path.join(root_val, "01_default_files")  # Default Files for th
 
 df_settings = pd.read_csv(os.path.join(root_val, "validation_settings.csv"), sep=';')  # csv containing information for the various settings in use.
 
+try:
+    df_trials = pd.read_csv(os.path.join(root_val, "validation_trials.csv"), sep=';')  # csv containing information for the various settings in use.
+except FileNotFoundError:
+    print("No .csv file for trials found.")
+    df_trials = None
+
+
+
 def run_full_pipeline(trial_list, mode):
     """
     Runs the pipeline for the given trial list.
@@ -103,7 +111,122 @@ def create_trial_objects():
     else:
         n_settings = df_settings["setting_id"].max()
 
+    def trials_to_csv(trial_list, csv_path):
+        """
+        Writes the information of the trials to a csv file.
 
+        The .csv  should have the following Columns:
+
+            HPE_done: Boolean tells whether Pose estimation has been done.
+            P2S_done: Boolean tells whether Pose2Sim has been done.
+            OS_done: Boolean tells whether Opensim has been done.
+            MM_done: Boolean tells whether Murphy Measures have been done.
+            stat_done: Boolean tells whether Statistics have been done.
+
+            setting_id: Setting ID
+            patient_id: Patient ID
+            trial_id: Trial ID
+            identifier: Identifier of the trial
+            affected: Affected or Unaffected
+            side: Side of the body that is affected
+            cam_setting: Camera Setting used for the trial
+            cams_used: cams used for the trial
+            videos_used: List of video files used for the trial
+            session_dir: Directory of the session
+            participant_dir: Directory of the participant
+            trial_dir: Directory of the trial
+            dir_calib: Directory of the calibration files
+            json_list: Original position of the json files
+
+            TODO: Add other variables to csv when integrated into the pipeline
+
+
+        :param trial_list:
+        :param csv_path:
+        :return:
+        """
+        df_trials = pd.DataFrame(columns=["HPE_done", "P2S_done", "OS_done", "MM_done", "stat_done",
+                                          "setting_id", "patient_id", "trial_id", "identifier",
+                                          "affected", "side", "cam_setting", "cams_used", "videos_used",
+                                          "session_dir", "participant_dir", "trial_dir", "dir_calib", "json_list"])
+        for trial in trial_list:
+            if args.verbose >= 2:
+                print(f"adding trial {trial.identifier} to csv file.")
+
+            HPE_done = trial.HPE_done
+            P2S_done = trial.P2S_done
+            OS_done = trial.OS_done
+            MM_done = trial.MM_done
+            stat_done = trial.stat_done
+            setting_id = trial.id_s
+            patient_id = trial.id_p
+            trial_id = trial.id_t
+            identifier = trial.identifier
+            affected = trial.affected
+            side = trial.measured_side
+            cam_setting = trial.config_dict["cam_setting"]
+            cams_used = ", ".join(trial.used_cams)
+            videos_used = ", ".join(trial.video_files)
+            session_dir = trial.dir_session
+            participant_dir = trial.dir_participant
+            trial_dir = trial.dir_trial
+            dir_calib = trial.dir_calib
+            json_list = trial.config_dict["pose"]["json_list"]
+            new_row = pd.Series({"HPE_done": HPE_done, "P2S_done": P2S_done, "OS_done": OS_done, "MM_done": MM_done,
+                                 "stat_done": stat_done,
+                                 "setting_id": setting_id, "patient_id": patient_id, "trial_id": trial_id,
+                                 "identifier": identifier, "affected": affected, "side": side,
+                                 "cam_setting": cam_setting, "cams_used": cams_used, "videos_used": videos_used,
+                                 "session_dir": session_dir, "participant_dir": participant_dir,
+                                 "trial_dir": trial_dir, "dir_calib": dir_calib, "json_list": json_list})
+            df_trials = pd.concat([df_trials, new_row.to_frame().T], ignore_index=True)
+
+        df_trials.to_csv(csv_path, sep=';', index=False)
+
+
+    def trials_from_csv():
+        """
+        Creates the trial objects based on the csv file.
+        :return: trial_list
+        """
+        trial_list = []
+        for index, row in df_trials.iterrows():
+            id_s = row["setting_id"]
+            id_p = row["patient_id"]
+            id_t = row["trial_id"]
+            identifier = row["identifier"]
+
+            s_dir = row["session_dir"]
+            p_dir = row["participant_dir"]
+            t_dir = row["trial_dir"]
+
+            videos = row["videos_used"].split(", ")
+            cams = row["cams_used"].split(", ")
+            affected = row["affected"]
+            side = row["side"]
+
+            # Create the trial object
+            trial = iDrinkTrial.Trial(identifier=identifier, id_s=id_s, id_p=id_p, id_t=id_t,
+                                      dir_root=root_data, dir_default=default_dir,
+                                      dir_trial=t_dir, dir_participant=p_dir, dir_session=s_dir,
+                                      affected=affected, measured_side=side,
+                                      video_files=videos, used_cams=cams,
+                                      used_framework=args.poseback, pose_model="Coco17_UpperBody")
+            trial.create_trial()
+            trial.load_configuration()
+
+            trial.config_dict["pose"]["videos"] = videos
+            trial.config_dict["pose"]["cams"] = cams
+
+            trial.config_dict.get("project").update({"project_dir": trial.dir_trial})
+            trial.config_dict['pose']['pose_framework'] = trial.used_framework
+            trial.config_dict['pose']['pose_model'] = trial.pose_model
+
+            trial.save_configuration()
+
+            trial_list.append(trial)
+
+        return trial_list
 
     def trials_from_video():
         """
@@ -250,6 +373,9 @@ def create_trial_objects():
                                       affected=affected, measured_side=side,
                                       video_files=videos, used_cams=cams,
                                       used_framework=args.poseback, pose_model="Coco17_UpperBody")
+
+            trial.cam_setting = trials_df.loc[trials_df["identifier"] == identifier, "cam_setting"].values[0]
+
             trial.create_trial()
             trial.load_configuration()
 
@@ -260,7 +386,7 @@ def create_trial_objects():
             trial.config_dict['pose']['pose_framework'] = trial.used_framework
             trial.config_dict['pose']['pose_model'] = trial.pose_model
 
-            trial.save_condiguration()
+            trial.save_configuration()
 
             trial_list.append(trial)
 
@@ -390,6 +516,7 @@ def create_trial_objects():
                     video_files = []
                     for cam in cams_used:
                         video = glob.glob(os.path.join(root_video, f"{cam}", f"trial_{trial_number}_*"))[0]
+                        video_files.append(video)
 
 
                     trials_df.loc[trials_df["identifier"] == identifier, "videos_used"] = (
@@ -402,7 +529,7 @@ def create_trial_objects():
             progress_bar.close()
 
         if args.verbose >= 1:
-            progress_bar = tqdm(total=trials_df["identifier"].shape[0], desc="Creating Trial Objects:",
+            progress_bar = tqdm(total=trials_df["identifier"].shape[0], desc="Creating Trial Objects",
                                 unit="Trial")
 
         trial_list = []
@@ -442,6 +569,9 @@ def create_trial_objects():
                                       affected=affected, measured_side=side,
                                       video_files=videos, used_cams=cams,
                                       used_framework=args.poseback, pose_model="Coco17_UpperBody")
+
+            trial.cam_setting = trials_df.loc[trials_df["identifier"] == identifier, "cam_setting"].values[0]
+
             trial.create_trial()
             trial.load_configuration()
 
@@ -452,7 +582,7 @@ def create_trial_objects():
             trial.config_dict['pose']['pose_framework'] = trial.used_framework
             trial.config_dict['pose']['pose_model'] = trial.pose_model
 
-            trial.save_condiguration()
+            trial.save_configuration()
 
             trial_list.append(trial)
 
@@ -474,34 +604,43 @@ def create_trial_objects():
     def trials_from_murphy():
         pass
 
-    def trials_from_csv():
-        pass
-
-    # TODO: Write information about trials as csv and give the possibility to load the information from a .csv file. CAVE: trial_list still needs to be created seperatly.
-    match args.mode:
-        case "pose_estimation":
-            print("creating trial objects for Pose Estimation")
-            return trials_from_video()
-
-        case "pose2sim":
-            print("creating trial objects for Pose2Sim")
-            return trials_from_json()
 
 
-        case "opensim":
-            print("creating trial objects for Opensim")
+    if df_trials is not None:
+        trial_list = trials_from_csv()
+    else:
+        # Create the trial objects depending on the mode
+        match args.mode:
+            case "pose_estimation":
+                print("creating trial objects for Pose Estimation")
+                trial_list = trials_from_video()
 
-        case "murphy_measures":
-            print("creating trial objects for Murphy Measures")
+            case "pose2sim":
+                print("creating trial objects for Pose2Sim")
+                trial_list = trials_from_json()
 
-        case "statistics":
-            print("creating trial objects for Statistics")
 
-        case "full":
-            print("creating trial objects for Full Pipeline")
-        case _:
-            print("No Mode was given. Please specify a mode.")
-            sys.exit(1)
+
+            case "opensim":
+                print("creating trial objects for Opensim")
+
+            case "murphy_measures":
+                print("creating trial objects for Murphy Measures")
+
+            case "statistics":
+                print("creating trial objects for Statistics")
+
+            case "full":
+                print("creating trial objects for Full Pipeline")
+            case _:
+                print("No Mode was given. Please specify a mode.")
+                sys.exit(1)
+
+        trials_to_csv(trial_list, os.path.join(root_val, "validation_trials.csv"))
+
+    return trial_list
+
+
 
 
 

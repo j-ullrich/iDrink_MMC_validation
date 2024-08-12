@@ -86,7 +86,17 @@ class Trial:
                  stabilize_hip=True, correct_skeleton=False, chosen_components=None, show_confidence_intervall=False,
                  use_analyze_tool=False, bod_kin_p2s=False, use_torso=True, is_reference=False):
 
+        """These variables are only for the validation. They can be deleted for deployment."""
 
+        # Booleans for the different steps in the pipeline
+        self.HPE_done = False
+        self.P2S_done = False
+        self.OS_done = False
+        self.MM_done = False
+        self.stat_done = False
+        self.cam_setting = None
+
+        """Variables for Deployment"""
         # Trial Info
         self.id_s = id_s
         self.id_p = id_p
@@ -459,7 +469,7 @@ class Trial:
 
         return self.config_dict
 
-    def save_condiguration(self):
+    def save_configuration(self):
         """Saves config_digt to path in self.path_config"""
         import toml
 
