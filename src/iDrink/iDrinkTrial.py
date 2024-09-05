@@ -79,7 +79,7 @@ class Trial:
                  dir_calib_videos=None, dir_calib_files=None, dir_participant=None, dir_trial=None,
                  date_time=None, path_config=None, skip=False, skip_reason=None, affected=False,
                  frame_rate=60, rec_resolution=(1920, 1080), clean_video=True,
-                 used_cams=None, video_files=None, path_calib_videos=None,
+                 used_cams=None, video_files=None, path_calib_videos=None, json_list=None,
 
                  config_dict=None, path_calib=None, calib=None, used_framework=None, pose_model=None, measured_side=None,
 
@@ -90,6 +90,7 @@ class Trial:
 
         # Booleans for the different steps in the pipeline
         self.HPE_done = False
+        self.calib_done = False
         self.P2S_done = False
         self.OS_done = False
         self.MM_done = False
@@ -145,6 +146,8 @@ class Trial:
 
         self.video_files = video_files  # List of Recordings if not in dir_recordings (Move them to dir_recordings before running the pipeline)
         self.path_calib_videos = path_calib_videos  # List of Calibration Videos if not in dir_calib_videos (Move them to dir_calib_videos before running the pipeline)
+
+        self.json_list = json_list
 
 
         # Visual Output
@@ -324,6 +327,7 @@ class Trial:
             self.dir_recordings,
             self.dir_rec_blurred,
             self.render_out,
+            self.dir_calib,
             os.path.realpath(os.path.join(self.dir_trial, "pose")),
             os.path.realpath(os.path.join(self.dir_trial, "pose-3d")),
             os.path.realpath(os.path.join(self.dir_trial, "pose-associated")),

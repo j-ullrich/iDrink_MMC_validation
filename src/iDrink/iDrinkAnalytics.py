@@ -19,7 +19,7 @@ def smooth_timeseries(curr_trial, data, factor=4):
 
     return result
 
-def use_butterworth_filter(curr_trial, data, cutoff, fs, order=5):
+def use_butterworth_filter(curr_trial, data, cutoff, fs, order=4, normcutoff=False):
     """
     Input:
         - data: The data to be filtered
@@ -30,9 +30,9 @@ def use_butterworth_filter(curr_trial, data, cutoff, fs, order=5):
     Output:
         - filtered_data: The filtered data
     """
-    from scipy.signal import butter, lfilter, sosfilt
+    from scipy.signal import butter, sosfiltfilt
 
-    fs = curr_trial.frame_rate
+    order = order/2  # Order is "doubled" again by using filter 2 times
 
     nyquist = 0.5 * fs
 
@@ -40,12 +40,13 @@ def use_butterworth_filter(curr_trial, data, cutoff, fs, order=5):
         print(f"Warning: Cutoff frequency {cutoff} is higher than Nyquist frequency {nyquist}.")
         print("Filtering with Nyquist frequency.")
         cutoff = nyquist-1
-    normal_cutoff = cutoff / nyquist
-    #b, a = butter(order, normal_cutoff, btype="low", analog=False)
-    # filtered_data = lfilter(b, a, data)
 
-    sos = butter(order, normal_cutoff, btype="low", analog=False, output="sos")
-    filtered_data = sosfilt(sos, data)
+    if normcutoff:
+        cutoff = cutoff / nyquist
+
+    sos = butter(order, cutoff, btype="low", analog=False, output="sos", fs=fs)
+
+    filtered_data = sosfiltfilt(sos, data)
 
 
     return filtered_data

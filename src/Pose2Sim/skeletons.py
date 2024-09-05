@@ -488,8 +488,116 @@ COCO_17 = Node("CHip", id=None, children=[
 
 """Custom Skeletons by Johann Ullrich"""
 
-'''Coco17_UpperBody
+'''coco_19
 
+Fullbody model of coco for the use with metrabs
+
+COCO keypoints
+
+0: 'neck'
+1: 'nose'
+2: 'pelv'
+3: 'lsho'
+4: 'lelb'
+5: 'lwri', 
+6: 'lhip', 
+7: 'lkne',
+8: 'lank', 
+9: 'rsho', 
+10: 'relb', 
+11: 'rwri', 
+12: 'rhip', 
+13: 'rkne', 
+14: 'rank', 
+15: 'leye',
+16: 'lear', 
+17: 'reye', 
+18: 'rear'
+'''
+
+coco_19 = Node("neck", id=0, children=[
+    Node("nose", id=1),
+    Node("pelv", id=2, children=[
+        Node("lsho", id=3, children=[
+            Node("lelb", id=4, children=[
+                Node("lwri", id=5),
+            ]),
+        ]),
+        Node("lhip", id=6, children=[
+            Node("lkne", id=7, children=[
+                Node("lank", id=8),
+            ]),
+        ]),
+        Node("rsho", id=9, children=[
+            Node("relb", id=10, children=[
+                Node("rwri", id=11),
+            ]),
+        ]),
+        Node("rhip", id=12, children=[
+            Node("rkne", id=13, children=[
+                Node("rank", id=14),
+            ]),
+        ]),
+    ]),
+    Node("leye", id=15, children=[
+        Node("lear", id=16),
+    ]),
+    Node("reye", id=17, children=[
+        Node("rear", id=18),
+    ]),
+])
+
+'''coco_19_upper
+
+Upper Body model of coco for the use with metrabs
+
+COCO keypoints
+
+0: 'neck'
+1: 'nose'
+2: 'pelv'
+3: 'lsho'
+4: 'lelb'
+5: 'lwri', 
+6: 'lhip', 
+7: 'lkne',
+8: 'lank', 
+9: 'rsho', 
+10: 'relb', 
+11: 'rwri', 
+12: 'rhip', 
+13: 'rkne', 
+14: 'rank', 
+15: 'leye',
+16: 'lear', 
+17: 'reye', 
+18: 'rear'
+'''
+coco_19_upper = Node("neck", id=0, children=[
+    Node("nose", id=1),
+    Node("pelv", id=2, children=[
+        Node("lsho", id=3, children=[
+            Node("lelb", id=4, children=[
+                Node("lwri", id=5),
+            ]),
+        ]),
+        Node("lhip", id=6),
+        Node("rsho", id=9, children=[
+            Node("relb", id=10, children=[
+                Node("rwri", id=11),
+            ]),
+        ]),
+        Node("rhip", id=12),
+    ]),
+    Node("leye", id=15, children=[
+        Node("lear", id=16),
+    ]),
+    Node("reye", id=17, children=[
+        Node("rear", id=18),
+    ]),
+])
+
+'''Coco17_UpperBody
     COCO keypoints::
 
         0: 'nose',
@@ -621,4 +729,200 @@ B25_UPPER_Ears = Node("CHip", id=8, children=[
             ]),
         ]),
     ]),
+])
+
+'''bml_movi_87
+
+Skeleton for the full_body bml_movi_87 model used for metrabs. Not all marker are implemented in the Opensim model. 
+But for completeness all markers are listed here and triangulated.
+
+0: 'backneck'
+1: 'upperback'
+2: 'clavicle'
+3: 'sternum'
+4: 'umbilicus'
+5: 'lfronthead'
+6: 'lbackhead'
+7: 'lback'
+8: 'lshom'
+9: 'lupperarm'
+10: 'lelbm'
+11: 'lforearm'
+12: 'lwrithumbside'
+13: 'lwripinkieside'
+14: 'lfin'
+15: 'lasis'
+16: 'lpsis'
+17: 'lfrontthigh'
+18: 'lthigh'
+19: 'lknem'
+20: 'lankm'
+21: 'lhee'
+22: 'lfifthmetatarsal'
+23: 'ltoe'
+24: 'lcheek'
+25: 'lbreast'
+26: 'lelbinner'
+27: 'lwaist'
+28: 'lthumb'
+29: 'lfrontinnerthigh'
+30: 'linnerknee'
+31: 'lshin'
+32: 'lfirstmetatarsal'
+33: 'lfourthtoe'
+34: 'lscapula'
+35: 'lbum'
+36: 'rfronthead'
+37: 'rbackhead'
+38: 'rback'
+39: 'rshom'
+40: 'rupperarm'
+41: 'relbm'
+42: 'rforearm'
+43: 'rwrithumbside'
+44: 'rwripinkieside'
+45: 'rfin'
+46: 'rasis'
+47: 'rpsis'
+48: 'rfrontthigh'
+49: 'rthigh'
+50: 'rknem'
+51: 'rankm'
+52: 'rhee'
+53: 'rfifthmetatarsal'
+54: 'rtoe'
+55: 'rcheek'
+56: 'rbreast'
+57: 'relbinner'
+58: 'rwaist'
+59: 'rthumb'
+60: 'rfrontinnerthigh'
+61: 'rinnerknee'
+62: 'rshin'
+63: 'rfirstmetatarsal'
+64: 'rfourthtoe'
+65: 'rscapula'
+66: 'rbum'
+67: 'head'
+68: 'mhip'
+69: 'pelv'
+70: 'thor'
+71: 'lank'
+72: 'lelb'
+73: 'lhip'
+74: 'lhan'
+75: 'lkne'
+76: 'lsho'
+77: 'lwri'
+78: 'lfoo'
+79: 'rank'
+80: 'relb'
+81: 'rhip'
+82: 'rhan'
+83: 'rkne'
+84: 'rsho'
+85: 'rwri'
+86: 'rfoo'
+'''
+
+bml_movi_87 = Node("backneck", id=0, children=[
+    Node("head", id=67, children=[
+        Node("thor", id=70, children=[
+            Node("pelv", id=69, children=[
+                Node("mhip", id=68, children=[
+                    Node("rhip", id=81, children=[
+                        Node("rkne", id=83, children=[
+                            Node("rank", id=79, children=[
+                                Node("rfoo", id=86)
+                            ]),
+                        ])
+                    ]),
+                    Node("lhip", id=73, children=[
+                        Node("lkne", id=75, children=[
+                            Node("lank", id=71, children=[
+                                Node("lfoo", id=78)
+                            ]),
+                        ])
+                    ]),
+                ])
+            ]),
+            Node("lsho", id=76, children=[
+                Node("lelb", id=72, children=[
+                    Node("lwri", id=77)
+                ]),
+            ]),
+            Node("rsho", id=84, children=[
+                Node("relb", id=80, children=[
+                         Node("rwri", id=85)
+                ]),
+            ])
+        ])
+    ]),
+
+    Node("upperback", id=1),
+    Node("clavicle", id=2),
+    Node("sternum", id=3),
+    Node("umbilicus", id=4),
+    Node("lfronthead", id=5),
+    Node("lbackhead", id=6),
+    Node("lback", id=7),
+    Node("lshom", id=8),
+    Node("lupperarm", id=9),
+    Node("lelbm", id=10),
+    Node("lforearm", id=11),
+    Node("lwrithumbside", id=12),
+    Node("lwripinkieside", id=13),
+    Node("lfin", id=14),
+    Node("lasis", id=15),
+    Node("lpsis", id=16),
+    Node("lfrontthigh", id=17),
+    Node("lthigh", id=18),
+    Node("lknem", id=19),
+    Node("lankm", id=20),
+    Node("lhee", id=21),
+    Node("lfifthmetatarsal", id=22),
+    Node("ltoe", id=23),
+    Node("lcheek", id=24),
+    Node("lbreast", id=25),
+    Node("lelbinner", id=26),
+    Node("lwaist", id=27),
+    Node("lthumb", id=28),
+    Node("lfrontinnerthigh", id=29),
+    Node("linnerknee", id=30),
+    Node("lshin", id=31),
+    Node("lfirstmetatarsal", id=32),
+    Node("lfourthtoe", id=33),
+    Node("lscapula", id=34),
+    Node("lbum", id=35),
+    Node("rfronthead", id=36),
+    Node("rbackhead", id=37),
+    Node("rback", id=38),
+    Node("rshom", id=39),
+    Node("rupperarm", id=40),
+    Node("relbm", id=41),
+    Node("rforearm", id=42),
+    Node("rwrithumbside", id=43),
+    Node("rwripinkieside", id=44),
+    Node("rfin", id=45),
+    Node("rasis", id=46),
+    Node("rpsis", id=47),
+    Node("rfrontthigh", id=48),
+    Node("rthigh", id=49),
+    Node("rknem", id=50),
+    Node("rankm", id=51),
+    Node("rhee", id=52),
+    Node("rfifthmetatarsal", id=53),
+    Node("rtoe", id=54),
+    Node("rcheek", id=55),
+    Node("rbreast", id=56),
+    Node("relbinner", id=57),
+    Node("rwaist", id=58),
+    Node("rthumb", id=59),
+    Node("rfrontinnerthigh", id=60),
+    Node("rinnerknee", id=61),
+    Node("rshin", id=62),
+    Node("rfirstmetatarsal", id=63),
+    Node("rfourthtoe", id=64),
+    Node("rscapula", id=65),
+    Node("rbum", id=66),
 ])
