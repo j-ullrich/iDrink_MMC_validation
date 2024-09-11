@@ -9,6 +9,10 @@ from tqdm import tqdm
 import argparse
 import pandas as pd
 
+"""
+Functions in this file are used to update the Log files of the iDrink Pipeline and to check the state of the pipeline.
+"""
+
 def get_new_row(trial, columns):
     """
     Returns a new row for the csv file.
@@ -24,6 +28,7 @@ def get_new_row(trial, columns):
         except:
             new_row[column] = ', '.join(getattr(trial, column))
     return new_row
+
 def update_trial_csv(args, trial_list,  csv_path, columns_to_add = None):
     """
     Updates the csv file containing the trial_informations.
@@ -35,6 +40,9 @@ def update_trial_csv(args, trial_list,  csv_path, columns_to_add = None):
     """
 
     df_trials_old = pd.read_csv(csv_path, sep=';')
+
+    # write safety file
+    df_trials_old.to_csv(csv_path.split(".csv")[0] + "_safety.csv", sep=';', index=False)
     df_trials = pd.DataFrame(columns=df_trials_old.columns)
 
     if args.verbose >= 1:
@@ -64,10 +72,9 @@ def update_trial_csv(args, trial_list,  csv_path, columns_to_add = None):
 
     df_trials.to_csv(csv_path, sep=';', index=False)
 
-    pass
 
 
-def trials_to_csv(args, trial_list, csv_path):
+def trials_to_csv(args, trial_list, csv_path, get_df=False):
     """
     Writes the information of the trials to a csv file.
     The .csv  should have the following Columns:
@@ -97,6 +104,10 @@ def trials_to_csv(args, trial_list, csv_path):
     :return:
     """
     df_trials = pd.DataFrame(columns=["HPE_done",
+                                      "MMPose_done",
+                                      "P2SPose_done",
+                                      "Metrabs_multi_done",
+                                      "Metrabs_single_done",
                                       "calib_done",
                                       "P2S_done",
                                       "OS_done",
@@ -111,6 +122,7 @@ def trials_to_csv(args, trial_list, csv_path):
                                       "cam_setting",
                                       "used_cams",
                                       "video_files",
+                                      "n_frames",
                                       "dir_session",
                                       "dir_participant",
                                       "dir_trial",
@@ -122,7 +134,12 @@ def trials_to_csv(args, trial_list, csv_path):
             print(f"adding trial {trial.identifier} to csv file.")
         df_trials = pd.concat([df_trials, get_new_row(trial, df_trials.columns).to_frame().T], axis=0, ignore_index=True)
         pass
+
+
     df_trials.to_csv(csv_path, sep=';', index=False)
+
+    if get_df:
+        return df_trials
 
 
 def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
@@ -138,6 +155,7 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
     :return: trial_list
     """
     from . import iDrinkTrial
+    import ast
 
     trial_list = []
     if args.verbose >= 1:
@@ -150,8 +168,8 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         dir_session = row["dir_session"]
         dir_participant = row["dir_participant"]
         dir_trial = row["dir_trial"]
-        video_files = row["video_files"].split(", ")
-        used_cams = row["used_cams"].split(", ")
+        video_files = ast.literal_eval(row["video_files"])
+        used_cams = ast.literal_eval(row["used_cams"])
         affected = row["affected"]
         measured_side = row["measured_side"]
         dir_calib = row["dir_calib"]
@@ -180,3 +198,79 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         progress.close()
         print(f"Number of Trials created: {len(trial_list)}")
     return trial_list
+
+
+def does_json_exist(trial, pose_root, posebacks=["metrabs", "mmpose", "openpose", "pose2sim"]):
+    """
+    Checks if json files exist for all camera recordings of a trial.
+
+    Quick reminder on folder structure
+
+    - root_data
+        - 01_unfiltered
+            - P07
+                - P07_cam1
+                    - metrabs
+                        - trial_1_[...]_json
+                            - trial_1_[...]_000000.json
+                            - trial_1_[...]_000001.json
+                            - trial_1_[...]_[....].json
+                        - trial_2_[...]_json
+                        - trial_[.....]_json
+                    - mmpose
+                    - openpose
+                    - pose2sim
+                - P07_cam2
+                - P07_cam...
+            - P08
+            - ...
+        - 02_filtered
+
+    :param id_t: Trial id
+    :param id_p: Participant id
+    :param pose_root: Root directory of the pose data
+    :param cams: List of cameras used for the trial
+    :param n_frames: number of frames in video
+
+    :return: True if all json files exist, False otherwise
+    """
+    import cv2
+    if type(posebacks) is str:
+        posebacks = [posebacks]
+
+    id_t = trial.id_t
+    id_p = trial.id_p
+    cams = [f'cam{cam}' for cam in trial.used_cams]
+
+    if trial.n_frames == 0:
+        # Get the number of frames in the video
+        # We assume, all videos of a trial have the same number of frames
+        video_file = trial.video_files[0]
+        cap = cv2.VideoCapture(video_file)
+        trial.n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
+
+    # Check if the json files exist for all cameras
+    for cam in cams:
+        cam_dir = os.path.realpath(os.path.join(pose_root, '02_filtered', id_p, f"{id_p}_{cam}"))
+        if not os.path.isdir(cam_dir):
+            return False
+        for poseback in posebacks:
+            trial_str = f"trial_{int(id_t.split('T')[1])}"
+            json_files = glob.glob(os.path.join(cam_dir, poseback, f"{trial_str}_*_json", f"{trial_str}_*_*.json"))
+            if len(json_files) == trial.n_frames:
+                return True
+            return False
+    return False
+
+def all_2d_HPE_done(trial):
+    """
+    Checks if all 2D Pose Estimation Methods have been done for a trial.
+    :param trial:
+    :return:
+    """
+
+    if trial.MMPose_done and trial.P2SPose_done and trial.Metrabs_multi_done:
+        return True
+    else:
+        return False

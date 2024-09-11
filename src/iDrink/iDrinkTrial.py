@@ -78,7 +78,7 @@ class Trial:
                  dir_root=None, dir_default=None, dir_reference=None, dir_session=None, dir_calib=None,
                  dir_calib_videos=None, dir_calib_files=None, dir_participant=None, dir_trial=None,
                  date_time=None, path_config=None, skip=False, skip_reason=None, affected=False,
-                 frame_rate=60, rec_resolution=(1920, 1080), clean_video=True,
+                 frame_rate=60, rec_resolution=(1920, 1080), clean_video=True, n_frames=0,
                  used_cams=None, video_files=None, path_calib_videos=None, json_list=None,
 
                  config_dict=None, path_calib=None, calib=None, used_framework=None, pose_model=None, measured_side=None,
@@ -89,6 +89,11 @@ class Trial:
         """These variables are only for the validation. They can be deleted for deployment."""
 
         # Booleans for the different steps in the pipeline
+        self.HPE_done = False
+        self.MMPose_done = False
+        self.P2SPose_done = False
+        self.Metrabs_multi_done = False
+        self.Metrabs_single_done = False
         self.HPE_done = False
         self.calib_done = False
         self.P2S_done = False
@@ -143,6 +148,7 @@ class Trial:
         self.frame_rate = frame_rate
         self.rec_resolution = rec_resolution
         self.clean_video = clean_video
+        self.n_frames = n_frames
 
         self.video_files = video_files  # List of Recordings if not in dir_recordings (Move them to dir_recordings before running the pipeline)
         self.path_calib_videos = path_calib_videos  # List of Calibration Videos if not in dir_calib_videos (Move them to dir_calib_videos before running the pipeline)

@@ -32,7 +32,7 @@ def use_butterworth_filter(curr_trial, data, cutoff, fs, order=4, normcutoff=Fal
     """
     from scipy.signal import butter, sosfiltfilt
 
-    order = order/2  # Order is "doubled" again by using filter 2 times
+    order = int(order/2)  # Order is "doubled" again by using filter 2 times
 
     nyquist = 0.5 * fs
 

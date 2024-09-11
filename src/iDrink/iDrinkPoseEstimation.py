@@ -22,7 +22,23 @@ import itertools
 
 matplotlib.use('Agg')
 
-def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter'):
+
+def get_all_trial_vids(trial):
+    """
+    takes one of the videos of the trial. Gets all available cameras indebentedly from setting and returns all videos of the trial as list.
+    """
+    import os
+    import re
+    import glob
+
+    cam_dir = os.path.realpath(os.path.join(trial.video_files[0], '..', '..'))
+
+    # get trial as str from video name e.g. 'trial_1'
+    t_str = re.search(r'trial_\d+', trial.video_files[0]).group(0)
+
+    return glob.glob(os.path.join(cam_dir, "**", f"{t_str}*.mp4"), recursive=True)
+
+def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', verbose=1):
     """
     This Function loads all json files in a directory, filters the data and saves replaces the json files with the filtered data in json files.
 
@@ -63,7 +79,7 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter'):
                     arr_data[person_id, :, keypoint_id] = smooth_timeseries(curr_trial, arr_data[person_id, :, keypoint_id])
 
                 case 'butter':
-                    arr_data[person_id, :, keypoint_id] = use_butterworth_filter(arr_data[person_id, :, keypoint_id],
+                    arr_data[person_id, :, keypoint_id] = use_butterworth_filter(curr_trial=curr_trial, data=arr_data[person_id, :, keypoint_id],
                                                                          cutoff=curr_trial.butterworth_cutoff,
                                                                          fs=curr_trial.frame_rate,
                                                                          order=curr_trial.butterworth_order)
@@ -75,6 +91,8 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter'):
 
 
     # Save the data
+    if verbose >= 1:
+        progress = tqdm(total=len(json_files), desc=f"Writing filtered json-files in {os.path.basename(json_dir)}", position=0, leave=True)
     for frame_id, json_file in enumerate(json_files):
         with open(os.path.join(json_dir, json_file), 'r') as f:
             data = json.load(f)
@@ -84,6 +102,10 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter'):
 
         with open(os.path.join(json_dir_filt, json_file), 'w') as f:
             json.dump(data, f, indent=6)
+        if verbose >= 1:
+            progress.update(1)
+    if verbose >= 1:
+        progress.close()
 
 
 
@@ -118,7 +140,7 @@ def pose_data_to_json(pose_data_samples):
     # return json.dumps(json_data, indent=4)  # Convert the list of dictionaries into a JSON string
     return json_data
 
-def validation_pose_estimation_2d(curr_trial, root_val, writevideofiles=False, filter_2d=False, DEBUG=False):
+def validation_pose_estimation_2d(curr_trial, root_val, video_files=None, writevideofiles=False, filter_2d=False, DEBUG=False):
     from multiprocessing import Process, Queue
     from threading import Thread
 
@@ -167,7 +189,8 @@ def validation_pose_estimation_2d(curr_trial, root_val, writevideofiles=False, f
 
 
     # Path to the first image/video file
-    video_files = curr_trial.video_files
+    if video_files is None:
+        video_files = curr_trial.video_files
 
     ##########################################
     #############  DET MODEL  ################
@@ -258,6 +281,8 @@ def validation_pose_estimation_2d(curr_trial, root_val, writevideofiles=False, f
             size = (frame_width, frame_height)
 
             framerate = cap.get(cv2.CAP_PROP_FPS)
+            curr_trial.n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
             output_video_detection = cv2.VideoWriter(
                 os.path.join(out_video_unfilt, f"{os.path.basename(video).split('.mp4')[0]}_detection.avi"),
                 cv2.VideoWriter_fourcc(*'MJPG'), framerate, size)
@@ -299,8 +324,6 @@ def validation_pose_estimation_2d(curr_trial, root_val, writevideofiles=False, f
             if DEBUG:
                 if frame_idx == 30:
                     break
-
-
 
             ##############################################
             ################## DETECTION #################
