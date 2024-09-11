@@ -159,9 +159,6 @@ class Trial:
         # Visual Output
         self.render_out = os.path.join(dir_trial, "videos", 'Render_out')
 
-        # Blender
-
-
         # Plots
         self.filteredplots = True # Data filtered before plotted
         self.chosen_components = chosen_components
@@ -672,7 +669,7 @@ class Trial:
 
 
 
-    def run_pose2sim(self):
+    def run_pose2sim(self, only_triangulation=True):
         """Run Pose2Sim Pipeline"""
         from Pose2Sim import Pose2Sim
         # os.chdir(self.dir_trial)
@@ -696,9 +693,10 @@ class Trial:
             Pose2Sim.poseEstimation(config=self.config_dict)
             
             self.config_dict['pose']['pose_model'] = self.pose_model"""
+        if not only_triangulation:
+            Pose2Sim.synchronization(config=self.config_dict)
+            Pose2Sim.personAssociation(config=self.config_dict)
 
-        Pose2Sim.synchronization(config=self.config_dict)
-        Pose2Sim.personAssociation(config=self.config_dict)
         Pose2Sim.triangulation(config=self.config_dict)
         Pose2Sim.filtering(config=self.config_dict)
         if self.pose_model in ['BODY_25', 'BODY_25B']:

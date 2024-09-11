@@ -238,7 +238,7 @@ def does_json_exist(trial, pose_root, posebacks=["metrabs", "mmpose", "openpose"
     if type(posebacks) is str:
         posebacks = [posebacks]
 
-    id_t = trial.id_t
+    id_t = f"trial_{int(trial.id_t.split('T')[1])}"
     id_p = trial.id_p
     cams = [f'cam{cam}' for cam in trial.used_cams]
 
@@ -256,12 +256,11 @@ def does_json_exist(trial, pose_root, posebacks=["metrabs", "mmpose", "openpose"
         if not os.path.isdir(cam_dir):
             return False
         for poseback in posebacks:
-            trial_str = f"trial_{int(id_t.split('T')[1])}"
-            json_files = glob.glob(os.path.join(cam_dir, poseback, f"{trial_str}_*_json", f"{trial_str}_*_*.json"))
-            if len(json_files) == trial.n_frames:
-                return True
-            return False
-    return False
+            json_files = glob.glob(os.path.join(cam_dir, poseback, f"{id_t}_*_json", f"{id_t}_*_*.json"))
+            if len(json_files) != trial.n_frames:
+                return False  # If for one camera the number of json files is not equal to the number of frames return False
+    return True
+
 
 def all_2d_HPE_done(trial):
     """

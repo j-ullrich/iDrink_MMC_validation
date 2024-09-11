@@ -1,5 +1,7 @@
 import glob
 import os
+import shutil
+from tqdm import tqdm
 
 import toml
 
@@ -190,3 +192,62 @@ def find_video_recordings(directory, video_format=None):
         video_files.extend(glob.glob(pattern))
 
     return video_files
+
+
+def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose'):
+    """
+    Find folder containing json files for the current trial.
+
+    It first retrieves the json directories containing the json files from pose estimation.
+
+    Then it creates the corresponding json directories in the trial folder and copies the json files into the new directories.
+    """
+    if poseback is 'metrabs_multi':
+        poseback = 'metrabs'
+        json_dst = 'pose-associated'
+
+    if filt is 'unfiltered':
+        filt = '01_unfiltered'
+    else:
+        filt = '02_filtered'
+
+    id_t = id_t = f"trial_{int(trial.id_t.split('T')[1])}"
+    id_p = trial.id_p
+    cams = [f'cam{cam}' for cam in trial.used_cams]
+
+    # get the filter
+    dir_p = os.path.realpath(os.path.join(root_val, '02_pose_estimation', filt, id_p))  # participant directory, containing camera folders
+    dir_j = os.path.realpath(os.path.join(root_val, '02_pose_estimation', filt, id_p, f'{id_p}_cam' ))
+
+    dir_pose = os.path.realpath(os.path.join(trial.dir_trial, json_dst))
+
+    for cam in cams:
+        cam_dir = os.path.join(dir_p, f"{id_p}_{cam}")
+
+        json_dirs = glob.glob(os.path.join(cam_dir, poseback, f"{id_t}_*_json", f"{id_t}_*_*.json"))
+
+        for json_dir_src in json_dirs:
+            json_dir_dst = os.path.join(dir_pose, os.path.basename(json_dir_src))
+            if not os.path.exists(json_dir_dst):
+                shutil.copytree(json_dir_src, json_dir_dst)
+            else:
+                print(f"Directory {json_dir_dst} already exists.")
+
+def del_json_from_trial(trial, verbose=1):
+    """
+    Deletes all json files in the trial folder.
+    """
+
+    # TODO: Check for correctness
+    # look for all Folders ending with _json and delete them
+    json_dirs = glob.glob(os.path.join(trial.dir_trial, '*_json'))
+
+    if verbose >= 1:
+        prog = tqdm(json_dirs, desc="Deleting json files", position=0, leave=True)
+
+    for dir in json_dirs:
+        shutil.rmtree(dir)
+        if verbose >= 1:
+            prog.update(1)
+    if verbose >= 1:
+        prog.close()
