@@ -738,7 +738,7 @@ def run_mode():
                                                                skeleton=trial.pose_model)
                                 trial.Metrabs_multi_done = True
 
-                                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
+                                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
                                 df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
 
@@ -766,6 +766,8 @@ def run_mode():
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
 
+                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
+
                 if pose == 'metrabs_single':
                     model_path = os.path.realpath(
                         os.path.join(metrabs_models_dir, 'pytorch', 'metrabs_eff2l_384px_800k_28ds_pytorch'))
@@ -781,7 +783,8 @@ def run_mode():
                     print("Create .trc using metrabs Single Cam")
                 else:
                     if trial.HPE_done:
-                        print("Create .trc using Pose2Sim")
+                        if args.verbose >= 1:
+                            print(f"Trial: {trial.identifier} \t Posemode: {pose}")
                         iDrinkUtilities.move_json_to_trial(trial, pose, filt, root_val)
 
                         if pose == "metrabs_multi":
@@ -847,9 +850,9 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
 
-    args.mode = "pose_estimation"
+    args.mode = "pose2sim"
         #args.mode = 'pose2sim'
-    args.poseback = 'pose2sim'
+    args.poseback = 'metrabs_multi'
     args.verbose = 1
 
 

@@ -201,7 +201,7 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
     return trial_list
 
 
-def does_json_exist(trial, pose_root, posebacks=["metrabs", "mmpose", "openpose", "pose2sim"]):
+def does_json_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpose", "pose2sim"]):
     """
     Checks if json files exist for all camera recordings of a trial.
 
@@ -263,9 +263,12 @@ def does_json_exist(trial, pose_root, posebacks=["metrabs", "mmpose", "openpose"
     return True
 
 
-def all_2d_HPE_done(trial):
+def all_2d_HPE_done(trial, root_HPE = None):
     """
     Checks if all 2D Pose Estimation Methods have been done for a trial.
+
+    if root_HPE is given, it checks if the json files exist in the given directory.
+
     :param trial:
     :return:
     """
@@ -273,4 +276,9 @@ def all_2d_HPE_done(trial):
     if trial.MMPose_done and trial.P2SPose_done and trial.Metrabs_multi_done:
         return True
     else:
+        if root_HPE is not None:
+            all_done = does_json_exist(trial, root_HPE, posebacks=["metrabs", "mmpose", "pose2sim"])
+            trial.MMPose_done = trial.P2SPose_done = trial.Metrabs_multi_done = all_done
+            return all_done
+
         return False

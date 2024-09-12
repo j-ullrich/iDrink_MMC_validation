@@ -211,7 +211,7 @@ def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose'):
     else:
         filt = '02_filtered'
 
-    id_t = id_t = f"trial_{int(trial.id_t.split('T')[1])}"
+    id_t = f"trial_{int(trial.id_t.split('T')[1])}"
     id_p = trial.id_p
     cams = [f'cam{cam}' for cam in trial.used_cams]
 
@@ -221,26 +221,38 @@ def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose'):
 
     dir_pose = os.path.realpath(os.path.join(trial.dir_trial, json_dst))
 
-    for cam in cams:
-        cam_dir = os.path.join(dir_p, f"{id_p}_{cam}")
-
-        json_dirs = glob.glob(os.path.join(cam_dir, poseback, f"{id_t}_*_json", f"{id_t}_*_*.json"))
-
+    """for cam in cams:
+        json_dirs = glob.glob(os.path.join(dir_p, f"{id_p}_{cam}", poseback, f"{id_t}_*_json"))
         for json_dir_src in json_dirs:
+            basename
             json_dir_dst = os.path.join(dir_pose, os.path.basename(json_dir_src))
             if not os.path.exists(json_dir_dst):
                 shutil.copytree(json_dir_src, json_dir_dst)
             else:
-                print(f"Directory {json_dir_dst} already exists.")
+                print(f"Directory {json_dir_dst} already exists.")"""
 
-def del_json_from_trial(trial, verbose=1):
+    cam_json = [[cam, glob.glob(os.path.join(dir_p, f"{id_p}_{cam}", poseback, f"{id_t}_*_json"))[0]] for cam in cams]
+
+    for cam, json_dir_src in cam_json:
+        basename = f"{trial.identifier}_{cam}_{os.path.basename(json_dir_src)}"
+        json_dir_dst = os.path.join(dir_pose, basename)
+
+        if not os.path.exists(json_dir_dst):
+            shutil.copytree(json_dir_src, json_dir_dst)
+        else:
+            print(f"Directory {json_dir_dst} already exists.")
+
+def del_json_from_trial(trial, pose_only=True, verbose=1):
     """
     Deletes all json files in the trial folder.
     """
 
     # TODO: Check for correctness
     # look for all Folders ending with _json and delete them
-    json_dirs = glob.glob(os.path.join(trial.dir_trial, '*_json'))
+    if pose_only:
+        json_dirs = glob.glob(os.path.join(trial.dir_trial, 'pose', '*_json'))
+    else:
+        json_dirs = glob.glob(os.path.join(trial.dir_trial, '**', '*_json'))
 
     if verbose >= 1:
         prog = tqdm(json_dirs, desc="Deleting json files", position=0, leave=True)

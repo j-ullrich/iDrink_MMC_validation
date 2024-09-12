@@ -108,7 +108,7 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
             data = json.load(f)
 
         for i in range(len(data['people'])):
-            try:
+            try: # TODO: Add function to find most probable person if there are too many --> Which is the cause of this error in p2s HPE
                 data['people'][i]['pose_keypoints_2d'] = arr_data[i, frame_id].tolist()
             except Exception as e:
                 print(f"Error in {json_file}: {e}")
