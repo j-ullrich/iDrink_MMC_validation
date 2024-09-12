@@ -586,8 +586,10 @@ def run_mode():
     :param:
     :return:
     """
+    global df_trials
     # First create list of trials to iterate through
     trial_list = create_trial_objects()
+
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     for trial in trial_list:
@@ -599,7 +601,7 @@ def run_mode():
         # Full Calibration is needed for Pose Estimation. There a calib file containing all cameras is needed.
         delta_full_calibration_val(trial, os.path.join(root_val, "full_calib_errors.csv"), args.verbose)
 
-    iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+    df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
     match args.mode:
         case "pose_estimation":  # Runs only the Pose Estimation
@@ -607,7 +609,7 @@ def run_mode():
 
             if args.poseback == "all":
                 #args.poseback = ["openpose", "mmpose", "pose2sim", "metrabs_multi", "metrabs_single"]
-                args.poseback = ["mmpose", "pose2sim", "metrabs_multi", "metrabs_single"]
+                args.poseback = ["mmpose", "pose2sim", "metrabs_multi"]
             else:
                 args.poseback = [args.poseback]
 
@@ -634,9 +636,9 @@ def run_mode():
                                 df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
                                             df_trials["id_p"] == trial.id_p), "MMPose_done"] = True
 
-                                # Safety Check on json files
-                                trial.MMPose_done = iDrinkLog.does_json_exist(trial, root_HPE,
-                                                                                     posebacks=["mmpose"])
+                            # Safety Check on json files
+                            trial.MMPose_done = iDrinkLog.does_json_exist(trial, root_HPE,
+                                                                          posebacks=["mmpose"])
 
 
                             if trial.MMPose_done:
@@ -654,39 +656,55 @@ def run_mode():
                                 trial.MMPose_done = True
                                 trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
 
-                                iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
                             if i % 10 == 0:  # Update after every 10 trials
-                                iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
-                        iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                        df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
 
                     case "pose2sim":
                         from Pose2Sim import Pose2Sim
                         print("Pose Estimation mode: Pose2Sim starting.")
-                        trial.pose_model = "Coco17_UpperBody"
 
-                        for trial in trial_list:
+
+                        for i, trial in enumerate(trial_list):
                             # Change the config_dict so that the correct pose model is used
-                            trial_done = df_trials[df_trials["id_t"] == trial.id_t & df_trials["id_p"] == trial.id_p]["P2SPose_done"].values[0]
+                            trial.pose_model = "Coco17_UpperBody"
 
-                            trial.P2SPose_done = iDrinkLog.does_json_exist(trial, root_HPE, posebacks=["pose2sim"])
+                            if any(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["P2SPose_done"]):
+                                trial.P2SPose_done = True
+                                trial.n_frames = max(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["n_frames"])
+                                df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
+                                            df_trials["id_p"] == trial.id_p), "P2SPose_done"] = True
 
-                            if trial_done or trial.P2SPose_done:
+                            # Safety Check on json files
+                            trial.P2SPose_done = iDrinkLog.does_json_exist(trial, root_HPE,
+                                                                           posebacks=["pose2sim"])
+
+                            if trial.P2SPose_done:
                                 if args.verbose >= 2:
                                     print(f"Pose Estimation for {trial.identifier} already done.")
                                 continue
                             else:
                                 trial.config_dict['pose']['pose_model'] = 'COCO_17'
+                                vids_used = trial.config_dict['pose']['videos']
+                                trial.config_dict['pose']['videos'] = iDrinkPoseEstimation.get_all_trial_vids(trial)
                                 Pose2Sim.poseEstimation(trial.config_dict)
-
                                 trial.config_dict['pose']['pose_model'] = trial.pose_model
 
+                                iDrinkPoseEstimation.filt_p2s_pose(trial, root_val, verbose=args.verbose)
+                                trial.config_dict['pose']['videos'] = vids_used
                                 trial.P2SPose_done = True
                                 trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
 
-                                iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+
+                            if i % 10 == 0:
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+
+                        df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
                     case "metrabs_multi":
                         os.chdir(os.path.realpath(os.path.join(os.getcwd(), "Metrabs_PoseEstimation")))
@@ -721,11 +739,11 @@ def run_mode():
                                 trial.Metrabs_multi_done = True
 
                                 trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
-                                iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
 
                             if i % 10 == 0:  # Update after every 10 trials
-                                iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
                         os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -734,7 +752,7 @@ def run_mode():
                               f"Please specify a valid mode.")
                         sys.exit(1)
 
-                iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
 
         case "pose2sim":  # Runs only Pose2Sim
@@ -780,14 +798,14 @@ def run_mode():
                 p2s_progress.update(1)
 
                 if i % 5 == 0:  # Update after every 5 trials
-                    iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
             p2s_progress.close()
             if all([trial.P2SPose_done for trial in trial_list]) is False:
                 print("Pose2Sim could not be completed for all Trials. Please Check whether Pose Estimaiton is fully done.\n"
                       "If not, please run Pose Estimation first. And then repeat Pose2Sim Mode.")
 
-            iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+            df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
         case "opensim":  # Runs only Opensim
             if args.verbose >= 1:
@@ -801,7 +819,7 @@ def run_mode():
                 if args.verbose >= 1:
                     opensim_progress.update(1)
 
-                iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
 
             if args.verbose >= 1:
                 opensim_progress.close()
@@ -831,8 +849,8 @@ if __name__ == '__main__':
 
     args.mode = "pose_estimation"
         #args.mode = 'pose2sim'
-    args.poseback = 'mmpose'
-    args.verbose = 2
+    args.poseback = 'pose2sim'
+    args.verbose = 1
 
 
 

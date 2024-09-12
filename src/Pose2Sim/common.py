@@ -20,7 +20,7 @@ import c3d
 import sys
 
 import matplotlib as mpl
-mpl.use('qt5agg')
+mpl.use('qtagg')  # TODO: Add info about change here to ReadMe --> qt5agg to qtagg
 mpl.rc('figure', max_open_warning=0)
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar

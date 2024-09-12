@@ -3,6 +3,7 @@ import os
 import importlib.resources as pkg_resources
 import time
 import re
+import glob
 from tqdm import tqdm
 
 import cv2
@@ -58,17 +59,26 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
     json_files = [filename for filename in os.listdir(json_dir) if filename.endswith('.json')]
     array_created = False
 
+    if not os.path.exists(json_dir_filt):
+        os.makedirs(json_dir_filt, exist_ok=True)
+
     # Load Data from json Files
     for frame_id, json_file in enumerate(json_files):
+        if verbose >= 2:
+            print(f"Loading: {frame_id} \t {json_file}")
         with open(os.path.join(json_dir, json_file)) as f:
             data = json.load(f)
             if not array_created:
                 array_created = True
-
                 arr_data = np.zeros((len(data['people']), len(json_files), len(data['people'][0]['pose_keypoints_2d'])))  # [person_id][Frame_id][Keypoint_id]
 
             for i in range(len(data['people'])):
-                arr_data[i, frame_id] = data['people'][i]['pose_keypoints_2d']
+                try:
+                    arr_data[i, frame_id] = data['people'][i]['pose_keypoints_2d']
+                except Exception as e:
+                    print(f"Error in {json_file}: {e}")
+                    print(f"Data: {data['people'][i]['pose_keypoints_2d']}")
+
 
     # Filter the Data
     for person_id in range(np.shape(arr_data)[0]):
@@ -98,7 +108,11 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
             data = json.load(f)
 
         for i in range(len(data['people'])):
-            data['people'][i]['pose_keypoints_2d'] = arr_data[i, frame_id].tolist()
+            try:
+                data['people'][i]['pose_keypoints_2d'] = arr_data[i, frame_id].tolist()
+            except Exception as e:
+                print(f"Error in {json_file}: {e}")
+                print(f"Data: {data['people'][i]['pose_keypoints_2d']}")
 
         with open(os.path.join(json_dir_filt, json_file), 'w') as f:
             json.dump(data, f, indent=6)
@@ -107,7 +121,35 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
     if verbose >= 1:
         progress.close()
 
+def filt_p2s_pose(trial, root_val, verbose=1):
+    """
+    Creates folder for filtered jsons then filters the 2D Pose data and saves it in the new folder.
 
+    :param trial:
+    :param root_val:
+    :param verbose:
+    :return:
+    """
+    # Get  json directories for each cam of trial and save in list
+    id_t = f"trial_{int(trial.id_t.split('T')[1])}"
+
+    # Create destination directories for filtered jsons
+    unfilt_dir = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "01_unfiltered"))
+    filt_dir = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "02_filtered"))
+
+    cam_dirs = glob.glob(os.path.realpath(os.path.join(filt_dir, trial.id_p, f"{trial.id_p}_cam*")))
+    cams = [re.search(r'cam\d+', cam).group(0) for cam in cam_dirs]
+
+
+    # iterate over cameras
+    for cam in cams:
+        json_dir = glob.glob(os.path.realpath(os.path.join(unfilt_dir, f"{trial.id_p}",
+                                              f"{trial.id_p}_{cam}", "pose2sim", rf"{id_t}_*_json")))[0]
+
+        json_dir_filt = os.path.realpath(os.path.join(filt_dir, os.path.relpath(json_dir, unfilt_dir)))
+
+        # filter the 2D Pose data
+        filter_2d_pose_data(trial, json_dir, json_dir_filt, filter='butter', verbose=verbose)
 
 def pose_data_to_json(pose_data_samples):
     """

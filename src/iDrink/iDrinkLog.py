@@ -71,6 +71,7 @@ def update_trial_csv(args, trial_list,  csv_path, columns_to_add = None):
         progress.close()
 
     df_trials.to_csv(csv_path, sep=';', index=False)
+    return df_trials
 
 
 
