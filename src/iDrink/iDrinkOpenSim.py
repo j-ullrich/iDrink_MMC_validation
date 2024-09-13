@@ -200,8 +200,8 @@ def open_sim_pipeline(curr_trial, verbose=1):
                  [curr_trial.opensim_model, curr_trial.opensim_model_scaled, curr_trial.opensim_marker_filtered,
                   curr_trial.opensim_scaling_time_range], target_file=curr_trial.opensim_scaling)
         edit_xml(invkin_default, ["marker_file", "output_motion_file", "model_file", "time_range"],
-                 [curr_trial.opensim_marker_filtered, curr_trial.opensim_motion, curr_trial.opensim_model_scaled,
-                  curr_trial.opensim_IK_time_range], target_file=curr_trial.opensim_inverse_kinematics)
+                 [curr_trial.opensim_marker_filtered, curr_trial.opensim_motion, os.path.join(curr_trial.dir_trial, curr_trial.opensim_model_scaled),
+                  curr_trial.opensim_IK_time_range], target_file=curr_trial.opensim_inverse_kinematics) # TODO: Check path settings difference between MMC and OMC. For OMC, Scaling needed relativa paths, IK needed absolute paths
         edit_xml(analyze_default, ["results_directory", "model_file", "coordinates_file", "initial_time", "final_time"],
                  [curr_trial.opensim_dir_analyze_results, curr_trial.opensim_model_scaled, curr_trial.opensim_motion,
                   curr_trial.opensim_ana_init_t, curr_trial.opensim_ana_final_t],

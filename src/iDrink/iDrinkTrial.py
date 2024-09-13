@@ -130,6 +130,7 @@ class Trial:
         self.task = task  # The executed Task
         self.measured_side = measured_side
         self.affected = affected
+        self.is_reference = is_reference
 
         # Configurations, Calibrations, Settings
         self.path_config = path_config
@@ -177,6 +178,7 @@ class Trial:
         self.bod_kin_p2s = bod_kin_p2s
         self.use_torso = use_torso
         self.filenename_appendix = ''
+        self.correct_skeleton = correct_skeleton
 
         # Setting for Phase Detection
         self.use_dist_handface = False
@@ -314,7 +316,7 @@ class Trial:
         This Function needs to run before the analysis. It defines all the settings for the data analysis of the trial.
         """
 
-    def create_trial(self):
+    def create_trial(self, for_omc=False):
         """
         This function creates all the folders and their subfolders.
         """
@@ -331,10 +333,21 @@ class Trial:
             self.dir_rec_blurred,
             self.render_out,
             self.dir_calib,
-            os.path.realpath(os.path.join(self.dir_trial, "pose")),
             os.path.realpath(os.path.join(self.dir_trial, "pose-3d")),
-            os.path.realpath(os.path.join(self.dir_trial, "pose-associated")),
         ]
+        if for_omc:
+            dirs = [
+                self.dir_murphy_measures,
+                self.dir_anatool_results,
+                self.dir_kin_trc,
+                self.dir_kin_p2s,
+                self.dir_kin_ik_tool,
+                self.dir_recordings,
+                self.dir_rec_blurred,
+                os.path.realpath(os.path.join(self.dir_trial, "pose")),
+                os.path.realpath(os.path.join(self.dir_trial, "pose-3d")),
+                os.path.realpath(os.path.join(self.dir_trial, "pose-associated")),
+            ]
         for dir in dirs:
             os.makedirs(dir, exist_ok=True)
 
