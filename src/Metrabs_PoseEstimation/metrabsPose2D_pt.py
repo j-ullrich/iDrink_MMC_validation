@@ -270,11 +270,10 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
             del frames_in
             gc.collect()
 
-        del multiperson_model_pt
-        gc.collect()
+            filter_2d_pose_data(curr_trial, json_dir_unfilt, json_dir_filt)
 
-        filter_2d_pose_data(curr_trial, json_dir_unfilt, json_dir_filt)
-
+    del multiperson_model_pt
+    gc.collect()
 
 def metrabs_pose_estimation_2d(dir_video, calib_file, dir_out_video, dir_out_json, multiperson_model_pt, identifier,
                                skeleton='bml_movi_87', DEBUG=False):

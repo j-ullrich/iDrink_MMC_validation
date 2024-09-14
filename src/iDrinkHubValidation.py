@@ -58,12 +58,19 @@ parser.add_argument('--verbose', metavar='v', type=int, default=1,
 parser.add_argument('--DEBUG', action='store_true', default=False,
                     help='Debug mode')
 
-root_MMC = r"C:\iDrink\Test_folder_structures"  # Root directory of all MMC-Data --> Videos and Openpose json files
-root_OMC = r"C:\iDrink\OMC_data_newStruct"  # Root directory of all OMC-Data --> trc of trials.
-root_val = r"C:\iDrink\validation_root"  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+"""Set Root Paths for Processing"""
+drive = 'C:'
+drive = 'E:'
+root_iDrink = rf"{drive}\iDrink"  # Root directory of all iDrink Data
+root_MMC = os.path.join(root_iDrink, "Test_folder_structures")  # Root directory of all MMC-Data --> Videos and Openpose json files
+root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct")  # Root directory of all OMC-Data --> trc of trials.
+root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
 root_HPE = os.path.join(root_val, "02_pose_estimation")  # Root directory of all Pose Estimation Data
 root_data = os.path.join(root_val, "03_data")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+
+os.environ['DATA_ROOT'] = root_iDrink  # Set the DATA_ROOT Environment Variable for Metrabs
+os.environ['ROOT_DIR'] = root_iDrink # Set the ROOT_DIR Environment Variable for Metrabs
 
 metrabs_models_dir = os.path.join(root_val, "04_metrabs_models")  # Directory containing the Metrabs Models
 
@@ -850,10 +857,10 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
 
-    args.mode = "pose2sim"
+    args.mode = "pose_estimation"
         #args.mode = 'pose2sim'
     args.poseback = 'metrabs_multi'
-    args.verbose = 1
+    args.verbose = 2
 
 
 
