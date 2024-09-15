@@ -769,8 +769,8 @@ def run_mode():
 
             for i, trial in enumerate(trial_list):
                 # Get Pose method from settings dataframe
-                i=72
-                trial = trial_list[i]
+                """i=72
+                trial = trial_list[i]"""
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]

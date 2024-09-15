@@ -204,7 +204,7 @@ def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose'):
     """
     if poseback == 'metrabs_multi':
         poseback = 'metrabs'
-        json_dst = 'pose-associated'
+        #json_dst = 'pose-associated'
 
     if filt == 'unfiltered':
         filt = '01_unfiltered'
