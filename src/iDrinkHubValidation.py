@@ -769,6 +769,8 @@ def run_mode():
 
             for i, trial in enumerate(trial_list):
                 # Get Pose method from settings dataframe
+                i=72
+                trial = trial_list[i]
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
@@ -801,7 +803,7 @@ def run_mode():
 
                         iDrinkUtilities.del_json_from_trial(trial)
 
-                        trial.P2SPose_done = True
+                        trial.P2S_done = True
                     else:
                         print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
 
@@ -858,7 +860,7 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-        #args.mode = 'pose2sim'
+    args.mode = 'pose2sim'
     args.poseback = 'metrabs_multi'
     args.verbose = 2
 

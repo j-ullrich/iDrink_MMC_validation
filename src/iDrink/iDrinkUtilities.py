@@ -202,11 +202,11 @@ def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose'):
 
     Then it creates the corresponding json directories in the trial folder and copies the json files into the new directories.
     """
-    if poseback is 'metrabs_multi':
+    if poseback == 'metrabs_multi':
         poseback = 'metrabs'
         json_dst = 'pose-associated'
 
-    if filt is 'unfiltered':
+    if filt == 'unfiltered':
         filt = '01_unfiltered'
     else:
         filt = '02_filtered'
