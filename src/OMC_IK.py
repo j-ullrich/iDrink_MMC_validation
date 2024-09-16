@@ -38,11 +38,17 @@ def prepare_opensim(self, filterflag="filt"):
     self.opensim_ana_final_t = str(
         self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=False)[1])
 
-root_OMC = r"C:\iDrink\OMC_data_newStruct\Data"
-roo_dat_out = r"C:\iDrink\validation_root\03_data\OMC"
-root_val = r"C:\iDrink\validation_root"
+
+drives=['C:', 'D:', 'E:', 'I:']
+root_iDrink = rf"{drives[3]}\iDrink"  # Root directory of all iDrink Data
+root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.
+root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+root_dat_out = os.path.join(root_val, "03_data", "OMC")  # Root directory of all the data for the validation
 default_dir = os.path.join(root_val, "01_default_files")
-csv_path = os.path.join(root_val, "OMC_Opensim_log.csv")
+root_logs = os.path.join(root_val, "05_logs")
+csv_path = os.path.join(root_logs, "OMC_Opensim_log.csv")
+
+DEBUG=False
 
 p_list = os.listdir(root_OMC)
 
@@ -51,24 +57,25 @@ trial_list = []
 
 df_log = pd.DataFrame(columns=["identifier", "status", "exception"])
 
-p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
+if DEBUG:
+    p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
 for p_id in p_list:
 
     trc_dir = os.path.realpath(os.path.join(root_OMC, p_id, "trc"))
     trc_files = glob.glob(os.path.join(trc_dir, "*.trc"))
 
-    # TODO: Take following out
-    unaffected_trials = glob.glob(os.path.join(trc_dir, "*unaffected*.trc"))
-    affected_trials = [f for f in glob.glob(os.path.join(trc_dir, "*affected*.trc")) if "unaffected" not in f]
-    trc_files = unaffected_trials[:3] + affected_trials[:3]
+    if DEBUG:
+        unaffected_trials = glob.glob(os.path.join(trc_dir, "*unaffected*.trc"))
+        affected_trials = [f for f in glob.glob(os.path.join(trc_dir, "*affected*.trc")) if "unaffected" not in f]
+        trc_files = unaffected_trials[:3] + affected_trials[:3]
 
     for trc_file in trc_files:
         id_t = re.search("\d+", os.path.basename(trc_file)).group()
         id_t = f"T{int(id_t):03d}"
         identifier = f"{id_s}_{p_id}_{id_t}"
 
-        dir_s = os.path.realpath(os.path.join(roo_dat_out, id_s))
+        dir_s = os.path.realpath(os.path.join(root_dat_out, id_s))
         dir_p = os.path.realpath(os.path.join(dir_s, f"{id_s}_{p_id}"))
         dir_t = os.path.realpath(os.path.join(dir_p, identifier))
 
