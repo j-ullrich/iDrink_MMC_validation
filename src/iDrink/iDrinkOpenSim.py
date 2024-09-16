@@ -153,7 +153,7 @@ def open_sim_pipeline(curr_trial, verbose=1):
 
             file.close()
 
-    def stabilize_hip_movement(path_trc):
+    def stabilize_hip_movement(curr_trial, path_trc):
         """
         Take and trc file and smooth the movement of CHip, RHip, and LHip.
 
@@ -165,10 +165,16 @@ def open_sim_pipeline(curr_trial, verbose=1):
         trc = TRCData()
 
         trc.load(filename=path_trc)
-        comp = {"CHip": -1,
-                "RHip": -1,
-                "LHip": -1
-                }
+        #  TODO: if OMC in trc path, hip_L hip_R
+
+        if curr_trial.pose_model == "OMC":
+            comp={"hip_L": -1,
+                  "hip_R": -1,}
+        else:
+            comp = {"CHip": -1,
+                    "RHip": -1,
+                    "LHip": -1
+                    }
         hips = {}
 
         for c in comp.keys():
@@ -212,7 +218,7 @@ def open_sim_pipeline(curr_trial, verbose=1):
         print(e)
 
     if curr_trial.stabilize_hip:
-        stabilize_hip_movement(os.path.join(curr_trial.dir_trial, curr_trial.opensim_marker_filtered))
+        stabilize_hip_movement(curr_trial, os.path.join(curr_trial.dir_trial, curr_trial.opensim_marker_filtered))
 
     model = opensim.Model(curr_trial.opensim_model)
     model.initSystem()

@@ -771,6 +771,7 @@ def run_mode():
                             trial.Metrabs_multi_done = iDrinkLog.does_json_exist(trial, root_HPE,
                                                                                  posebacks=["metrabs"])
 
+                            trial.Metrabs_multi_done = False
                             if trial.Metrabs_multi_done:
                                 if args.verbose >= 2:
                                     print(f"Pose Estimation for {trial.identifier} already done.")
@@ -958,7 +959,7 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-    args.mode = 'pose2sim'
+    #args.mode = 'pose2sim'
     args.poseback = 'metrabs_multi'
     args.verbose = 2
 

@@ -90,11 +90,12 @@ def pose_data_to_json(pose_data_samples):
         keypoints_with_score = []
         for i in range(keypoints.shape[0]):
             keypoints_with_score.extend([float(keypoints[i, 0]), float(keypoints[i, 1]), score])
-            json_data["people"].append({
-                'person_id': person_id,
-                'pose_keypoints_2d': keypoints_with_score,
-            })
-            person_id += 1
+
+        json_data["people"].append({
+            'person_id': person_id,
+            'pose_keypoints_2d': keypoints_with_score,
+        })
+        person_id += 1
 
     return json_data
 
