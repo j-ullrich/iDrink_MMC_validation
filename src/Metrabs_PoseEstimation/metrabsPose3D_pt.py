@@ -208,6 +208,102 @@ def add_to_dataframe(df, pose_result_3d):
     return df
 
 
+def metrabs_pose_estimation_3d_val(video_file, calib, dir_out_video, dir_out_trc, model_path, identifier,
+                               skeleton='bml_movi_87', verbose=1, DEBUG=False):
+
+    get_config(os.path.realpath(os.path.join(args.model_path, 'config.yaml')))
+    multiperson_model_pt = load_multiperson_model(args.model_path).cuda()
+
+    joint_names = multiperson_model_pt.per_skeleton_joint_names[skeleton]
+    joint_edges = multiperson_model_pt.per_skeleton_joint_edges[skeleton].cpu().numpy()
+
+    # Check if the directory exists, if not create it
+    if not os.path.exists(dir_out_video):
+        os.makedirs(dir_out_video)
+
+    # Check if the directory exists, if not create it
+    if not os.path.exists(dir_out_video):
+        os.makedirs(dir_out_video)
+
+    ##################################################
+    #############  OPENING THE VIDEO  ################
+    # For a video file
+    cap = cv2.VideoCapture(video_file)
+    # Check if file is opened correctly
+    if not cap.isOpened():
+        print("Could not open file")
+        exit()
+    # get intrinsics from calib file
+    cam = re.search(r"cam\d*", os.path.basename(video_file)).group()
+    intrinsic_matrix = None
+    distortions = None
+    for key in calib.keys():
+        if calib.get(key).get("name") == cam:
+            intrinsic_matrix = calib.get(key).get("matrix")
+            distortions = calib.get(key).get("distortions")
+    print(f"Current Video: {os.path.basename(video_file)}")
+    # Initializing variables for the loop
+    frame_idx = 0
+
+
+    # Prepare DataFrame
+    df = pd.DataFrame(columns=get_column_names(joint_names))
+    n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    n_markers = len(joint_names)
+
+    if verbose >= 2:
+        print(f"Number of frames: {n_frames}")
+        print(f"FPS: {fps}")
+        print(f"Number of markers: {n_markers}")
+    tot_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+
+    if verbose >=1:
+        progress = tqdm(total=tot_frames, desc=f"Processing {os.path.basename(video_file)}", position=0, leave=True)
+    with torch.inference_mode(), torch.device('cuda'):
+        frames_in, _, _ = torchvision.io.read_video(video_file, output_format='TCHW')
+        for frame_idx, frame in enumerate(frames_in):
+            pred = multiperson_model_pt.detect_poses(frame, skeleton=skeleton, detector_threshold=0.01,
+                                                     suppress_implausible_poses=False, max_detections=1,
+                                                     intrinsic_matrix=torch.FloatTensor(intrinsic_matrix),
+                                                     distortion_coeffs=torch.FloatTensor(distortions), num_aug=2)
+            # Save detection's parameters
+            bboxes = pred['boxes'].cpu().numpy()
+            pose_result_3d = pred['poses3d'].cpu().numpy()
+
+            df = add_to_dataframe(df, pose_result_3d)
+
+            frame_idx += 1
+            if verbose >= 1:
+                progress.update(1)
+        # Release the VideoCapture object and close progressbar
+
+        del frames_in
+        gc.collect()
+
+        if verbose >= 1:
+            progress.close()
+
+    if verbose >= 2:
+        print(f'Call filtering function')
+    df_filt = filter_df(df, fps, verbose)
+
+    if not os.path.exists(dir_out_trc):
+        os.makedirs(dir_out_trc)
+
+    trc_file_filt = os.path.join(dir_out_trc,
+                                 f"{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_filt_iDrinkbutter.trc")
+    trc_file_unfilt = os.path.join(dir_out_trc,
+                                   f"{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_unfilt_iDrink.trc")
+
+    df_to_trc(df_filt, trc_file_filt, identifier, fps, n_frames, n_markers)
+    df_to_trc(df, trc_file_unfilt, identifier, fps, n_frames, n_markers)
+
+    if verbose >= 2:
+        print(f'3D Pose Estimation done and .trc files saved to {dir_out_trc}')
+
+
 def metrabs_pose_estimation_3d(video_file, calib_file, dir_out_video, dir_out_trc, multiperson_model_pt, identifier,
                                skeleton='bml_movi_87', verbose=1, DEBUG=False):
 

@@ -29,7 +29,7 @@ def get_new_row(trial, columns):
             new_row[column] = ', '.join(getattr(trial, column))
     return new_row
 
-def update_trial_csv(args, trial_list,  csv_path, columns_to_add = None):
+def update_trial_csv(args, trial_list, csv_path, columns_to_add = None):
     """
     Updates the csv file containing the trial_informations.
 
@@ -158,6 +158,17 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
     from . import iDrinkTrial
     import ast
 
+    def correct_drive(path, drive):
+        if type(path) is list:
+            path = [correct_drive(p, drive) for p in path]
+            return path
+        if os.path.splitdrive(path)[0] != drive:
+            path = os.path.join(drive+os.path.splitdrive(path)[1])
+        return path
+
+    # get Drive in use
+    drive = os.path.splitdrive(root_data)[0]
+
     trial_list = []
     if args.verbose >= 1:
         progress = tqdm(total=df_trials.shape[0], desc="Creating Trial Objects", unit="Trial")
@@ -166,16 +177,22 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         id_p = row["id_p"]
         id_t = row["id_t"]
         identifier = row["identifier"]
-        dir_session = row["dir_session"]
-        dir_participant = row["dir_participant"]
-        dir_trial = row["dir_trial"]
-        video_files = ast.literal_eval(row["video_files"])
         used_cams = ast.literal_eval(row["used_cams"])
         affected = row["affected"]
         measured_side = row["measured_side"]
-        dir_calib = row["dir_calib"]
-        dir_calib_videos = row["dir_calib_videos"]
+
         pose_model = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", id_s).group()), "pose_model"].values[0]
+
+        # Drive in path
+        dir_session = correct_drive(row["dir_session"], drive)
+        dir_participant = correct_drive(row["dir_participant"], drive)
+        dir_trial = correct_drive(row["dir_trial"], drive)
+        video_files = correct_drive(ast.literal_eval(row["video_files"]), drive)
+        dir_calib = correct_drive(row["dir_calib"], drive)
+        dir_calib_videos = correct_drive(row["dir_calib_videos"], drive)
+
+
+
         # Create the trial object
         trial = iDrinkTrial.Trial(identifier=identifier, id_s=id_s, id_p=id_p, id_t=id_t,
                                   dir_root=root_data, dir_default=default_dir,
@@ -282,3 +299,27 @@ def all_2d_HPE_done(trial, root_HPE = None):
             return all_done
 
         return False
+
+
+def log_error(args, trial, exception, stage, pose, csv_path):
+    """
+    Logs exceptions that occur during the pipeline.
+
+
+    """
+    if os.path.isfile(csv_path):
+        df_log = pd.read_csv(csv_path, sep=';')
+    else:
+        df_log = pd.DataFrame(columns=["identifier", "stage", "pose_estimation", "cams", "exception"])
+
+
+    new_row = pd.Series(dtype='object')
+    new_row["identifier"] = trial.identifier
+    new_row["stage"] = stage
+    new_row["pose_estimation"] = pose
+    new_row["cams"] = trial.used_cams
+    new_row["exception"] = exception
+    df_log = pd.concat([df_log, new_row.to_frame().T], axis=0, ignore_index=True)
+    df_log.to_csv(csv_path, sep=';', index=False)
+
+    return df_log

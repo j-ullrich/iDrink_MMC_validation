@@ -194,7 +194,7 @@ def find_video_recordings(directory, video_format=None):
     return video_files
 
 
-def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose'):
+def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose', verbose=1):
     """
     Find folder containing json files for the current trial.
 
@@ -232,7 +232,8 @@ def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose'):
                 print(f"Directory {json_dir_dst} already exists.")"""
 
     cam_json = [[cam, glob.glob(os.path.join(dir_p, f"{id_p}_{cam}", poseback, f"{id_t}_*_json"))[0]] for cam in cams]
-
+    if verbose>=1:
+        prog = tqdm(cam_json, desc="Copying json files", position=0, leave=True)
     for cam, json_dir_src in cam_json:
         basename = f"{trial.identifier}_{cam}_{os.path.basename(json_dir_src)}"
         json_dir_dst = os.path.join(dir_pose, basename)
@@ -241,6 +242,12 @@ def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose'):
             shutil.copytree(json_dir_src, json_dir_dst)
         else:
             print(f"Directory {json_dir_dst} already exists.")
+        if verbose >= 1:
+            prog.update(1)
+
+    if verbose >= 1:
+        prog.close()
+
 
 def del_json_from_trial(trial, pose_only=True, verbose=1):
     """

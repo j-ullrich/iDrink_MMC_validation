@@ -59,25 +59,33 @@ parser.add_argument('--DEBUG', action='store_true', default=False,
                     help='Debug mode')
 
 """Set Root Paths for Processing"""
-drive = 'C:'
-drive = 'E:'
-root_iDrink = rf"{drive}\iDrink"  # Root directory of all iDrink Data
+drives=['C:', 'D:', 'E:', 'I:']
+root_iDrink = rf"{drives[3]}\iDrink"  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Test_folder_structures")  # Root directory of all MMC-Data --> Videos and Openpose json files
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
 root_HPE = os.path.join(root_val, "02_pose_estimation")  # Root directory of all Pose Estimation Data
 root_data = os.path.join(root_val, "03_data")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+root_logs = os.path.join(root_val, "05_logs")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+
+# Prepare Logging Paths
+log_val_settings = os.path.join(root_logs, "validation_settings.csv")
+log_val_trials = os.path.join(root_logs, "validation_trials.csv")
+log_val_errors = os.path.join(root_logs, "validation_errors.csv")
+
+log_calib = os.path.join(root_logs, "calib_errors.csv")
+log_calib_full = os.path.join(root_logs, "calib_errors_full.csv")
 
 os.environ['DATA_ROOT'] = root_iDrink  # Set the DATA_ROOT Environment Variable for Metrabs
 os.environ['ROOT_DIR'] = root_iDrink # Set the ROOT_DIR Environment Variable for Metrabs
 
 metrabs_models_dir = os.path.join(root_val, "04_metrabs_models")  # Directory containing the Metrabs Models
 
-df_settings = pd.read_csv(os.path.join(root_val, "validation_settings.csv"), sep=';')  # csv containing information for the various settings in use.
+df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
 try:
-    df_trials = pd.read_csv(os.path.join(root_val, "validation_trials.csv"), sep=';')  # csv containing information for the various settings in use.
+    df_trials = pd.read_csv(log_val_trials, sep=';')  # csv containing information for the various settings in use.
 except FileNotFoundError:
     print("No .csv file for trials found.")
     df_trials = None
@@ -549,7 +557,7 @@ def create_trial_objects():
                 print("No Mode was given. Please specify a mode.")
                 sys.exit(1)
 
-        df_trials = iDrinkLog.trials_to_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"), get_df=True)
+        df_trials = iDrinkLog.trials_to_csv(args, trial_list, log_val_trials, get_df=True)
 
     return trial_list
 
@@ -600,15 +608,28 @@ def run_mode():
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     for trial in trial_list:
-        if trial.calib == None:
+        try:
+            if trial.calib == None:
+                if args.verbose >= 2:
+                    print(f"Start calibration for {trial.identifier}")
+
+                delta_calibration_val(trial, log_calib, args.verbose)
+        except Exception as e:
+            if args.verbose >=2:
+                print(f"Error in Calibration for {trial.identifier}")
+                print(e)
+            iDrinkLog.log_error(args, trial, e, 'calibration', '', log_val_errors)
+
+        try:
+            # Full Calibration is needed for Pose Estimation. There a calib file containing all cameras is needed.
+            delta_full_calibration_val(trial, log_calib_full, args.verbose)
+        except Exception as e:
             if args.verbose >= 2:
-                print(f"Start calibration for {trial.identifier}")
-            delta_calibration_val(trial, os.path.join(root_val, "calib_errors.csv"), args.verbose)
+                print(f"Error in Full Calibration for {trial.identifier}")
+                print(e)
+            iDrinkLog.log_error(args, trial, e, 'calibration_full', '', log_val_errors)
 
-        # Full Calibration is needed for Pose Estimation. There a calib file containing all cameras is needed.
-        delta_full_calibration_val(trial, os.path.join(root_val, "full_calib_errors.csv"), args.verbose)
-
-    df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
     match args.mode:
         case "pose_estimation":  # Runs only the Pose Estimation
@@ -653,22 +674,32 @@ def run_mode():
                                     print(f"Pose Estimation for {trial.identifier} already done.")
                                 continue
                             else:
-                                if args.verbose >= 2:
-                                    print(f"starting Pose Estimation for {trial.identifier}")
 
-                                video_files = iDrinkPoseEstimation.get_all_trial_vids(trial)
-                                iDrinkPoseEstimation.validation_pose_estimation_2d(trial, root_val, video_files=video_files, writevideofiles=True,
-                                                                                   filter_2d=False, DEBUG=False)
+                                try:
+                                    if args.verbose >= 2:
+                                        print(f"starting Pose Estimation for {trial.identifier}")
 
-                                trial.MMPose_done = True
-                                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
+                                    video_files = iDrinkPoseEstimation.get_all_trial_vids(trial)
+                                    iDrinkPoseEstimation.validation_pose_estimation_2d(trial, root_val, video_files=video_files, writevideofiles=True,
+                                                                                       filter_2d=False, DEBUG=False)
 
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                    trial.MMPose_done = True
+                                    trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
+
+                                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                except Exception as e:
+                                    if args.verbose>=2:
+                                        print(f"Error in Pose Estimation\n"
+                                              f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
+                                              f"{e}")
+
+                                    iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'mmpose', log_val_errors)
+                                    trial.MMPose_done = False
 
                             if i % 10 == 0:  # Update after every 10 trials
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
-                        df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                        df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
 
                     case "pose2sim":
@@ -695,23 +726,32 @@ def run_mode():
                                     print(f"Pose Estimation for {trial.identifier} already done.")
                                 continue
                             else:
-                                trial.config_dict['pose']['pose_model'] = 'COCO_17'
-                                vids_used = trial.config_dict['pose']['videos']
-                                trial.config_dict['pose']['videos'] = iDrinkPoseEstimation.get_all_trial_vids(trial)
-                                Pose2Sim.poseEstimation(trial.config_dict)
-                                trial.config_dict['pose']['pose_model'] = trial.pose_model
+                                try:
+                                    trial.config_dict['pose']['pose_model'] = 'COCO_17'
+                                    vids_used = trial.config_dict['pose']['videos']
+                                    trial.config_dict['pose']['videos'] = iDrinkPoseEstimation.get_all_trial_vids(trial)
+                                    Pose2Sim.poseEstimation(trial.config_dict)
+                                    trial.config_dict['pose']['pose_model'] = trial.pose_model
 
-                                iDrinkPoseEstimation.filt_p2s_pose(trial, root_val, verbose=args.verbose)
-                                trial.config_dict['pose']['videos'] = vids_used
-                                trial.P2SPose_done = True
-                                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
+                                    iDrinkPoseEstimation.filt_p2s_pose(trial, root_val, verbose=args.verbose)
+                                    trial.config_dict['pose']['videos'] = vids_used
+                                    trial.P2SPose_done = True
+                                    trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
 
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                except Exception as e:
+                                    if args.verbose >= 2:
+                                        print(f"Error in Pose Estimation\n"
+                                              f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
+                                              f"{e}")
+
+                                    iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'pose2sim', log_val_errors)
+                                    trial.P2SPose_done = False
 
                             if i % 10 == 0:
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
-                        df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                        df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
                     case "metrabs_multi":
                         os.chdir(os.path.realpath(os.path.join(os.getcwd(), "Metrabs_PoseEstimation")))
@@ -735,22 +775,30 @@ def run_mode():
                                 if args.verbose >= 2:
                                     print(f"Pose Estimation for {trial.identifier} already done.")
                             else:
-                                video_files = iDrinkPoseEstimation.get_all_trial_vids(trial)
+                                try:
+                                    video_files = iDrinkPoseEstimation.get_all_trial_vids(trial)
 
-                                calib = os.path.join(trial.dir_calib_videos, f'Calib_full_{trial.id_p}.toml')
-                                metrabs_pose_estimation_2d_val(curr_trial=trial, video_files=video_files,
-                                                               calib_file=os.path.join(trial.dir_calib_videos, f'Calib_full_{trial.id_p}.toml'),
-                                                               model_path=model_path,
-                                                               identifier=trial.identifier, root_val=root_val,
-                                                               skeleton=trial.pose_model)
-                                trial.Metrabs_multi_done = True
+                                    calib = os.path.join(trial.dir_calib_videos, f'Calib_full_{trial.id_p}.toml')
+                                    metrabs_pose_estimation_2d_val(curr_trial=trial, video_files=video_files,
+                                                                   calib_file=os.path.join(trial.dir_calib_videos, f'Calib_full_{trial.id_p}.toml'),
+                                                                   model_path=model_path,
+                                                                   identifier=trial.identifier, root_val=root_val,
+                                                                   skeleton=trial.pose_model)
+                                    trial.Metrabs_multi_done = True
 
-                                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                    trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
+                                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                except Exception as e:
+                                    if args.verbose >= 2:
+                                        print(f"Error in Pose Estimation\n"
+                                              f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
+                                              f"{e}")
 
+                                    iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'metrabs_multi', log_val_errors)
+                                    trial.Metrabs_multi_done = False
 
                             if i % 10 == 0:  # Update after every 10 trials
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
                         os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -759,7 +807,7 @@ def run_mode():
                               f"Please specify a valid mode.")
                         sys.exit(1)
 
-                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
 
         case "pose2sim":  # Runs only Pose2Sim
@@ -769,7 +817,7 @@ def run_mode():
 
             for i, trial in enumerate(trial_list):
                 # Get Pose method from settings dataframe
-                """i=72
+                """i=78 # Trial that leads to exception in P2S
                 trial = trial_list[i]"""
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
@@ -778,60 +826,110 @@ def run_mode():
                 trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
 
                 if pose == 'metrabs_single':
-                    model_path = os.path.realpath(
-                        os.path.join(metrabs_models_dir, 'pytorch', 'metrabs_eff2l_384px_800k_28ds_pytorch'))
-                    trial_done = df_trials[df_trials["id_t"] == trial.id_t & df_trials["id_p"] == trial.id_p][
-                        "Metrabs_single_done"].values[0]
+                    os.chdir(os.path.realpath(os.path.join(os.getcwd(), "Metrabs_PoseEstimation")))
+                    from Metrabs_PoseEstimation.metrabsPose3D_pt import metrabs_pose_estimation_3d_val
+                    try:
+                        model_path = os.path.realpath(
+                            os.path.join(metrabs_models_dir, 'pytorch', 'metrabs_eff2l_384px_800k_28ds_pytorch'))
+                        trial_done = df_trials[df_trials["id_t"] == trial.id_t & df_trials["id_p"] == trial.id_p][
+                            "Metrabs_single_done"].values[0]
 
-                    trial.metabs_multi_done = iDrinkLog.does_json_exist(trial, root_HPE, posebacks=["metrabs_multi"])
-                    if trial_done or trial.metabs_multi_done:
+                        trial.metabs_multi_done = iDrinkLog.does_json_exist(trial, root_HPE, posebacks=["metrabs_multi"])
+                        if trial_done or trial.metabs_multi_done:
+                            if args.verbose >= 2:
+                                print(f"Metrabs Single Cam Pose Estimation for {trial.identifier} already done.")
+                            continue
+                        else:
+                            try:
+                                dir_out_video = os.path.realpath(os.path.join(trial.dir_trial, 'videos', 'pose'))
+                                dir_out_trc = os.path.realpath(os.path.join(trial.dir_trial, 'pose-3d'))
+
+                                metrabs_pose_estimation_3d_val(trial.video_files[0], trial.calib, dir_out_video, dir_out_trc, model_path, trial.identifier,
+                                   skeleton='bml_movi_87', verbose=args.verbose, DEBUG=False)
+                                trial.Metrabs_single_done = False
+
+                            except Exception as e:
+                                if args.verbose >= 2:
+                                    print(f"Error in 3D Pose Estimation\n"
+                                          f"Trial: {trial.identifier}\n"
+                                          f"{e}")
+
+                                iDrinkLog.log_error(args, trial, e, 'metrabs_single_cam', pose, log_val_errors)
+                                trial.Metrabs_single_done = False
+
+                    except Exception as e:
                         if args.verbose >= 2:
-                            print(f"Metrabs Single Cam Pose Estimation for {trial.identifier} already done.")
-                        continue
+                            print(f"Error in 3D Pose Estimation\n"
+                                  f"Trial: {trial.identifier}\n"
+                                  f"{e}")
 
-                    print("Create .trc using metrabs Single Cam")
+                        iDrinkLog.log_error(args, trial, e, 'metrabs_single_cam', pose, log_val_errors)
+                        trial.Metrabs_single_done = False
+                    os.chdir(os.path.dirname(os.path.realpath(__file__)))
                 else:
                     if trial.HPE_done:
                         if args.verbose >= 1:
                             print(f"Trial: {trial.identifier} \t Posemode: {pose}")
                         iDrinkUtilities.move_json_to_trial(trial, pose, filt, root_val)
+                        try:
+                            if pose == "metrabs_multi":
+                                trial.run_pose2sim(only_triangulation=True)
+                            else:
+                                trial.run_pose2sim(only_triangulation=False)
 
-                        if pose == "metrabs_multi":
-                            trial.run_pose2sim(only_triangulation=True)
-                        else:
-                            trial.run_pose2sim(only_triangulation=False)
+                            trial.P2S_done = True
 
-                        iDrinkUtilities.del_json_from_trial(trial)
+                        except Exception as e:
+                            if args.verbose >= 2:
+                                print(f"Pose2Sim for {trial.identifier} failed with error: {e}")
 
-                        trial.P2S_done = True
+                            iDrinkLog.log_error(args, trial, e, 'Pose2Sim', pose, log_val_errors)
+
+                            trial.P2S_done = False
+
+                        iDrinkUtilities.del_json_from_trial(trial, False)
+
                     else:
                         print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
 
                 p2s_progress.update(1)
 
                 if i % 5 == 0:  # Update after every 5 trials
-                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
             p2s_progress.close()
             if all([trial.P2SPose_done for trial in trial_list]) is False:
                 print("Pose2Sim could not be completed for all Trials. Please Check whether Pose Estimaiton is fully done.\n"
                       "If not, please run Pose Estimation first. And then repeat Pose2Sim Mode.")
 
-            df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+            df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
         case "opensim":  # Runs only Opensim
             if args.verbose >= 1:
                 opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
             for trial in trial_list:
-                trial.prepare_opensim()
-                iDrinkOpenSim.open_sim_pipeline(trial, args.verbose)
+                pose = df_settings.loc[
+                    df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
+                try:
+                    trial.prepare_opensim()
+                    iDrinkOpenSim.open_sim_pipeline(trial, args.verbose)
 
-                trial.OS_done = True
+                    trial.OS_done = True
+                except Exception as e:
+                    if args.verbose >= 2:
+                        print(f"Error in openSim\n"
+                              f"Trial: {trial.identifier}\n"
+                              f"{e}")
+
+                    iDrinkLog.log_error(args, trial, e, 'Opensim', pose, log_val_errors)
+
+                    trial.OS_done = False
 
                 if args.verbose >= 1:
                     opensim_progress.update(1)
 
-                df_trials = iDrinkLog.update_trial_csv(args, trial_list, os.path.join(root_val, "validation_trials.csv"))
+
+                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
             if args.verbose >= 1:
                 opensim_progress.close()
