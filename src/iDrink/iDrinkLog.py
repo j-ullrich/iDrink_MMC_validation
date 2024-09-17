@@ -310,10 +310,12 @@ def log_error(args, trial, exception, stage, pose, csv_path):
     if os.path.isfile(csv_path):
         df_log = pd.read_csv(csv_path, sep=';')
     else:
-        df_log = pd.DataFrame(columns=["identifier", "stage", "pose_estimation", "cams", "exception"])
+        df_log = pd.DataFrame(columns=["date", "time", "identifier", "stage", "pose_estimation", "cams", "exception"])
 
 
     new_row = pd.Series(dtype='object')
+    new_row["date"] = time.strftime("%d.%m.%Y")
+    new_row["time"] = time.strftime("%H:%M:%S")
     new_row["identifier"] = trial.identifier
     new_row["stage"] = stage
     new_row["pose_estimation"] = pose
@@ -325,7 +327,7 @@ def log_error(args, trial, exception, stage, pose, csv_path):
     return df_log
 
 
-def mot_files_exist(trial):
+def files_exist(dir, file_type, verbose=0):
     """
     Checks if the .mot files exist for all cameras of the trial.
 
@@ -333,5 +335,10 @@ def mot_files_exist(trial):
     :return:
     """
 
-    files = glob.glob(os.path.join(trial.dir_trial, 'pose-3d', "*.mot"))
+    files = glob.glob(os.path.join(dir, f'*{file_type}'))
+
+    if verbose >= 1:
+        print(f"Checking if {file_type} files exist in {dir}\n")
+        print(files)
+
     return len(files) > 0

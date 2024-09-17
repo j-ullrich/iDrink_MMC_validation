@@ -658,7 +658,7 @@ def run_mode():
 
                             trial.pose_model = "Coco17_UpperBody"
 
-                            if any(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["MMPose_done"]):
+                            if any(df_trials.loc[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p), "MMPose_done"].values):
                                 trial.MMPose_done = True
                                 trial.n_frames = max(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["n_frames"])
                                 df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
@@ -711,7 +711,7 @@ def run_mode():
                             # Change the config_dict so that the correct pose model is used
                             trial.pose_model = "Coco17_UpperBody"
 
-                            if any(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["P2SPose_done"]):
+                            if any(df_trials.loc[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p), "P2SPose_done"].values):
                                 trial.P2SPose_done = True
                                 trial.n_frames = max(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["n_frames"])
                                 df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
@@ -761,7 +761,7 @@ def run_mode():
                         for i, trial in enumerate(trial_list):
                             trial.pose_model = "bml_movi_87"
 
-                            if any(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["Metrabs_multi_done"]):
+                            if any(df_trials.loc[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p), "Metrabs_multi_done"].values):
                                 trial.Metrabs_multi_done = True
                                 trial.n_frames = max(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["n_frames"])
                                 df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
@@ -831,11 +831,13 @@ def run_mode():
                     try:
                         model_path = os.path.realpath(
                             os.path.join(metrabs_models_dir, 'pytorch', 'metrabs_eff2l_384px_800k_28ds_pytorch'))
-                        trial_done = df_trials[df_trials["id_t"] == trial.id_t & df_trials["id_p"] == trial.id_p][
-                            "Metrabs_single_done"].values[0]
 
-                        trial.metabs_multi_done = iDrinkLog.does_json_exist(trial, root_HPE, posebacks=["metrabs_multi"])
-                        if trial_done or trial.metabs_multi_done:
+                        if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'Metrabs_single_done'].values[0]:
+                            trial.Metrabs_single_done = True
+                        else:
+                            trial.Metrabs_single_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.trc', args.verbose)
+
+                        if trial.Metrabs_single_done:
                             if args.verbose >= 2:
                                 print(f"Metrabs Single Cam Pose Estimation for {trial.identifier} already done.")
                             continue
@@ -868,24 +870,35 @@ def run_mode():
                     os.chdir(os.path.dirname(os.path.realpath(__file__)))
                 else:
                     if trial.HPE_done:
-                        if args.verbose >= 1:
-                            print(f"Trial: {trial.identifier} \t Posemode: {pose}")
-                        iDrinkUtilities.move_json_to_trial(trial, pose, filt, root_val)
-                        try:
-                            if pose == "metrabs_multi":
-                                trial.run_pose2sim(only_triangulation=True)
-                            else:
-                                trial.run_pose2sim(only_triangulation=False)
 
+                        if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
                             trial.P2S_done = True
+                        else:
+                            trial.P2S_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.trc', args.verbose)
 
-                        except Exception as e:
+                        if trial.P2S_done:
                             if args.verbose >= 2:
-                                print(f"Pose2Sim for {trial.identifier} failed with error: {e}")
+                                print(f"Pose2Sim for {trial.identifier} already done.")
+                            continue
+                        else:
+                            if args.verbose >= 1:
+                                print(f"Trial: {trial.identifier} \t Posemode: {pose}")
+                            iDrinkUtilities.move_json_to_trial(trial, pose, filt, root_val)
+                            try:
+                                if pose == "metrabs_multi":
+                                    trial.run_pose2sim(only_triangulation=True)
+                                else:
+                                    trial.run_pose2sim(only_triangulation=False)
 
-                            iDrinkLog.log_error(args, trial, e, 'Pose2Sim', pose, log_val_errors)
+                                trial.P2S_done = True
 
-                            trial.P2S_done = False
+                            except Exception as e:
+                                if args.verbose >= 2:
+                                    print(f"Pose2Sim for {trial.identifier} failed with error: {e}")
+
+                                iDrinkLog.log_error(args, trial, e, 'Pose2Sim', pose, log_val_errors)
+
+                                trial.P2S_done = False
 
                         iDrinkUtilities.del_json_from_trial(trial, False)
 
@@ -905,24 +918,16 @@ def run_mode():
             df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
         case "opensim":  # Runs only Opensim
-
-
-
-
-
-
             if args.verbose >= 1:
                 opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
             for trial in trial_list:
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
 
-                if any(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["OS_done"]):
+                if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'OS_done'].values[0]:
                     trial.OS_done = True
-                    df_trials.loc[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p), "OS_done"] = True
                 else:
-                    trial.OS_done = iDrinkLog.mot_files_exist(trial)
-
+                    trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.mot')
                 if trial.OS_done:
                     if args.verbose >= 2:
                         print(f"Opensim for {trial.identifier} already done.")
@@ -981,8 +986,8 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-    #args.mode = 'pose2sim'
-    args.mode = 'opensim'
+    args.mode = 'pose2sim'
+    #args.mode = 'opensim'
     args.poseback = 'metrabs_multi'
     args.verbose = 2
 

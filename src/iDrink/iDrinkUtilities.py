@@ -233,7 +233,7 @@ def move_json_to_trial(trial, poseback, filt, root_val, json_dst='pose', verbose
 
     cam_json = [[cam, glob.glob(os.path.join(dir_p, f"{id_p}_{cam}", poseback, f"{id_t}_*_json"))[0]] for cam in cams]
     if verbose>=1:
-        prog = tqdm(cam_json, desc="Copying json files", position=0, leave=True)
+        prog = tqdm(cam_json, desc="Copying json files",unit='folder', position=0, leave=True)
     for cam, json_dir_src in cam_json:
         basename = f"{trial.identifier}_{cam}_{os.path.basename(json_dir_src)}"
         json_dir_dst = os.path.join(dir_pose, basename)

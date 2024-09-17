@@ -14,6 +14,9 @@ import torchvision.io
 from tqdm import tqdm
 from trc import TRCData
 
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), 'metrabs_pytorch')))
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), 'posepile')))
 import metrabs_pytorch.backbones.efficientnet as effnet_pt
 import metrabs_pytorch.models.metrabs as metrabs_pt
 import posepile.joint_info
