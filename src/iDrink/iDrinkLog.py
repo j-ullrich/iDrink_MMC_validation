@@ -323,3 +323,15 @@ def log_error(args, trial, exception, stage, pose, csv_path):
     df_log.to_csv(csv_path, sep=';', index=False)
 
     return df_log
+
+
+def mot_files_exist(trial):
+    """
+    Checks if the .mot files exist for all cameras of the trial.
+
+    :param trial:
+    :return:
+    """
+
+    files = glob.glob(os.path.join(trial.dir_trial, 'pose-3d', "*.mot"))
+    return len(files) > 0

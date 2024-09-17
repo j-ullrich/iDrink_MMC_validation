@@ -100,7 +100,7 @@ for p_id in p_list:
         trial_list.append(trial)
 
         try:
-            iDrinkOpenSim.open_sim_pipeline(trial)
+            iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'))
             df_log = df_log.append({"identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
         except Exception as e:
             print(e)

@@ -95,7 +95,7 @@ def read_opensim_file(file_path):
     return metadata, df
 
 
-def open_sim_pipeline(curr_trial, verbose=1):
+def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
     """
     This function loads an opensim Model and runs the Scale- and Inverse Kinematics Tool on it.
     the .mot file will be saved to the determined folder.
@@ -170,6 +170,12 @@ def open_sim_pipeline(curr_trial, verbose=1):
         if curr_trial.pose_model == "OMC":
             comp={"hip_L": -1,
                   "hip_R": -1,}
+        elif curr_trial.pose_model == "bml_movi_87":
+            comp = {"mhip": -1,
+                    "rhip": -1,
+                    "lhip": -1,
+                    "pelv": -1
+                    }
         else:
             comp = {"CHip": -1,
                     "RHip": -1,
@@ -220,6 +226,15 @@ def open_sim_pipeline(curr_trial, verbose=1):
     if curr_trial.stabilize_hip:
         stabilize_hip_movement(curr_trial, os.path.join(curr_trial.dir_trial, curr_trial.opensim_marker_filtered))
 
+    if not os.path.isdir(log_dir):
+        os.makedirs(log_dir)
+
+
+    # Set Logfile for Opensim
+    opensim.Logger.removeFileSink()
+    opensim.Logger.addFileSink(os.path.join(log_dir, f'{curr_trial.identifier}_opensim.log'))
+
+
     model = opensim.Model(curr_trial.opensim_model)
     model.initSystem()
     scaleTool = opensim.ScaleTool(curr_trial.opensim_scaling)
@@ -227,6 +242,7 @@ def open_sim_pipeline(curr_trial, verbose=1):
     # Necessary for Table Processing
     ikTool.set_marker_file(curr_trial.opensim_marker_filtered)
     ikTool.set_output_motion_file(curr_trial.opensim_motion)
+    ikTool.set_results_directory(os.path.join(curr_trial.dir_trial, f'pose-3d'))
     # Run Scaling and Invkin Tools
     scaleTool.run()
     ikTool.run()

@@ -905,25 +905,48 @@ def run_mode():
             df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
         case "opensim":  # Runs only Opensim
+
+
+
+
+
+
             if args.verbose >= 1:
                 opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
             for trial in trial_list:
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
-                try:
-                    trial.prepare_opensim()
-                    iDrinkOpenSim.open_sim_pipeline(trial, args.verbose)
 
+                if any(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["OS_done"]):
                     trial.OS_done = True
-                except Exception as e:
+                    df_trials.loc[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p), "OS_done"] = True
+                else:
+                    trial.OS_done = iDrinkLog.mot_files_exist(trial)
+
+                if trial.OS_done:
                     if args.verbose >= 2:
-                        print(f"Error in openSim\n"
-                              f"Trial: {trial.identifier}\n"
-                              f"{e}")
+                        print(f"Opensim for {trial.identifier} already done.")
+                    continue
+                else:
+                    try:
+                        trial.prepare_opensim()
+                        iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'),  args.verbose)
+                        """
+                        mmpose: Coco17_UpperBody
+                        pose2sim: Coco17_UpperBody
+                        metrabs_multi: bml_movi_87
+                        """
 
-                    iDrinkLog.log_error(args, trial, e, 'Opensim', pose, log_val_errors)
+                        trial.OS_done = True
+                    except Exception as e:
+                        if args.verbose >= 2:
+                            print(f"Error in openSim\n"
+                                  f"Trial: {trial.identifier}\n"
+                                  f"{e}")
 
-                    trial.OS_done = False
+                        iDrinkLog.log_error(args, trial, e, 'Opensim', pose, log_val_errors)
+
+                        trial.OS_done = False
 
                 if args.verbose >= 1:
                     opensim_progress.update(1)
@@ -959,6 +982,7 @@ if __name__ == '__main__':
 
     args.mode = "pose_estimation"
     #args.mode = 'pose2sim'
+    args.mode = 'opensim'
     args.poseback = 'metrabs_multi'
     args.verbose = 2
 
