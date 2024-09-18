@@ -214,8 +214,8 @@ def add_to_dataframe(df, pose_result_3d):
 def metrabs_pose_estimation_3d_val(video_file, calib, dir_out_video, dir_out_trc, model_path, identifier,
                                skeleton='bml_movi_87', verbose=1, DEBUG=False):
 
-    get_config(os.path.realpath(os.path.join(args.model_path, 'config.yaml')))
-    multiperson_model_pt = load_multiperson_model(args.model_path).cuda()
+    get_config(os.path.realpath(os.path.join(model_path, 'config.yaml')))
+    multiperson_model_pt = load_multiperson_model(model_path).cuda()
 
     joint_names = multiperson_model_pt.per_skeleton_joint_names[skeleton]
     joint_edges = multiperson_model_pt.per_skeleton_joint_edges[skeleton].cpu().numpy()

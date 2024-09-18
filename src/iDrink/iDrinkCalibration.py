@@ -30,7 +30,7 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1):
     from aniposelib.cameras import CameraGroup
 
     # Check if calibration file already exists
-    calib_file = os.path.join(curr_trial.dir_calib, f'Calib_{curr_trial.id_s}.toml')
+    calib_file = os.path.join(curr_trial.dir_calib, f'Calib_{curr_trial.id_s}_{curr_trial.id_p}.toml')
     if os.path.isfile(calib_file):
         if verbose >= 2:
             print(f"Calibration file {calib_file} already exists.")

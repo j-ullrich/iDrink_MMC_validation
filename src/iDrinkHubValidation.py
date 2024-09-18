@@ -67,7 +67,9 @@ root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all
 default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
 root_HPE = os.path.join(root_val, "02_pose_estimation")  # Root directory of all Pose Estimation Data
 root_data = os.path.join(root_val, "03_data")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+root_stat = os.path.join(root_val, '04_Statistics')
 root_logs = os.path.join(root_val, "05_logs")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
+metrabs_models_dir = os.path.join(root_val, "06_metrabs_models")  # Directory containing the Metrabs Models
 
 # Prepare Logging Paths
 log_val_settings = os.path.join(root_logs, "validation_settings.csv")
@@ -80,7 +82,7 @@ log_calib_full = os.path.join(root_logs, "calib_errors_full.csv")
 os.environ['DATA_ROOT'] = root_iDrink  # Set the DATA_ROOT Environment Variable for Metrabs
 os.environ['ROOT_DIR'] = root_iDrink # Set the ROOT_DIR Environment Variable for Metrabs
 
-metrabs_models_dir = os.path.join(root_val, "04_metrabs_models")  # Directory containing the Metrabs Models
+
 
 df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
@@ -813,7 +815,8 @@ def run_mode():
         case "pose2sim":  # Runs only Pose2Sim
 
             from Pose2Sim import Pose2Sim
-            p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
+            if args.verbose >= 1:
+                p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
 
             for i, trial in enumerate(trial_list):
                 # Get Pose method from settings dataframe
@@ -870,7 +873,6 @@ def run_mode():
                     os.chdir(os.path.dirname(os.path.realpath(__file__)))
                 else:
                     if trial.HPE_done:
-
                         if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
                             trial.P2S_done = True
                         else:
@@ -904,13 +906,14 @@ def run_mode():
 
                     else:
                         print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
-
-                p2s_progress.update(1)
+                if args.verbose >= 1:
+                    p2s_progress.update(1)
 
                 if i % 5 == 0:  # Update after every 5 trials
                     df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
-            p2s_progress.close()
+            if args.verbose >= 1:
+                p2s_progress.close()
             if all([trial.P2SPose_done for trial in trial_list]) is False:
                 print("Pose2Sim could not be completed for all Trials. Please Check whether Pose Estimaiton is fully done.\n"
                       "If not, please run Pose Estimation first. And then repeat Pose2Sim Mode.")
