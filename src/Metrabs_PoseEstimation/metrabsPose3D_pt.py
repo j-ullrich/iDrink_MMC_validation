@@ -211,7 +211,7 @@ def add_to_dataframe(df, pose_result_3d):
     return df
 
 
-def metrabs_pose_estimation_3d_val(video_file, calib, dir_out_video, dir_out_trc, model_path, identifier,
+def metrabs_pose_estimation_3d_val(video_file, calib_file, dir_out_video, dir_out_trc, model_path, identifier,
                                skeleton='bml_movi_87', verbose=1, DEBUG=False):
 
     get_config(os.path.realpath(os.path.join(model_path, 'config.yaml')))
@@ -219,6 +219,8 @@ def metrabs_pose_estimation_3d_val(video_file, calib, dir_out_video, dir_out_trc
 
     joint_names = multiperson_model_pt.per_skeleton_joint_names[skeleton]
     joint_edges = multiperson_model_pt.per_skeleton_joint_edges[skeleton].cpu().numpy()
+
+    calib = toml.load(calib_file)
 
     # Check if the directory exists, if not create it
     if not os.path.exists(dir_out_video):
@@ -237,7 +239,7 @@ def metrabs_pose_estimation_3d_val(video_file, calib, dir_out_video, dir_out_trc
         print("Could not open file")
         exit()
     # get intrinsics from calib file
-    cam = re.search(r"cam\d*", os.path.basename(video_file)).group()
+    cam = re.search(r"cam\d*", video_file).group()
     intrinsic_matrix = None
     distortions = None
     for key in calib.keys():
@@ -265,7 +267,7 @@ def metrabs_pose_estimation_3d_val(video_file, calib, dir_out_video, dir_out_trc
     if verbose >=1:
         progress = tqdm(total=tot_frames, desc=f"Processing {os.path.basename(video_file)}", position=0, leave=True)
     with torch.inference_mode(), torch.device('cuda'):
-        frames_in, _, _ = torchvision.io.read_video(video_file, output_format='TCHW')
+        frames_in, _, _ = torchvision.io.read_video(video_file, output_format='TCHW', pts_unit='sec')
         for frame_idx, frame in enumerate(frames_in):
             pred = multiperson_model_pt.detect_poses(frame, skeleton=skeleton, detector_threshold=0.01,
                                                      suppress_implausible_poses=False, max_detections=1,

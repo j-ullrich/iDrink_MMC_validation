@@ -756,7 +756,6 @@ def run_mode():
                         df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
                     case "metrabs_multi":
-                        os.chdir(os.path.realpath(os.path.join(os.getcwd(), "Metrabs_PoseEstimation")))
                         from Metrabs_PoseEstimation.metrabsPose2D_pt import metrabs_pose_estimation_2d_val
                         print("Pose Estimation mode: Metrabs Multi Cam starting.")
                         model_path = os.path.realpath(os.path.join(metrabs_models_dir, 'pytorch', 'metrabs_eff2l_384px_800k_28ds_pytorch'))
@@ -802,8 +801,6 @@ def run_mode():
                             if i % 10 == 0:  # Update after every 10 trials
                                 df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
-                        os.chdir(os.path.dirname(os.path.realpath(__file__)))
-
                     case _:  # If no valid mode is given
                         print(f"Invalid Mode: {poseback}\n"
                               f"Please specify a valid mode.")
@@ -828,8 +825,10 @@ def run_mode():
 
                 trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
 
+                if pose != 'metrabs_single':
+                    continue
+
                 if pose == 'metrabs_single':
-                    os.chdir(os.path.realpath(os.path.join(os.getcwd(), "Metrabs_PoseEstimation")))
                     from Metrabs_PoseEstimation.metrabsPose3D_pt import metrabs_pose_estimation_3d_val
                     try:
                         model_path = os.path.realpath(
