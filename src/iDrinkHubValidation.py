@@ -825,9 +825,6 @@ def run_mode():
 
                 trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
 
-                if pose != 'metrabs_single':
-                    continue
-
                 if pose == 'metrabs_single':
                     from Metrabs_PoseEstimation.metrabsPose3D_pt import metrabs_pose_estimation_3d_val
                     try:

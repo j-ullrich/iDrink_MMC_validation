@@ -265,7 +265,7 @@ def metrabs_pose_estimation_3d_val(video_file, calib_file, dir_out_video, dir_ou
     cap.release()
 
     if verbose >=1:
-        progress = tqdm(total=tot_frames, desc=f"Processing {os.path.basename(video_file)}", position=0, leave=True)
+        progress = tqdm(total=tot_frames, desc=f"Processing {identifier} - {os.path.basename(video_file)}", position=0, leave=True, unit='frame')
     with torch.inference_mode(), torch.device('cuda'):
         frames_in, _, _ = torchvision.io.read_video(video_file, output_format='TCHW', pts_unit='sec')
         for frame_idx, frame in enumerate(frames_in):
@@ -298,9 +298,9 @@ def metrabs_pose_estimation_3d_val(video_file, calib_file, dir_out_video, dir_ou
         os.makedirs(dir_out_trc)
 
     trc_file_filt = os.path.join(dir_out_trc,
-                                 f"{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_filt_iDrinkbutter.trc")
+                                 f"{identifier}_{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_filt_iDrinkbutter.trc")
     trc_file_unfilt = os.path.join(dir_out_trc,
-                                   f"{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_unfilt_iDrink.trc")
+                                   f"{identifier}_{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_unfilt_iDrink.trc")
 
     df_to_trc(df_filt, trc_file_filt, identifier, fps, n_frames, n_markers)
     df_to_trc(df, trc_file_unfilt, identifier, fps, n_frames, n_markers)
@@ -324,8 +324,6 @@ def metrabs_pose_estimation_3d(video_file, calib_file, dir_out_video, dir_out_tr
     # Check if the directory exists, if not create it
     if not os.path.exists(dir_out_video):
         os.makedirs(dir_out_video)
-
-    calib = toml.load(calib_file)
 
     ##################################################
     #############  OPENING THE VIDEO  ################
