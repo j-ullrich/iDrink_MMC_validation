@@ -71,6 +71,10 @@ root_stat = os.path.join(root_val, '04_Statistics')
 root_logs = os.path.join(root_val, "05_logs")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 metrabs_models_dir = os.path.join(root_val, "06_metrabs_models")  # Directory containing the Metrabs Models
 
+for dir in [root_MMC, root_OMC, root_val, default_dir, root_HPE, root_data, root_stat, root_logs, metrabs_models_dir]:
+    if not os.path.isdir(dir):
+        os.makedirs(dir, exist_ok=True)
+
 # Prepare Logging Paths
 log_val_settings = os.path.join(root_logs, "validation_settings.csv")
 log_val_trials = os.path.join(root_logs, "validation_trials.csv")
@@ -825,6 +829,9 @@ def run_mode():
 
                 trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
 
+                if pose != 'metrabs_single':
+                    continue
+
                 if pose == 'metrabs_single':
                     from Metrabs_PoseEstimation.metrabsPose3D_pt import metrabs_pose_estimation_3d_val
                     try:
@@ -836,6 +843,7 @@ def run_mode():
                         else:
                             trial.Metrabs_single_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.trc', args.verbose)
 
+                        trial.Metrabs_single_done=False
                         if trial.Metrabs_single_done:
                             if args.verbose >= 2:
                                 print(f"Metrabs Single Cam Pose Estimation for {trial.identifier} already done.")
@@ -886,7 +894,7 @@ def run_mode():
                                 if pose == "metrabs_multi":
                                     trial.run_pose2sim(only_triangulation=True)
                                 else:
-                                    trial.run_pose2sim(only_triangulation=False)
+                                    trial.run_pose2sim(only_triangulation=True)
 
                                 trial.P2S_done = True
 

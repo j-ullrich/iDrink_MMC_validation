@@ -83,7 +83,7 @@ def read_opensim_file(file_path):
     metadata = []
     with open(file_path, 'r') as file:
         for row in file:
-            metadata.append(row)
+            metadata.append(row.split('\n')[0])
             if "endheader" in row.strip().lower():
                 break
 

@@ -1,6 +1,7 @@
 import glob
 import os
 import re
+import time
 
 import cv2
 import numpy as np
@@ -8,6 +9,7 @@ import pandas as pd
 from aniposelib.boards import CharucoBoard
 from aniposelib.cameras import CameraGroup
 from openpyxl import Workbook
+
 
 def cam_as_ray_calibration():
     """Not Yet Implemented"""
@@ -23,11 +25,6 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1):
 
     self can be Session or Trial Object
     """
-    import glob
-    import os
-    import re
-    from aniposelib.boards import CharucoBoard
-    from aniposelib.cameras import CameraGroup
 
     # Check if calibration file already exists
     calib_file = os.path.join(curr_trial.dir_calib, f'Calib_{curr_trial.id_s}_{curr_trial.id_p}.toml')
@@ -42,7 +39,7 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1):
     if os.path.isfile(path_error_csv):
         df_error = pd.read_csv(path_error_csv, sep=';')
     else:
-        df_error = pd.DataFrame(columns=["s_id", "p_id",  "cam_used", "error"])
+        df_error = pd.DataFrame(columns=["date", "time", "s_id", "p_id",  "cam_used", "error"])
 
     # Find all video files in the calibration folder
     cams = curr_trial.used_cams
@@ -76,7 +73,8 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1):
     videos = [[video] for video in video_files]
     error, all_rows = cgroup.calibrate_videos(videos, board)
 
-    new_row = pd.Series({"s_id": curr_trial.id_s, "p_id": curr_trial.id_p, "cam_used": cam_names, "error": error})
+    new_row = pd.Series({"date": time.strftime("%d.%m.%Y"), "time": time.strftime("%H:%M:%S"), "s_id": curr_trial.id_s, "p_id": curr_trial.id_p, "cam_used": cam_names, "error": error})
+
     df_error = pd.concat([df_error, new_row.to_frame().T], ignore_index=True)
 
     # Save the camera group configuration to a TOML file named after the configuration
@@ -99,11 +97,6 @@ def delta_full_calibration_val(curr_trial, path_error_csv, verbose=1):
 
     self can be Session or Trial Object
     """
-    import glob
-    import os
-    import re
-    from aniposelib.boards import CharucoBoard
-    from aniposelib.cameras import CameraGroup
 
     # Check if calibration file already exists
     calib_file = os.path.join(curr_trial.dir_calib_videos, f'Calib_full_{curr_trial.id_p}.toml')

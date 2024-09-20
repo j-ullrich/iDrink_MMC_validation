@@ -300,7 +300,7 @@ def metrabs_pose_estimation_3d_val(video_file, calib_file, dir_out_video, dir_ou
     trc_file_filt = os.path.join(dir_out_trc,
                                  f"{identifier}_{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_filt_iDrinkbutter.trc")
     trc_file_unfilt = os.path.join(dir_out_trc,
-                                   f"{identifier}_{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_unfilt_iDrink.trc")
+                                   f"{identifier}_{os.path.basename(video_file).split('.mp4')[0]}_0-{frame_idx}_iDrink.trc")
 
     df_to_trc(df_filt, trc_file_filt, identifier, fps, n_frames, n_markers)
     df_to_trc(df, trc_file_unfilt, identifier, fps, n_frames, n_markers)

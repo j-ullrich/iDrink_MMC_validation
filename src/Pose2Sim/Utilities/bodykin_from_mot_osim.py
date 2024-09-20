@@ -159,7 +159,7 @@ def bodykin_from_mot_osim_func(*args):
     # Export to csv
     loc_rot_frame_all_np = np.array(loc_rot_frame_all)
     loc_rot_frame_all_np = np.insert(loc_rot_frame_all_np, 0, times, axis=1) # insert time column
-    bodyHeader = 'times, ' + ''.join([f'{b}_x, {b}_y, {b}_z, {b}_rotx, {b}_roty, {b}_rotz, ' for b in bodyNames])[:-2]
+    bodyHeader = 'times, ' + ''.join([f'{b}_x,{b}_y,{b}_z,{b}_ox,{b}_oy,{b}_oz,' for b in bodyNames])[:-2]
 
     np.savetxt(os.path.splitext(output_csv_file)[0]+'.csv', loc_rot_frame_all_np, delimiter=',', header=bodyHeader)
     
