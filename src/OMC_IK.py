@@ -61,9 +61,9 @@ df_log = pd.DataFrame(columns=["Date", "Time", "identifier", "status", "exceptio
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
-    if verbose >=1:
-        print(f"p_list: \n"
-              f"{p_list}")
+if verbose >=1:
+    print(f"p_list: \n"
+            f"{p_list}")
 
 for p_id in p_list:
 
