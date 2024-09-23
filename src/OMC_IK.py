@@ -48,7 +48,8 @@ default_dir = os.path.join(root_val, "01_default_files")
 root_logs = os.path.join(root_val, "05_logs")
 csv_path = os.path.join(root_logs, "OMC_Opensim_log.csv")
 
-DEBUG=False
+DEBUG = False
+verbose = 1
 
 p_list = os.listdir(root_OMC)
 
@@ -60,6 +61,10 @@ df_log = pd.DataFrame(columns=["Date", "Time", "identifier", "status", "exceptio
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
+    if verbose >=1:
+        print(f"p_list: \n"
+              f"{p_list}")
+
 for p_id in p_list:
 
     trc_dir = os.path.realpath(os.path.join(root_OMC, p_id, "trc"))
@@ -70,6 +75,9 @@ for p_id in p_list:
         affected_trials = [f for f in glob.glob(os.path.join(trc_dir, "*affected*.trc")) if "unaffected" not in f]
         trc_files = unaffected_trials[:3] + affected_trials[:3]
 
+    if verbose >= 1:
+        print(f"trc_files for {p_id}: \n"
+              f"{trc_files}")
     for trc_file in trc_files:
         id_t = re.search("\d+", os.path.basename(trc_file)).group()
         id_t = f"T{int(id_t):03d}"
