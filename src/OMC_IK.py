@@ -97,7 +97,7 @@ for p_id in p_list:
         trial_done = iDrinkLog.files_exist(os.path.join(dir_t, 'pose-3d'), '.mot', verbose=1)
         if trial_done:
             print(f"Skipping {identifier} as it is already done.")
-            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
+            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "Already Done", "exception": ""}, ignore_index=True)
             continue
 
         # copy trc file to pose-3d folder
