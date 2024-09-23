@@ -11,7 +11,7 @@ from tqdm import tqdm
 import argparse
 import pandas as pd
 
-from iDrink import iDrinkTrial, iDrinkOpenSim, iDrinkUtilities
+from iDrink import iDrinkTrial, iDrinkOpenSim, iDrinkUtilities, iDrinkLog
 
 
 def prepare_opensim(self, filterflag="filt"):
@@ -55,7 +55,7 @@ p_list = os.listdir(root_OMC)
 id_s = "S15133"  # O:15 M:13 C:3
 trial_list = []
 
-df_log = pd.DataFrame(columns=["identifier", "status", "exception"])
+df_log = pd.DataFrame(columns=["Date", "Time", "identifier", "status", "exception"])
 
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
@@ -88,6 +88,12 @@ for p_id in p_list:
         trial.create_trial(for_omc=True)
         trial.load_configuration()
 
+        trial_done = iDrinkLog.files_exist(os.path.join(dir_t, 'pose-3d'), '.mot', verbose=1)
+        if trial_done:
+            print(f"Skipping {identifier} as it is already done.")
+            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
+            continue
+
         # copy trc file to pose-3d folder
         dir_pose3d = os.path.realpath(os.path.join(dir_t, "pose-3d"))
         trc_nameparts = os.path.basename(trc_file).split('_')
@@ -101,11 +107,13 @@ for p_id in p_list:
 
         try:
             iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'))
-            df_log = df_log.append({"identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
+            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
         except Exception as e:
             print(e)
-            df_log = df_log.append({"identifier": identifier, "status": "failed", "exception": str(e)}, ignore_index=True)
+            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "failed", "exception": str(e)}, ignore_index=True)
             pass
 
         df_log.to_csv(csv_path, index=False)
+
+    df_log.to_csv(csv_path, index=False)
 
