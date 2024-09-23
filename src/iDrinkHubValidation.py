@@ -60,7 +60,12 @@ parser.add_argument('--DEBUG', action='store_true', default=False,
 
 """Set Root Paths for Processing"""
 drives=['C:', 'D:', 'E:', 'I:']
-root_iDrink = rf"{drives[3]}\iDrink"  # Root directory of all iDrink Data
+if os.name=='posix':  # Running on Linux
+    drive = '/media/devteam-dart/Extreme SSD'
+else:
+    drive = drives[3]
+
+root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Test_folder_structures")  # Root directory of all MMC-Data --> Videos and Openpose json files
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.

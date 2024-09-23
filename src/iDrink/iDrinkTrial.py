@@ -621,8 +621,13 @@ class Trial:
 
         # TODO: Make this part more general. At the moment it is a bit too focused on OpenSim
 
+        if os.name == 'posix':
+            slash = '/'
+        elif os.name == 'nt':
+            slash = '\\'
+
         if self.dir_trial in path_in:
-            filepath = path_in.split(self.dir_trial + "\\", 1)[1]
+            filepath = path_in.split(self.dir_trial + slash, 1)[1]
         else:
             return "dir_trial not in path"
 

@@ -191,6 +191,26 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         dir_calib = correct_drive(row["dir_calib"], drive)
         dir_calib_videos = correct_drive(row["dir_calib_videos"], drive)
 
+        if os.name == 'posix' and '\\' in dir_trial:
+            # Replace backslashes with forward slashes
+            base = root_data.split('iDrink')[0]
+
+            dir_trial = os.path.join(base, 'iDrink', dir_trial.replace('\\', '/').split('iDrink/')[1])
+            dir_participant = os.path.join(base, 'iDrink', dir_participant.replace('\\', '/').split('iDrink/')[1])
+            dir_session = os.path.join(base, 'iDrink', dir_session.replace('\\', '/').split('iDrink/')[1])
+            dir_calib = os.path.join(base, 'iDrink', dir_calib.replace('\\', '/').split('iDrink/')[1])
+            dir_calib_videos = os.path.join(base, 'iDrink', dir_calib_videos.replace('\\', '/').split('iDrink/')[1])
+            video_files = [os.path.join(base, 'iDrink', video_file.replace('\\', '/').split('iDrink/')[1]) for video_file in video_files]
+        elif os.name == 'nt' and '/' in dir_trial:
+            # Replace forward slashes with backslashes
+            base = root_data.split('iDrink')[0]
+
+            dir_trial = os.path.join(base, 'iDrink', dir_trial.replace('/', '\\').split('iDrink\\')[1])
+            dir_participant = os.path.join(base, 'iDrink', dir_participant.replace('/', '\\').split('iDrink\\')[1])
+            dir_session = os.path.join(base, 'iDrink', dir_session.replace('/', '\\').split('iDrink\\')[1])
+            dir_calib = os.path.join(base, 'iDrink', dir_calib.replace('/', '\\').split('iDrink\\')[1])
+            dir_calib_videos = os.path.join(base, 'iDrink', dir_calib_videos.replace('/', '\\').split('iDrink\\')[1])
+            video_files = [os.path.join(base, 'iDrink', video_file.replace('/', '\\').split('iDrink\\')[1]) for video_file in video_files]
 
 
         # Create the trial object

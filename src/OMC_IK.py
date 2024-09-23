@@ -39,8 +39,14 @@ def prepare_opensim(self, filterflag="filt"):
         self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=False)[1])
 
 
+"""Set Root Paths for Processing"""
 drives=['C:', 'D:', 'E:', 'I:']
-root_iDrink = rf"{drives[3]}\iDrink"  # Root directory of all iDrink Data
+if os.name=='posix':  # Running on Linux
+    drive = '/media/devteam-dart/Extreme SSD'
+else:
+    drive = drives[3]
+
+root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 root_dat_out = os.path.join(root_val, "03_data", "OMC")  # Root directory of all the data for the validation
