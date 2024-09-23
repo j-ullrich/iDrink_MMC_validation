@@ -165,7 +165,6 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
         trc = TRCData()
 
         trc.load(filename=path_trc)
-        #  TODO: if OMC in trc path, hip_L hip_R
 
         if curr_trial.pose_model == "OMC":
             comp={"hip_L": -1,
