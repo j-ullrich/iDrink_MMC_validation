@@ -61,8 +61,10 @@ p_list = os.listdir(root_OMC)
 
 id_s = "S15133"  # O:15 M:13 C:3
 trial_list = []
-
-df_log = pd.DataFrame(columns=["Date", "Time", "identifier", "status", "exception"])
+if os.path.isfile(csv_path):
+    df_log = pd.read_csv(csv_path)
+else:
+    df_log = pd.DataFrame(columns=["Date", "Time", "identifier", "status", "exception"])
 
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
