@@ -19,11 +19,6 @@ import scipy as sp
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from iDrinkOpenSim import read_opensim_file
 
-
-
-
-
-
 def runs_statistics_discrete(df_mmc, df_omc, root_stat):
     """
     Takess Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
