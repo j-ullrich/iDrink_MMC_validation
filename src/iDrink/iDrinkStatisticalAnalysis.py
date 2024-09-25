@@ -60,12 +60,53 @@ def runs_statistics_discrete(df_mmc, df_omc, root_stat):
 
     pass
 
+def get_paired_rom(df_stat, roms):
+    """
+    Calculates the paired Range of Motion Difference and adds it to the DataFrame
 
-def run_statistics_continuous(df_mmc, df_omc, to_compare, isjoint, root_stat, verbose=1):
+    :param df_stat:
+    :return: DataFrame
+    """
+
+    df_paired_rom_diff = pd.DataFrame(columns=['hip_flexion', 'hip_adduction', 'hip_rotation',
+                                               'arm_flex', 'arm_add', 'arm_rot', 'elbow_flex',
+                                               'pro_sup', 'wrist_flex', 'wrist_dev'],
+                                      index=['paired_rom_diff'])
+
+    for column in df_paired_rom_diff.columns:
+
+        left = df_stat.loc['rom_error', f'{column}_l']
+        right = df_stat.loc['rom_error', f'{column}_r']
+
+        paired_error = np.sqrt((left-right) ** 2)
+
+        df_paired_rom_diff[column] = paired_error
+
+
+
+    return df_paired_rom_diff
+
+
+
+def run_stat_cont_on_trial(df_mmc, df_omc, to_compare, isjoint, root_stat, verbose=1):
     """
     Compares two Dataframes containing positional data, velocity or acceleration data.
 
     This function works with endeffector Pos/Vel/acc and Joint Pos/Vel/acc.
+
+    it calculates:
+
+    - Standard Deviation
+    - Root Mean Squared Error
+    - Pearson Correlation Coefficient
+    - Pearson Correlation P-Value
+    - Range of Motion Error (Only for joint data)
+
+    - Min Error
+    - Max Error
+    - Median Error
+    - Mean Error
+
 
     It then plots the
 
@@ -90,6 +131,9 @@ def run_statistics_continuous(df_mmc, df_omc, to_compare, isjoint, root_stat, ve
     time_mmc = df_mmc['time']
     time_omc = df_omc['time']
 
+    df_stat_cont = pd.DataFrame(columns=to_compare, index=['std', 'rmse', 'pearson', 'pearson_pval', 'rom_error', 'min_error', 'max_error', 'median_error', 'mean_error'])
+    roms = pd.DataFrame(columns = to_compare, index = ['mmc', 'omc'])
+
     for column in to_compare:
         if column in df_omc.columns:
             pass
@@ -98,16 +142,59 @@ def run_statistics_continuous(df_mmc, df_omc, to_compare, isjoint, root_stat, ve
                              f"Column {column} not in df_omc_pos")
         arr_mmc = df_mmc[column].to_numpy()
         arr_omc = df_omc[column].to_numpy()
+        if isjoint:
+            roms.loc['mmc', column] = np.sum(np.abs(np.diff(arr_mmc)))
+            roms.loc['omc', column] = np.sum(np.abs(np.diff(arr_omc)))
+
+        # Calculate Standard Deviation
+        std = np.std(arr_mmc - arr_omc)
+
+        # Calculate Root Mean Squared Error
+        rmse = np.sqrt(np.mean((arr_mmc - arr_omc)**2))
+
+        # Calculate Coefficient of Multiple Correlation
+        correlation = sp.stats.pearsonr(arr_mmc, arr_omc)
+        pearson = correlation[0]
+        pearson_pval = correlation[1]
+
+        if isjoint:
+            # Calculate Range of Motion Error
+            rom_error = roms.loc['omc', column] - roms.loc['mmc', column]
+        else:
+            rom_error = None
+
+        # Calculate Min Error
+        min_error = np.min(np.abs(arr_mmc - arr_omc))
+
+        # Calculate Max Error
+        max_error = np.max(np.abs(arr_mmc - arr_omc))
+
+        # Calculate Median Error
+        median_error = np.median(np.abs(arr_mmc - arr_omc))
+
+        # Calculate Mean Error
+        mean_error = np.mean(np.abs(arr_mmc - arr_omc))
+
+        df_stat_cont[column] = [std, rmse, pearson, pearson_pval, rom_error, min_error, max_error, median_error, mean_error]
 
 
 
 
 
+    #sp.stats.tukey_hsd(df_stat_cont.loc['rom_error'].values)
+
+    df_stat_cont = pd.concat([df_stat_cont, roms])
+    return df_stat_cont
 
 
+def run_stat_cont_over_trials(trial_list, list_df_stat_cont, ):
 
-    pass
 
+    for trial in trial_list:
+
+
+    shapiro_rom = sp.stats.shapiro(df_stat_cont.loc['rom_error'].values)
+    df_paired_rom_diff = get_paired_rom(df_stat_cont, roms)
 
 def standardize_data(df, metadata=None, verbose=1):
     """
@@ -363,4 +450,4 @@ if __name__ == '__main__':
     df_omc_pos, df_omc_vel, df_omc_acc = get_dataframes(files_omc)
 
     if continuous:
-        run_statistics_continuous(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
+        run_stat_cont_on_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
