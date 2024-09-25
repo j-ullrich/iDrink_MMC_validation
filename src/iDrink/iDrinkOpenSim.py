@@ -3,6 +3,7 @@ import logging.handlers
 import os
 import string
 import glob
+from tqdm import tqdm
 
 import numpy as np
 import opensim
@@ -153,7 +154,7 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
 
             file.close()
 
-    def stabilize_hip_movement(curr_trial, path_trc):
+    def stabilize_hip_movement(curr_trial, path_trc, verbose = 1):
         """
         Take and trc file and smooth the movement of CHip, RHip, and LHip.
 
@@ -192,11 +193,17 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
 
             else:
                 print(f"{c} not found in .trc File.")
-
+        if verbose >=1:
+            progress = tqdm(total=len(trc['Frame#']), desc=f"{curr_trial.identifier} - Stabilizing Hip Movement", unit="Frame")
         for frame in trc['Frame#']:
             for c in comp.keys():
                 if comp[c] > -1:
                     trc[frame][1][comp[c]] = hips[c].tolist()[frame - 1]
+            if verbose >= 1:
+                progress.update(1)
+
+        if verbose >= 1:
+            progress.close()
 
         trc.save(path_trc)
 
@@ -223,7 +230,7 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
         print(e)
 
     if curr_trial.stabilize_hip:
-        stabilize_hip_movement(curr_trial, os.path.join(curr_trial.dir_trial, curr_trial.opensim_marker_filtered))
+        stabilize_hip_movement(curr_trial, os.path.join(curr_trial.dir_trial, curr_trial.opensim_marker_filtered), verbose)
 
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
