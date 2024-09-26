@@ -40,13 +40,14 @@ def prepare_opensim(self, filterflag="filt"):
 
 
 """Set Root Paths for Processing"""
-drives=['C:', 'D:', 'E:', 'I:']
+drives=["C:", "D:", "E:", "I:"]
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
+    root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 else:
     drive = drives[3]
+    root_iDrink = os.path.join(drive, '\iDrink')  # Root directory of all iDrink Data
 
-root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 root_dat_out = os.path.join(root_val, "03_data", "OMC")  # Root directory of all the data for the validation
@@ -56,7 +57,7 @@ csv_path = os.path.join(root_logs, "OMC_Opensim_log.csv")
 
 DEBUG = False
 verbose = 1
-
+"I:\iDrink\validation_root\05_logs\full_calib_errors_full.csv"
 p_list = os.listdir(root_OMC)
 
 id_s = "S15133"  # O:15 M:13 C:3
@@ -104,7 +105,9 @@ for p_id in p_list:
         trial.create_trial(for_omc=True)
         trial.load_configuration()
 
-        trial_done = iDrinkLog.files_exist(os.path.join(dir_t, 'pose-3d'), '.mot', verbose=1)
+        #trial_done = iDrinkLog.files_exist(os.path.join(dir_t, 'pose-3d'), '.mot', verbose=1)
+        trial_done = iDrinkLog.files_exist(trial.dir_kin_p2s, '.csv', verbose=1)
+
         if trial_done:
             print(f"Skipping {identifier} as it is already done.")
             df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "Already Done", "exception": ""}, ignore_index=True)
@@ -123,11 +126,13 @@ for p_id in p_list:
 
         try:
             iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'))
-            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
+            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"),
+                                    "identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
         except Exception as e:
             print(e)
-            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "failed", "exception": str(e)}, ignore_index=True)
-            pass
+            time.sleep(3)
+            df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"),
+                                    "identifier": identifier, "status": "failed", "exception": str(e)}, ignore_index=True)
 
         df_log.to_csv(csv_path, index=False)
 
