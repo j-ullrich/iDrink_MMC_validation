@@ -252,8 +252,6 @@ def get_phase_timeframe(curr_trial, save_file=True):
     if save_file:
         df.to_csv(os.path.join(curr_trial.path_mov_phases_timeframe), index=False)
 
-
-
 def get_outer_local_minima(data, peak_id_left, peak_id_right):
     """
     Calculate outer left and right local Minima between two peaks.
