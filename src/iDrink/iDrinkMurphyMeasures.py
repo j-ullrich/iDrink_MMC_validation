@@ -159,6 +159,11 @@ class MurphyMeasures:
             self.get_measures()
             self.write_measures()
 
+        self.get_paths()
+        self.read_files()
+        self.get_measures()
+        self.write_measures()
+
     def use_butterworth_filter(self, data, cutoff, fs, order=4, normcutoff=False):
         """
         Input:
@@ -764,11 +769,6 @@ class MurphyMeasures:
 
         return self.df
 
-
-
-
-
-
 if __name__ == '__main__':
 
     """
@@ -783,8 +783,6 @@ if __name__ == '__main__':
         root_data = r"I:\iDrink\validation_root\03_data"  # Root directory of all iDrink Data
         root_data_omc = r"I:\iDrink\validation_root\03_data\OMC"
         dir_trials = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P01" # Directory containing folders of P01
-
-
 
 
     pd.DataFrame(columns = ['trial', 'side', 'condition',
