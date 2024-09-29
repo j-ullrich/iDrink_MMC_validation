@@ -95,13 +95,16 @@ class MurphyMeasures:
         self.path_csv = path_csv
         self.df = None
 
-        """np.arrays to calculate measures"""
+        """data to calculate measures"""
         self.time = None
+        self.phases = None
+
         self.hand_vel = None
         self.elbow_vel = None
 
         self.elbow_flex_pos = None
         self.shoulder_flex_pos = None
+        self.shoulder_abduction_pos = None
 
         self.trunk_pos = None
 
@@ -278,8 +281,26 @@ class MurphyMeasures:
         elif all([self.trial_id, self.root_data]):
             self.get_paths_from_root()
 
-
         pass
+
+    def get_phase_ids(self, phase_1, phase_2=None):
+        """
+        Get the ids of the start and end of a phase.
+
+        if phase 2 is given, the ids are calculated from the start of phase 1 to the end of phase 2.
+
+        :param phase_1:
+        :param phase_2:
+        :return:
+        """
+
+        t_start = self.phases[phase_1][0]
+        t_end = self.phases[phase_1 if phase_2 is None else phase_2][1]
+
+        id_start = np.where(self.time == t_start)[0][0]
+        id_end = np.where(self.time == t_end)[0][0]
+
+        return id_start, id_end
 
     def get_movement_units(self, vel_data):
         """
@@ -311,10 +332,7 @@ class MurphyMeasures:
         If they exceed the thresholds awr by Murphy we count them as a movement unit.
         """
 
-        phases = {"reaching": [self.ReachingStart, self.ForwardStart],
-                  "forward_transportation": [self.ForwardStart, self.DrinkingStart],
-                  "back_transport": [self.DrinkingStart, self.BackStart],
-                  "returning": [self.ReturningStart, self.RestStart]}
+
 
         df_mov_units = pd.DataFrame(
             columns=["phase", "n_movement_units", "values", "loc_maxima_ids", "loc_minima_ids"], )
@@ -324,12 +342,8 @@ class MurphyMeasures:
         fps = round(len(self.time)/self.time[-1], 2)
         length = int(np.ceil(time * fps))
 
-        for curr_phase in list(phases.keys()):
-            t_start = phases[curr_phase][0]
-            t_end = phases[curr_phase][1]
-
-            id_start = np.where(self.time == t_start)[0][0]
-            id_end = np.where(self.time == t_end)[0][0]
+        for curr_phase in list(self.phases.keys()):
+            id_start, id_end = self.get_phase_ids(curr_phase)
 
             min_v_rel = min_v + min(vel_data)
 
@@ -376,7 +390,7 @@ class MurphyMeasures:
 
         corr_inter = np.corrcoef(pos_joint1, pos_joint2)[1, 0]
 
-        return corr_inter
+        return round(corr_inter, 4)
 
     def get_trunk_displacement(self, ):
         """
@@ -386,7 +400,39 @@ class MurphyMeasures:
         id_start = np.where(self.time == self.ReachingStart)[0][0]
         displacement = np.linalg.norm(self.trunk_pos[id_start] - self.trunk_pos, axis=1)
 
-        return displacement
+        max_displacement_mm = np.max(displacement)*1000
+
+        return round(max_displacement_mm, 4)
+
+    def get_max_shoulder_flexion_reaching(self, ):
+        """
+        Calculate the shoulder flexion during reaching phase.
+        """
+        id_start, id_end = self.get_phase_ids("reaching")
+
+        return round(np.max(self.shoulder_flex_pos[id_start:id_end]), 4)
+
+    def get_min_elbow_extension(self, ):
+        """
+
+        """
+
+        id_start, id_end = self.get_phase_ids("reaching")
+
+        return round(np.max(self.elbow_flex_pos[id_start:id_end]), 4)
+
+
+    def get_max_shoulder_abd_drink_reach(self):
+        """
+        Calculate the shoulder abduction during drinking phase.
+        """
+        id_start, id_end = self.get_phase_ids("reaching")
+        max_sh_abd_reach = round(np.max(self.shoulder_abduction_pos[id_start:id_end]), 4)
+
+        id_start, id_end = self.get_phase_ids("drinking")
+        max_sh_abd_drink = round(np.max(self.shoulder_abduction_pos[id_start:id_end]), 4)
+
+        return max(max_sh_abd_reach, max_sh_abd_drink)
 
     def get_measures(self, ):
         """
@@ -421,32 +467,52 @@ class MurphyMeasures:
         # time to first peak hand velocity %
         self.tToFirstpeakV_rel = (self.tToFirstpeakV_s / self.TotalMovementTime) * 100
 
-        self.NumberMovementUnits = self.get_movement_units(self.hand_vel)
-
-        pass
+        self.NumberMovementUnits = self.get_movement_units(self.hand_vel)[0]
 
         self.InterjointCoordination = self.get_interjoint_coordination(self.elbow_flex_pos, self.shoulder_flex_pos)
 
-
         self.trunkDisplacementMM = self.get_trunk_displacement()
 
-        self.trunkDisplacementDEG = None
+        self.trunkDisplacementDEG = None  # TODO: Find way to implement
 
-        self.ShoulderFlexionReaching = None
+        self.ShoulderFlexionReaching = self.get_max_shoulder_flexion_reaching()
 
-        self.ElbowExtension = None
+        self.ElbowExtension = self.get_min_elbow_extension()
 
-        self.shoulderAbduction = None
-
-
-        pass
-
+        self.shoulderAbduction = self.get_max_shoulder_abd_drink_reach()
 
     def write_measures(self, ):
         """
         This function adds the calculated measures to the .csv file.
         """
-        pass
+        murphy_measures = ["PeakVelocity_mms",
+                           "elbowVelocity",
+                           "tTopeakV_s",
+                           "tToFirstpeakV_s",
+                           "tTopeakV_rel",
+                           "tToFirstpeakV_rel",
+                           "NumberMovementUnits",
+                           "InterjointCoordination",
+                           "trunkDisplacementMM",
+                           "trunkDisplacementDEG",
+                           "ShoulderFlexionReaching",
+                           "ElbowExtension",
+                           "shoulderAbduction"]
+
+        try:
+            for column in murphy_measures:
+                self.df.loc[self.df['trial_id'] == self.trial_id, column] = self.__getattribute__(column)
+        except:
+            """
+            Trial not in form of iDrink Trial_id
+            csv containts only trials of single Participant and the trial number is in the form of TXXX.
+            """
+            trial_num = int(self.t_id.split('T')[1])
+            for column in murphy_measures:
+                self.df.loc[self.df['trial'] == trial_num, column] = self.__getattribute__(column)
+
+
+        self.df.to_csv(self.path_csv, index=False)
 
     @staticmethod
     def standardize_data(df, verbose=1):
@@ -652,6 +718,9 @@ class MurphyMeasures:
         shoulder_flex_pos = df[f'arm_flex_{self.side.lower()}'].values
         self.shoulder_flex_pos = self.use_butterworth_filter(shoulder_flex_pos, cutoff=10, fs=100, order=4, normcutoff=False)
 
+        shoulder_abduction = -df[f'arm_add_{self.side.lower()}'].values
+        self.shoulder_abduction_pos = self.use_butterworth_filter(shoulder_abduction, cutoff=10, fs=100, order=4, normcutoff=False)
+
 
 
 
@@ -679,6 +748,12 @@ class MurphyMeasures:
             for column in columns_of_interest:
                 self.__setattr__(column, df.loc[df['trial'] == trial_num, column].values[0])
 
+        self.phases = {"reaching": [self.ReachingStart, self.ForwardStart],
+                       "forward_transportation": [self.ForwardStart, self.DrinkingStart],
+                       "drinking": [self.DrinkingStart, self.BackStart],
+                       "back_transport": [self.BackStart, self.ReturningStart],
+                       "returning": [self.ReturningStart, self.RestStart]}
+
 
     def read_csv(self, path_csv):
         """
@@ -704,7 +779,7 @@ if __name__ == '__main__':
         drive = '/media/devteam-dart/Extreme SSD'
         root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
     else:
-        path_phases = r"I:\DIZH_data\P01\OMC\P01_trialVectors.csv"
+        path_phases = r"I:\P01_trialVectors.csv"  # Path to the .csv file containing the data
         root_data = r"I:\iDrink\validation_root\03_data"  # Root directory of all iDrink Data
         root_data_omc = r"I:\iDrink\validation_root\03_data\OMC"
         dir_trials = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P01" # Directory containing folders of P01

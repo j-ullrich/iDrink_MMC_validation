@@ -70,6 +70,15 @@ else:
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
+p_list = ['P23',
+          'P24',
+          'P25',
+          'P27',
+          'P28',
+          'P30',
+          'P31',
+          'P34',]
+
 if verbose >=1:
     print(f"p_list: \n"
             f"{p_list}")
