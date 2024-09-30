@@ -16,6 +16,8 @@ from mmpose.apis import convert_keypoint_definition, init_model, inference_topdo
     inference_pose_lifter_model
 from mmpose.visualization import Pose3dLocalVisualizer, PoseLocalVisualizer
 
+from iDrink.iDrinkUtilities import pack_as_zip
+
 import queue
 import threading
 
@@ -450,6 +452,13 @@ def validation_pose_estimation_2d(curr_trial, root_val, video_files=None, writev
         # TODO: Use unfiltered json to filter and copy into the filtered folder. --> Only need to estimate Pose once and not twice
 
         filter_2d_pose_data(curr_trial, json_dir_unfilt, json_dir_filt)
+
+
+        pack_as_zip(json_dir_unfilt)
+        pack_as_zip(json_dir_filt)
+
+
+
 
 def main():
     db_path_raw = r"C:\iDelta\Session Data\S240501-1155\S240501-1155_P07\S240501-1155_P07_T01\videos\recordings"

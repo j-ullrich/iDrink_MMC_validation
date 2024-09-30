@@ -22,6 +22,8 @@ import posepile.joint_info
 from metrabs_pytorch.multiperson import multiperson_model
 from metrabs_pytorch.util import get_config
 
+from iDrink.iDrinkUtilities import pack_as_zip
+
 parser = argparse.ArgumentParser(description='Metrabs 2D Pose Estimation for iDrink using Pytorch')
 parser.add_argument('--identifier', metavar='id', type=str, help='Identifier for the trial')
 parser.add_argument('--dir_trial', metavar='dt', type=str,
@@ -272,6 +274,9 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
             gc.collect()
 
             filter_2d_pose_data(curr_trial, json_dir_unfilt, json_dir_filt)
+
+    pack_as_zip(json_dir_unfilt)
+    pack_as_zip(json_dir_filt)
 
     del multiperson_model_pt
     gc.collect()

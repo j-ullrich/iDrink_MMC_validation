@@ -15,6 +15,12 @@ from iDrink import iDrinkTrial, iDrinkOpenSim, iDrinkUtilities, iDrinkLog
 
 
 def prepare_opensim(self, filterflag="filt"):
+    # Copy Geometry from default to trial folder
+    dir_geom = os.path.realpath(os.path.join(self.dir_default, "Geometry"))
+    new_dir_geom = os.path.realpath(os.path.join(self.dir_trial, "Geometry"))
+
+    shutil.copytree(dir_geom, new_dir_geom, dirs_exist_ok=True)
+
     self.opensim_model = os.path.join(self.dir_default, f"iDrink_{self.pose_model}.osim")
     #self.opensim_model_scaled = os.path.join(self.dir_trial, f"Scaled_{self.pose_model}.osim")
     self.opensim_model_scaled = f"Scaled_{self.pose_model}.osim"
@@ -70,16 +76,16 @@ else:
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
-p_list = ['P23',
+"""p_list = ['P23',
           'P24',
           'P25',
           'P27',
           'P28',
           'P30',
           'P31',
-          'P34',]
+          'P34',]"""
 
-if verbose >=1:
+if verbose >=2:
     print(f"p_list: \n"
             f"{p_list}")
 
@@ -93,7 +99,7 @@ for p_id in p_list:
         affected_trials = [f for f in glob.glob(os.path.join(trc_dir, "*affected*.trc")) if "unaffected" not in f]
         trc_files = unaffected_trials[:3] + affected_trials[:3]
 
-    if verbose >= 1:
+    if verbose >= 2:
         print(f"trc_files for {p_id}: \n"
               f"{trc_files}")
     for trc_file in trc_files:
@@ -120,6 +126,7 @@ for p_id in p_list:
         if trial_done:
             print(f"Skipping {identifier} as it is already done.")
             df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "Already Done", "exception": ""}, ignore_index=True)
+            iDrinkUtilities.del_geometry_from_trial(trial)
             continue
 
         # copy trc file to pose-3d folder
@@ -129,20 +136,23 @@ for p_id in p_list:
         new_filename = f"{trial.identifier}_{trc_nameparts[-2]}_{trc_nameparts[-1]}"
         shutil.copy2(trc_file, os.path.join(dir_pose3d, new_filename))
 
-        prepare_opensim(trial, filterflag=None)
+
 
         trial_list.append(trial)
 
         try:
+            prepare_opensim(trial, filterflag=None)
             iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'))
             df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"),
                                     "identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
+
         except Exception as e:
             print(e)
             time.sleep(3)
             df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"),
                                     "identifier": identifier, "status": "failed", "exception": str(e)}, ignore_index=True)
 
+        iDrinkUtilities.del_geometry_from_trial(trial)
         df_log.to_csv(csv_path, index=False)
 
     df_log.to_csv(csv_path, index=False)

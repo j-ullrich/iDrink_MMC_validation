@@ -965,6 +965,8 @@ def run_mode():
 
                         trial.OS_done = False
 
+                    iDrinkUtilities.del_geometry_from_trial(trial, verbose = args.verbose)
+
                 if args.verbose >= 1:
                     opensim_progress.update(1)
 

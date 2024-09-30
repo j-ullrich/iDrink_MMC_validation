@@ -357,7 +357,7 @@ def files_exist(dir, file_type, verbose=0):
 
     files = glob.glob(os.path.join(dir, f'*{file_type}'))
 
-    if verbose >= 1:
+    if verbose >= 2:
         print(f"Checking if {file_type} files exist in {dir}\n")
         print(files)
 

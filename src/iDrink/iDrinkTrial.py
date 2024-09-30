@@ -351,12 +351,6 @@ class Trial:
         for dir in dirs:
             os.makedirs(dir, exist_ok=True)
 
-        # Copy Geometry from default to trial folder
-        dir_geom = os.path.realpath(os.path.join(self.dir_default, "Geometry"))
-        new_dir_geom = os.path.realpath(os.path.join(self.dir_trial, "Geometry"))
-
-        shutil.copytree(dir_geom, new_dir_geom, dirs_exist_ok=True)
-
         """Place empty config file"""
 
         empty_file = os.path.join(self.dir_default, "Config_empty.toml")
@@ -661,6 +655,13 @@ class Trial:
         return filepath
 
     def prepare_opensim(self):
+        import shutil
+
+        # Copy Geometry from default to trial folder
+        dir_geom = os.path.realpath(os.path.join(self.dir_default, "Geometry"))
+        new_dir_geom = os.path.realpath(os.path.join(self.dir_trial, "Geometry"))
+
+        shutil.copytree(dir_geom, new_dir_geom, dirs_exist_ok=True)
 
 
         self.opensim_model = os.path.join(self.dir_default, f"iDrink_{self.pose_model}.osim")

@@ -270,3 +270,147 @@ def del_json_from_trial(trial, pose_only=True, verbose=1):
             prog.update(1)
     if verbose >= 1:
         prog.close()
+
+def del_geometry_from_trial(trial, verbose=1):
+    """
+    Deletes Geometry folder from trial directory.
+    :param trial:
+    :param pose_only:
+    :param verbose:
+    :return:
+    """
+
+    geometry_dir = os.path.join(trial.dir_trial, 'Geometry')
+
+    if os.path.exists(geometry_dir):
+        shutil.rmtree(geometry_dir)
+        if verbose >= 1:
+            print(f"Deleted Geometry Folder in {trial.identifier}")
+
+
+def pack_as_zip(directory, verbose=1):
+    """
+    Repacks a folders content as zip file.
+
+    The zip file is saved in the directory, the files are deleted.
+
+    :param directory:
+    :param filetype:
+    :param verbose:
+    :return:
+    """
+    import zipfile
+
+    zip_file = os.path.join(directory, os.path.basename(directory) + '.zip')
+
+    with zipfile.ZipFile(zip_file, 'w') as zip_ref:
+        for root, dirs, files in os.walk(directory):
+            if verbose >= 1:
+                progress = tqdm(files, desc=f"Packing Files in {root}", unit="file", position=0, leave=True)
+            for file in files:
+                file_path = os.path.join(root, file)
+                if file_path != zip_file:
+                    zip_ref.write(file_path, os.path.relpath(file_path, directory))
+                    try:
+                        if os.path.isfile(file_path) or os.path.islink(file_path):
+                            os.unlink(file_path)
+                        elif os.path.isdir(file_path):
+                            shutil.rmtree(file_path)
+                    except Exception as e:
+                        print(f'Could not delete file: {file_path}.\n'
+                              f'{e}')
+
+                if verbose >= 1:
+                    progress.update(1)
+            if verbose >= 1:
+                progress.close()
+    return zip_file
+
+
+def unpack_zip_into_directory(zip_file, directory, verbose=1):
+    """
+    Unpacks a zip file into a directory.
+
+    :param zip_file:
+    :param directory:
+    :param verbose:
+    :return:
+    """
+    import zipfile
+
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
+    with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+        zip_ref.extractall(path=directory)
+
+def unpack_zip_to_trial(trial, poseback, filt, root_val, json_dst='pose', verbose=1):
+    """
+    Unpack zip folder containning json_files into the the trial folder for pose2sim.
+    
+    :param trial: 
+    :param poseback: 
+    :param filt: 
+    :param root_val: 
+    :param json_dst: 
+    :param verbose: 
+    :return: 
+    """
+
+    if poseback == 'metrabs_multi':
+        poseback = 'metrabs'
+        #json_dst = 'pose-associated'
+
+    if filt == 'unfiltered':
+        filt = '01_unfiltered'
+    else:
+        filt = '02_filtered'
+
+    id_t = f"trial_{int(trial.id_t.split('T')[1])}"
+    id_p = trial.id_p
+    cams = [f'cam{cam}' for cam in trial.used_cams]
+
+    # get the filter
+    dir_p = os.path.realpath(os.path.join(root_val, '02_pose_estimation', filt, id_p))  # participant directory, containing camera folders
+    dir_j = os.path.realpath(os.path.join(root_val, '02_pose_estimation', filt, id_p, f'{id_p}_cam' ))
+
+    dir_pose = os.path.realpath(os.path.join(trial.dir_trial, json_dst))
+
+    cam_json = [[cam, glob.glob(os.path.join(dir_p, f"{id_p}_{cam}", poseback, f"{id_t}_*_json", "*.zip"))[0]] for cam in cams]
+    if verbose>=1:
+        prog = tqdm(cam_json, desc="Copying json files",unit='folder', position=0, leave=True)
+
+
+    for cam, json_dir_src in cam_json:
+        basename = f"{trial.identifier}_{cam}_{os.path.basename(json_dir_src)}"
+        json_dir_dst = os.path.join(dir_pose, basename)
+
+
+
+        if not os.path.exists(json_dir_dst):
+            os.makedirs(json_dir_dst, exist_ok=True)
+            unpack_zip_into_directory(json_dir_src, json_dir_dst)
+
+        else:
+            print(f"Directory {json_dir_dst} already exists.")
+        if verbose >= 1:
+            prog.update(1)
+
+    if verbose >= 1:
+        prog.close()
+
+
+if __name__ == '__main__':
+
+    directories = glob.glob(os.path.join(r"I:\iDrink\validation_root\02_pose_estimation", "*", "*", "*", "*", "*_json"))
+
+    for directory in directories:
+
+        if glob.glob(os.path.join(directory, "*.zip")):
+            continue
+        zip_file = pack_as_zip(directory)
+
+    """directory_unzip = r"I:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07\P07_cam1\metrabs\trial_1_L_unaffected_json - Kopie_unzip"
+    unpack_zip_into_directory(zip_file, directory_unzip)"""
+
+
