@@ -1000,7 +1000,7 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-    args.mode = 'pose2sim'
+    #args.mode = 'pose2sim'
     #args.mode = 'opensim'
     args.poseback = 'metrabs_multi'
     args.verbose = 2

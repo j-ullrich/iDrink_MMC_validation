@@ -417,14 +417,16 @@ class MurphyMeasures:
 
         return round(np.max(self.shoulder_flex_pos[id_start:id_end]), 4)
 
-    def get_min_elbow_extension(self, ):
+    def get_min_elbow_flexion(self, ):
         """
+        Gets the minimum value of elbow flexion during reaching phase.
 
+        ---> min of flexion is max of extension
         """
 
         id_start, id_end = self.get_phase_ids("reaching")
 
-        return round(np.max(self.elbow_flex_pos[id_start:id_end]), 4)
+        return round(np.min(self.elbow_flex_pos[id_start:id_end]), 4)
 
 
     def get_max_shoulder_abd_drink_reach(self):
@@ -482,7 +484,7 @@ class MurphyMeasures:
 
         self.ShoulderFlexionReaching = self.get_max_shoulder_flexion_reaching()
 
-        self.ElbowExtension = self.get_min_elbow_extension()
+        self.ElbowExtension = self.get_min_elbow_flexion()
 
         self.shoulderAbduction = self.get_max_shoulder_abd_drink_reach()
 
@@ -717,13 +719,13 @@ class MurphyMeasures:
         # Get joint Positions
         _, df = self.read_file(self.path_joint_pos)
 
-        elbow_flex_pos = -df[f'elbow_flex_{self.side.lower()}'].values + 180
+        elbow_flex_pos = df[f'elbow_flex_{self.side.lower()}']
         self.elbow_flex_pos = self.use_butterworth_filter(elbow_flex_pos, cutoff=10, fs=100, order=4, normcutoff=False)
 
         shoulder_flex_pos = df[f'arm_flex_{self.side.lower()}'].values
         self.shoulder_flex_pos = self.use_butterworth_filter(shoulder_flex_pos, cutoff=10, fs=100, order=4, normcutoff=False)
 
-        shoulder_abduction = -df[f'arm_add_{self.side.lower()}'].values
+        shoulder_abduction = -df[f'arm_add_{self.side.lower()}'].values  # Abduction is the negativ of adduction
         self.shoulder_abduction_pos = self.use_butterworth_filter(shoulder_abduction, cutoff=10, fs=100, order=4, normcutoff=False)
 
 

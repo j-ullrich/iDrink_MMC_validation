@@ -66,6 +66,28 @@ verbose = 1
 "I:\iDrink\validation_root\05_logs\full_calib_errors_full.csv"
 p_list = os.listdir(root_OMC)
 
+p_new_struc = [
+    "P07",
+    "P08",
+    "P10",
+    "P11",
+    "P12",
+    "P13",
+    "P14",
+    "P15",
+    "P16",
+    "P17",
+    "P18",
+    "P19",
+    "P20",
+    "P21",
+    "P22",
+    "P241",
+    "P242",
+    "P251",
+    "P252",
+]
+
 id_s = "S15133"  # O:15 M:13 C:3
 trial_list = []
 if os.path.isfile(csv_path):
@@ -76,14 +98,9 @@ else:
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
-"""p_list = ['P23',
-          'P24',
-          'P25',
-          'P27',
-          'P28',
-          'P30',
+p_list = ['P30',
           'P31',
-          'P34',]"""
+          'P34',]
 
 if verbose >=2:
     print(f"p_list: \n"

@@ -22,7 +22,8 @@ import posepile.joint_info
 from metrabs_pytorch.multiperson import multiperson_model
 from metrabs_pytorch.util import get_config
 
-from iDrink.iDrinkUtilities import pack_as_zip
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "iDrink")))
+from iDrinkUtilities import pack_as_zip
 
 parser = argparse.ArgumentParser(description='Metrabs 2D Pose Estimation for iDrink using Pytorch')
 parser.add_argument('--identifier', metavar='id', type=str, help='Identifier for the trial')
@@ -177,9 +178,67 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
     if verbose >= 1:
         progress.close()
 
+def plot_results(image, pred, joint_names, joint_edges, show=True):
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib.patches import Rectangle
+    import matplotlib
+    matplotlib.use('TkAgg')
+
+    fig = plt.figure(figsize=(40, 20.8))
+    image_ax = fig.add_subplot(1, 2, 1)
+    image_ax.imshow(np.transpose(image.cpu().numpy(), (1, 2, 0)))
+    for x, y, w, h, c in pred['boxes'].cpu().numpy():
+        image_ax.add_patch(Rectangle((x, y), w, h, fill=False))
+
+    pose_ax = fig.add_subplot(1, 2, 2, projection='3d')
+    pose_ax.view_init(5, -75)
+    pose_ax.set_xlim3d(-1500, 1500)
+    pose_ax.set_zlim3d(-1500, 1500)
+    pose_ax.set_ylim3d(2000, 5000)
+    poses3d = pred['poses3d'].cpu().numpy()
+    poses3d[..., 1], poses3d[..., 2] = poses3d[..., 2], -poses3d[..., 1]
+    for pose3d, pose2d in zip(poses3d, pred['poses2d'].cpu().numpy()):
+        for i_start, i_end in joint_edges:
+            image_ax.plot(*zip(pose2d[i_start], pose2d[i_end]), marker='o', markersize=2)
+            pose_ax.plot(*zip(pose3d[i_start], pose3d[i_end]), marker='o', markersize=2)
+        image_ax.scatter(*pose2d.T, s=2)
+        pose_ax.scatter(*pose3d.T, s=2)
+    if show:
+        fig.show()
+    fig.clear()
+    matplotlib.pyplot.close()
+
+def plot_results_2d(image, pred, joint_names, joint_edges, show=False):
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    from matplotlib.patches import Rectangle
+    import matplotlib
+    matplotlib.use('TkAgg')
+
+    fig = plt.figure(figsize=(40, 20.8))
+    image_ax = fig.add_subplot(1, 1, 1)
+    image_ax.imshow(np.transpose(image.cpu().numpy(), (1, 2, 0)))
+    for x, y, w, h, c in pred['boxes'].cpu().numpy():
+        image_ax.add_patch(Rectangle((x, y), w, h, fill=False))
+
+    for pose2d in pred['poses2d'].cpu().numpy():
+        for i_start, i_end in joint_edges:
+            image_ax.plot(*zip(pose2d[i_start], pose2d[i_end]), marker='o', markersize=2)
+        image_ax.scatter(*pose2d.T, s=2)
+
+    if show:
+        fig.show()
+
+    fig.canvas.draw()
+    image_array = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
+    image_array = image_array.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+
+    return image_array
+
 
 def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_path, identifier, root_val,
-                               skeleton='bml_movi_87', verbose=1, DEBUG=False):
+                               skeleton='bml_movi_87', write_video=True, verbose=1, DEBUG=False):
     get_config(os.path.realpath(os.path.join(model_path, 'config.yaml')))
     multiperson_model_pt = load_multiperson_model(model_path).cuda()
 
@@ -201,6 +260,7 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
         out_video = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "01_unfiltered",
                                                          f"{curr_trial.id_p}", f"{curr_trial.id_p}_{used_cam}",
                                                          "metrabs"))
+        writer = None
 
         for d in [json_dir_filt, json_dir_unfilt, out_video]:
             if not os.path.exists(d):
@@ -238,10 +298,11 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
         cap.release()
 
         with torch.inference_mode(), torch.device('cuda'):
-            frames_in, _, _ = torchvision.io.read_video(video, output_format='TCHW')
+            frames_in, _, vid_meta = torchvision.io.read_video(video, output_format='TCHW')
 
             if verbose >= 1:
                 progress = tqdm(total=tot_frames, desc=f"Trial: {curr_trial.identifier} - {cam} - Video: {os.path.basename(video)}", position=0, leave=True)
+
             for frame_idx, frame in enumerate(frames_in):
                 """pred = multiperson_model_pt.detect_poses(frame, skeleton=skeleton,
                                                          intrinsic_matrix=torch.FloatTensor(intrinsic_matrix),
@@ -250,26 +311,36 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
                                                          suppress_implausible_poses=False, max_detections=1,
                                                          intrinsic_matrix=torch.FloatTensor(intrinsic_matrix),
                                                          distortion_coeffs=torch.FloatTensor(distortions), num_aug=2)
-
                 # Save detection's parameters
                 bboxes = pred['boxes'].cpu().numpy()
                 pose_result_2d = pred['poses2d'].cpu().numpy()
-
                 ################## JSON Output #################
                 # Add track id (useful for multiperson tracking)
-                json_out(pose_result_2d, frame_idx, json_dir_unfilt, video)
 
+                #json_out(pose_result_2d, frame_idx, json_dir_unfilt, video)
+
+                # Visualize Pose
+
+                if write_video:
+                    frame_out = plot_results_2d(frame, pred, joint_names, joint_edges)
+
+                    if writer is None:
+                        size = (frame_out.shape[1], frame_out.shape[0])
+                        fps = vid_meta['video_fps']
+                        vid_out = os.path.join(out_video, f"{os.path.basename(video).split('.mp4')[0]}.avi")
+                        writer = cv2.VideoWriter(vid_out, cv2.VideoWriter_fourcc(*'MJPG'), fps, size)
+
+                        writer.write(frame_out)
+                    else:
+                        writer.write(frame_out)
 
                 frame_idx += 1
                 if verbose >= 1:
                     progress.update(1)
-
             if verbose >= 1:
                 progress.close()
-
             if verbose >= 2:
                 print(f"Garbage collection for {video}")
-
             del frames_in
             gc.collect()
 
@@ -401,8 +472,6 @@ if __name__ == '__main__':
     dir_video = os.path.realpath(os.path.join(args.dir_trial, 'videos', 'recordings'))
     dir_out_video = os.path.realpath(os.path.join(args.dir_trial, 'videos', 'pose'))
     dir_out_json = os.path.realpath(os.path.join(args.dir_trial, 'pose'))
-
-
 
     metrabs_pose_estimation_2d(dir_video, args.calib_file, dir_out_video, dir_out_json, multiperson_model_pt,
                                args.identifier, args.skeleton, args.DEBUG)

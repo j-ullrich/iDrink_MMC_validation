@@ -458,8 +458,6 @@ def validation_pose_estimation_2d(curr_trial, root_val, video_files=None, writev
         pack_as_zip(json_dir_filt)
 
 
-
-
 def main():
     db_path_raw = r"C:\iDelta\Session Data\S240501-1155\S240501-1155_P07\S240501-1155_P07_T01\videos\recordings"
     db_path_processed = os.path.join(r"C:\iDelta\Session Data\S240501-1155\S240501-1155_P07\S240501-1155_P07_T01",

@@ -151,3 +151,60 @@ def delta_full_calibration_val(curr_trial, path_error_csv, verbose=1):
 
     if verbose >= 1:
         print(f"Full Calibration for Particiant {curr_trial.id_p} done and saved to {calib_file}.")
+
+
+
+def calibrate_vids_in_directory(directory, verbose=1):
+
+
+    """Calibrates videos in given directory."""
+
+    p_id = re.search("P\d+", directory).group()
+    calib_file = os.path.join(directory, f'{p_id}_calibration.toml')
+
+    formats = ['*.mp4', '*.avi', '*.mov', '*.mkv']
+    patterns = [os.path.join(directory, f) for f in formats]
+    video_files = []
+    for pattern in patterns:
+        video_files.extend(glob.glob(pattern))
+
+
+    # Find all video files in the calibration folder
+    cam_names= []
+    for file_name in video_files:
+        match = re.search(r'cam\d+', file_name)
+        if match:
+            cam_names.append(match.group())
+
+    # run calibration for each configuration 1.save toml  2. save reporjection error in a new excel where all configurations are listed
+    # board = CharucoBoard(squaresX=7, squaresY=5, square_length=115, marker_length=92, marker_bits=4, dict_size=250, manually_verify=False)  # here, in mm but any unit works
+    board = CharucoBoard(squaresX=7, squaresY=5, square_length=115 / 1000, marker_length=92 / 1000, marker_bits=4,
+                         dict_size=250, manually_verify=False)  # here, in mm but any unit works
+    # run calibration for each configuration 1.save toml  2. save reporjection error in a new excel where all configurations are listed
+    # Perform calibration for each valid configuration
+    cgroup = CameraGroup.from_names(cam_names, fisheye=False)
+    # Perform calibration
+    videos = [[video] for video in video_files]
+    error, all_rows = cgroup.calibrate_videos(videos, board)
+
+    # Save the camera group configuration to a TOML file named after the configuration
+    cgroup.dump(calib_file)
+
+
+if __name__ == '__main__':
+
+    #calibrate_vids_in_directory(r"I:\Delta\data_newStruc\P13\01_Measurement\04_Video\05_Calib_before")
+    d = []
+
+    for i in range(7, 253):
+        p_id = f"P{i:02d}"
+        d.append(rf"I:\Delta\data_newStruc\{p_id}\01_Measurement\04_Video\05_Calib_before")
+
+    """d = [r"I:\Delta\data_newStruc\P10\01_Measurement\04_Video\05_Calib_before",
+         r"I:\Delta\data_newStruc\P11\01_Measurement\04_Video\05_Calib_before"]"""
+
+    for directory in d:
+        if os.path.isdir(directory):
+            calibrate_vids_in_directory(directory)
+
+    pass
