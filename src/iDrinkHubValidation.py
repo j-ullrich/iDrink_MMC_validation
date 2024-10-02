@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[2]
+    drive = drives[2] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files

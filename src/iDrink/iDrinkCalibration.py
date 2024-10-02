@@ -20,31 +20,35 @@ def cam_as_ray_calibration():
 def check_if_calib_done_for_cam_setting(curr_trial, df_settings, root_data):
     import ast
 
-    used_cams = tuple(curr_trial.used_cams)
-
-
     idx = []
     for index, row in df_settings.iterrows():
         used_cams = ast.literal_eval(row["cams"])
-        idx.append(index)
 
-    settings_with_same_cams = df_settings.loc[idx]
-
+        if used_cams == tuple([int(cam) for cam in curr_trial.used_cams]):
+            idx.append(index)
+            print(index)
 
     # check for each setting with the same cams-setup whether their p_ids calibration has been done
-    for setting_in in settings_with_same_cams.index:
+    for id in idx:
         id_p = curr_trial.id_p
-        setting_id = settings_with_same_cams.loc[setting_in, "setting_id"]
+        setting_id = df_settings.loc[id, "setting_id"]
         id_s = f"S{setting_id:03d}"
 
-        calib_file = os.path.join(root_data, f"setting_{setting_id:03d}", id_p, f"{id_s}_Calibration", rf'Calib_{id_s}_{id_p}.toml')
+        calib_file = os.path.join(root_data, f"setting_{setting_id:03d}", id_p, f"{id_s}",f"{id_s}_Calibration", rf'Calib_{id_s}_{id_p}.toml')
 
         if os.path.isfile(calib_file):
             return True, calib_file
 
-        return False, None
+    return False, None
 
 def copy_calib_file(curr_trial, file_path, calib_file):
+
+    """Check whether folder exists"""
+    directory = os.path.dirname(calib_file)
+
+    if not os.path.exists(directory):
+        os.makedirs(directory, exist_ok=True)
+
     shutil.copy2(file_path, calib_file)
 
 def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=None, root_data=None):
@@ -74,6 +78,7 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
             copy_calib_file(curr_trial, file_path, calib_file)
             curr_trial.calib = calib_file
             curr_trial.calib_done = True
+            return
 
 
     # prepare Log of Calibration errors
