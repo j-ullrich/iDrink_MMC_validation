@@ -7,11 +7,13 @@ import gc
 
 import cv2
 import numpy as np
+import pandas as pd
 import simplepyutils as spu
 import toml
 import torch
 import torchvision.io
 from tqdm import tqdm
+from trc import TRCData
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), 'metrabs_pytorch')))
@@ -66,6 +68,148 @@ def load_crop_model(model_path):
     model((inp, intr))
     model.load_state_dict(torch.load(f'{model_path}/ckpt.pt'))
     return model
+
+
+def filter_df(df_unfiltered, fs, verbose, normcutoff=False):
+    """
+    Use a butterworth-filter on the 3D-keypoints in the DF and return the filtered DF.
+
+    :param df: DataFrame with 3D coordinates
+    :param fs: Sampling frequency
+
+    :return: DataFrame with filtered 3D coordinates
+
+    """
+    from scipy.signal import butter, sosfiltfilt
+
+    df_filtered = pd.DataFrame(columns=df_unfiltered.columns)
+
+    cutoff = 5
+    order = 2  # Desired order 5. Because of filtfilt, half of that needs to be given. --> filtfilt doubles the order
+
+    nyquist = 0.5 * fs
+
+    if cutoff >= nyquist:
+        if verbose >= 1:
+            print(f"Warning: Cutoff frequency {cutoff} is higher than Nyquist frequency {nyquist}.")
+            print("Filtering with Nyquist frequency.")
+        cutoff = int(nyquist - 1)
+
+    if normcutoff:
+        cutoff = cutoff / nyquist
+    else:
+        sos = butter(order, cutoff, btype="low", analog=False, output="sos", fs=fs)
+
+    if verbose >= 2:
+        print(f"Filtering 3D keypoints:\n"
+              f"Filter: Butterworth\n"
+              f"Order: {order}\n"
+              f"Sampling frequency: {fs} Hz\n"
+              f"cutoff frequency of {cutoff} Hz")
+
+    if verbose >= 1:
+        progress = tqdm(total=len(df_unfiltered.columns), desc="Filtering 3D keypoints", position=0, leave=True)
+
+    for column in df_unfiltered.columns:
+        data = np.array(df_unfiltered[column].tolist())
+        df_filtered[column] = sosfiltfilt(sos, data, axis=0).tolist()
+
+        if verbose >= 1:
+            progress.update(1)
+
+    if verbose >= 1:
+        progress.close()
+
+    return df_filtered
+
+
+def df_to_trc(df, trc_file, identifier, fps, n_frames, n_markers, verbose=1):
+    """
+    Converts the DataFrame to a .trc file according to nomenclature used by Pose2Sim.
+
+    Writes to trc file to given path.
+
+    :param df: DataFrame with 3D coordinates
+    """
+    trc = TRCData()
+
+    if verbose >= 1:
+        print(f"Writing .trc file {os.path.basename(trc_file)}")
+
+    trc['PathFileType'] = '4'
+    trc['DataFormat'] = '(X/Y/Z)'
+    trc['FileName'] = f'{identifier}.trc'
+    trc['DataRate'] = fps
+    trc['CameraRate'] = fps
+    trc['NumFrames'] = n_frames
+    trc['NumMarkers'] = n_markers
+    trc['Units'] = 'm'
+    trc['OrigDataRate'] = fps
+    trc['OrigDataStartFrame'] = 0
+    trc['OrigNumFrames'] = n_frames
+    trc['Frame#'] = [i for i in range(n_frames)]
+    trc['Time'] = [round(i / fps, 3) for i in range(n_frames)]
+    trc['Markers'] = df.columns.tolist()
+
+    for column in df.columns:
+        trc[column] = df[column].tolist()
+
+    if verbose >= 2:
+        print(f'columns added to {os.path.basename(trc_file)}')
+
+    for column in tqdm(df.columns, desc="Writing .trc file", position=0, leave=True):
+        trc[column] = df[column].tolist()
+
+    for i in range(n_frames):
+        trc[i] = [trc['Time'][i], df.iloc[i, :].tolist()]
+
+    if verbose >= 2:
+        print(f'Timestamps added to {os.path.basename(trc_file)}')
+
+    trc.save(trc_file)
+    if verbose >= 1:
+        print(f"Saved .trc file {os.path.basename(trc_file)}")
+
+
+def get_column_names(joint_names, verbose=1):
+    """
+    Uses the list of joint names to create a list of column names for the DataFrame
+
+    e.g. neck --> neck_x, neck_y, neck_z
+
+    Input: joint_names: List of joint names
+    Output: List of column names for x, y, and z axis
+    """
+    columns = []
+    """
+    # Old version might be used if x, y, z coordinates need to be split up in DataFrame
+    for joint in joint_names:
+        for axis in ['x', 'y', 'z']:
+            columns.append(f"{joint}_{axis}")"""
+
+    for joint in joint_names:
+        columns.append(joint)
+
+    if verbose >= 2:
+        print(f'Columns created: {columns}')
+
+    return columns
+
+
+def add_to_dataframe(df, pose_result_3d):
+    """
+    Add 3D  Keypoints to DataFrame
+
+    Returns DataFrame with added 3D keypoints
+    """
+
+    temp = []
+    for i in range(pose_result_3d.shape[1]):
+        temp.append([x / 1000 for x in pose_result_3d[0][i].tolist()])
+
+    df.loc[len(df)] = temp
+
+    return df
 
 
 def pose_data_to_json(pose_data_samples):
@@ -238,12 +382,15 @@ def plot_results_2d(image, pred, joint_names, joint_edges, show=False):
 
 
 def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_path, identifier, root_val,
-                               skeleton='bml_movi_87', write_video=True, verbose=1, DEBUG=False):
+                               skeleton='bml_movi_87', write_video=False, verbose=1, DEBUG=False):
     get_config(os.path.realpath(os.path.join(model_path, 'config.yaml')))
     multiperson_model_pt = load_multiperson_model(model_path).cuda()
 
     joint_names = multiperson_model_pt.per_skeleton_joint_names[skeleton]
     joint_edges = multiperson_model_pt.per_skeleton_joint_edges[skeleton].cpu().numpy()
+
+    # Create DataFrame for 3D Poses
+    df = pd.DataFrame(columns=get_column_names(joint_names))
 
     calib = toml.load(calib_file)
 
@@ -260,6 +407,9 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
         out_video = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "01_unfiltered",
                                                          f"{curr_trial.id_p}", f"{curr_trial.id_p}_{used_cam}",
                                                          "metrabs"))
+
+
+
         writer = None
 
         for d in [json_dir_filt, json_dir_unfilt, out_video]:
@@ -314,10 +464,12 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
                 # Save detection's parameters
                 bboxes = pred['boxes'].cpu().numpy()
                 pose_result_2d = pred['poses2d'].cpu().numpy()
+                pose_result_3d = pred['poses3d'].cpu().numpy()
                 ################## JSON Output #################
                 # Add track id (useful for multiperson tracking)
 
-                #json_out(pose_result_2d, frame_idx, json_dir_unfilt, video)
+                json_out(pose_result_2d, frame_idx, json_dir_unfilt, video)
+                df = add_to_dataframe(df, pose_result_3d)
 
                 # Visualize Pose
 
@@ -345,6 +497,36 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
             gc.collect()
 
             filter_2d_pose_data(curr_trial, json_dir_unfilt, json_dir_filt)
+
+            """Write trc for 3D Pose Estimation"""
+            dir_out_trc_unfilt = os.path.realpath(
+                os.path.join(root_val, "02_pose_estimation", "01_unfiltered", f"{curr_trial.id_p}",
+                             f"{curr_trial.id_p}_{used_cam}", "metrabs", "single-cam"))
+            dir_out_trc_filt = os.path.realpath(
+                os.path.join(root_val, "02_pose_estimation", "02_filtered", f"{curr_trial.id_p}",
+                             f"{curr_trial.id_p}_{used_cam}", "metrabs", "single-cam"))
+
+            for dir_out_trc in [dir_out_trc_unfilt, dir_out_trc_filt]:
+                if not os.path.exists(dir_out_trc):
+                    os.makedirs(dir_out_trc)
+
+            trc_file_filt = os.path.join(dir_out_trc_filt,
+                                         f"{cam}_{curr_trial.id_p}_{curr_trial.id_t}_{os.path.basename(video).split('.mp4')[0]}_0-{frame_idx}_filt_iDrinkbutter.trc")
+            trc_file_unfilt = os.path.join(dir_out_trc_unfilt,
+                                           f"{identifier}_{os.path.basename(video).split('.mp4')[0]}_0-{frame_idx}_iDrink.trc")
+
+
+            if verbose >= 2:
+                print(f'Call filtering function')
+            df_filt = filter_df(df, fps, verbose)
+
+
+
+            df_to_trc(df_filt, trc_file_filt, identifier, fps, n_frames, n_markers)
+            df_to_trc(df, trc_file_unfilt, identifier, fps, n_frames, n_markers)
+
+            if verbose >= 2:
+                print(f'3D Pose Estimation done and .trc files saved to {dir_out_trc}')
 
     pack_as_zip(json_dir_unfilt)
     pack_as_zip(json_dir_filt)
