@@ -63,10 +63,10 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[3]
+    drive = drives[1]
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
-root_MMC = os.path.join(root_iDrink, "Test_folder_structures")  # Root directory of all MMC-Data --> Videos and Openpose json files
+root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
@@ -649,6 +649,10 @@ def run_mode():
             if args.poseback == "all":
                 #args.poseback = ["openpose", "mmpose", "pose2sim", "metrabs_multi", "metrabs_single"]
                 args.poseback = ["mmpose", "pose2sim", "metrabs_multi"]
+
+            elif type(args.poseback) == list:
+                args.poseback = args.poseback
+
             else:
                 args.poseback = [args.poseback]
 
@@ -811,7 +815,7 @@ def run_mode():
                                 df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
 
                     case _:  # If no valid mode is given
-                        print(f"Invalid Mode: {poseback}\n"
+                        print(f"Invalid HPE-Mode: {poseback}\n"
                               f"Please specify a valid mode.")
                         sys.exit(1)
 
@@ -1002,7 +1006,7 @@ if __name__ == '__main__':
     args.mode = "pose_estimation"
     #args.mode = 'pose2sim'
     #args.mode = 'opensim'
-    args.poseback = 'metrabs_multi'
+    args.poseback = ["mmpose", "pose2sim"]
     args.verbose = 2
 
 
