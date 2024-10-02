@@ -2,6 +2,7 @@ import glob
 import os
 import re
 import time
+import shutil
 
 import cv2
 import numpy as np
@@ -16,7 +17,33 @@ def cam_as_ray_calibration():
 
     return
 
-def delta_calibration_val(curr_trial, path_error_csv, verbose=1):
+def check_if_calib_done_for_cam_setting(curr_trial, df_settings, root_data):
+
+    used_cams = curr_trial.used_cams
+
+    settings_with_same_cams = df_settings[df_settings["cams"] == used_cams]
+
+    # check for each setting with the same cams-setup whether their p_ids calibration has been done
+    for setting_in in settings_with_same_cams.index:
+        id_p = curr_trial.id_p
+        setting_id = settings_with_same_cams.loc[setting_in, "setting_id"]
+        id_s = f"S{setting_id:03d}"
+
+        calib_file = os.path.join(root_data, f"setting_{setting_id:03d}", id_p, f"{id_s}_Calibration", rf'Calib_{id_s}_{id_p}.toml')
+
+        if os.path.isfile(calib_file):
+            return True, calib_file
+
+        return False, None
+
+def copy_calib_file(curr_trial, file_path):
+    new_path = os.path.join(curr_trial.dir_calib, os.path.basename(file_path))
+
+    shutil.copy2(file_path, new_path)
+
+    return new_path
+
+def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=None, root_data=None):
     """
     This function runs the calibration for the session.
     It looks for existing calibration recordings and generates a Calib.toml in the calibration directory
@@ -26,6 +53,8 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1):
     self can be Session or Trial Object
     """
 
+
+
     # Check if calibration file already exists
     calib_file = os.path.join(curr_trial.dir_calib, f'Calib_{curr_trial.id_s}_{curr_trial.id_p}.toml')
     if os.path.isfile(calib_file):
@@ -34,6 +63,13 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1):
         curr_trial.calib = calib_file
         curr_trial.calib_done = True
         return
+
+    if all([df_settings, curr_trial.calib]):
+        file_exists, file_path = check_if_calib_done_for_cam_setting(curr_trial, df_settings, root_data)
+        if file_exists:
+            curr_trial.calib = copy_calib_file(curr_trial, file_path)
+            curr_trial.calib_done = True
+
 
     # prepare Log of Calibration errors
     if os.path.isfile(path_error_csv):

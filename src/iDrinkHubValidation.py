@@ -616,7 +616,6 @@ def run_mode():
     # First create list of trials to iterate through
     trial_list = create_trial_objects()
 
-
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     for trial in trial_list:
         try:
@@ -624,7 +623,8 @@ def run_mode():
                 if args.verbose >= 2:
                     print(f"Start calibration for {trial.identifier}")
 
-                delta_calibration_val(trial, log_calib, args.verbose)
+                delta_calibration_val(trial, log_calib, args.verbose, df_settings, root_data)
+
         except Exception as e:
             if args.verbose >=2:
                 print(f"Error in Calibration for {trial.identifier}")
