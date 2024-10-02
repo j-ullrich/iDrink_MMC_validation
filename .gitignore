@@ -14,3 +14,14 @@ src/iDrink/__pycache__/iDrinkLog.cpython-311.pyc
 /src/iDrink/__pycache__
 /.idea
 /src/iDrink/__pycache__
+.idea/iDrink_MMC_validation.iml
+.idea/misc.xml
+src/iDrink/__pycache__/iDrinkCalibration.cpython-311.pyc
+src/iDrink/__pycache__/iDrinkLog.cpython-311.pyc
+src/iDrink/__pycache__/iDrinkOpenSim.cpython-311.pyc
+src/iDrink/__pycache__/iDrinkPoseEstimation.cpython-311.pyc
+src/iDrink/__pycache__/iDrinkSetup.cpython-311.pyc
+src/iDrink/__pycache__/iDrinkTrial.cpython-311.pyc
+src/iDrink/__pycache__/iDrinkUtilities.cpython-311.pyc
+src/Pose2Sim/__pycache__/__init__.cpython-311.pyc
+src/Pose2Sim/__pycache__/Pose2Sim.cpython-311.pyc

@@ -18,10 +18,18 @@ def cam_as_ray_calibration():
     return
 
 def check_if_calib_done_for_cam_setting(curr_trial, df_settings, root_data):
+    import ast
 
-    used_cams = curr_trial.used_cams
+    used_cams = tuple(curr_trial.used_cams)
 
-    settings_with_same_cams = df_settings[df_settings["cams"] == used_cams]
+
+    idx = []
+    for index, row in df_settings.iterrows():
+        used_cams = ast.literal_eval(row["cams"])
+        idx.append(index)
+
+    settings_with_same_cams = df_settings.loc[idx]
+
 
     # check for each setting with the same cams-setup whether their p_ids calibration has been done
     for setting_in in settings_with_same_cams.index:
@@ -36,12 +44,8 @@ def check_if_calib_done_for_cam_setting(curr_trial, df_settings, root_data):
 
         return False, None
 
-def copy_calib_file(curr_trial, file_path):
-    new_path = os.path.join(curr_trial.dir_calib, os.path.basename(file_path))
-
-    shutil.copy2(file_path, new_path)
-
-    return new_path
+def copy_calib_file(curr_trial, file_path, calib_file):
+    shutil.copy2(file_path, calib_file)
 
 def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=None, root_data=None):
     """
@@ -64,10 +68,11 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
         curr_trial.calib_done = True
         return
 
-    if all([df_settings, curr_trial.calib]):
+    if df_settings is not None and root_data is not None:
         file_exists, file_path = check_if_calib_done_for_cam_setting(curr_trial, df_settings, root_data)
         if file_exists:
-            curr_trial.calib = copy_calib_file(curr_trial, file_path)
+            copy_calib_file(curr_trial, file_path, calib_file)
+            curr_trial.calib = calib_file
             curr_trial.calib_done = True
 
 

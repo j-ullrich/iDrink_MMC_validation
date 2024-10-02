@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[1]
+    drive = drives[2]
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -142,7 +142,7 @@ def create_trial_objects():
     global df_trials
 
     if sys.gettrace() is not None:  # If Debugger is in Use, limit settings to first 10
-        n_settings = 10
+        n_settings = min(10,df_settings["setting_id"].max())
     else:
         n_settings = df_settings["setting_id"].max()
 
