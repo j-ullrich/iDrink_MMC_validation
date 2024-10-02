@@ -237,6 +237,55 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         print(f"Number of Trials created: {len(trial_list)}")
     return trial_list
 
+def does_HPE_zip_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpose", "pose2sim"]):
+    """
+    Checks if the zip files exist for all camera recordings of a trial.
+
+    Quick reminder on folder structure
+
+    - root_data
+        - 01_unfiltered
+            - P07
+                - P07_cam1
+                    - metrabs
+                        - trial_1_[...]_json
+                            - trial_1_[...].zip
+                        - trial_2_[...]_json
+                        - trial_[.....]_json
+                    - mmpose
+                    - openpose
+                    - pose2sim
+                - P07_cam2
+                - P07_cam...
+            - P08
+            - ...
+        - 02_filtered
+
+    :param id_t: Trial id
+    :param id_p: Participant id
+    :param pose_root: Root directory of the pose data
+    :param cams: List of cameras used for the trial
+    :param n_frames: number of frames in video
+
+    :return: True if all zip files exist, False otherwise
+    """
+    id_t = f"trial_{int(trial.id_t.split('T')[1])}"
+    id_p = trial.id_p
+    cams = [f'cam{cam}' for cam in trial.used_cams]
+
+    if type(posebacks) is str:
+        posebacks = [posebacks]
+
+    # Check if the json files exist for all cameras
+    for cam in cams:
+        cam_dir = os.path.realpath(os.path.join(pose_root, '02_filtered', id_p, f"{id_p}_{cam}"))
+        if not os.path.isdir(cam_dir):
+            return False
+        for poseback in posebacks:
+            zip_files = glob.glob(os.path.join(cam_dir, poseback, f"{id_t}_*_json", f"{id_t}_*.zip"))
+            if len(zip_files) != 1:
+                return False  # If for one camera the number of json files is not equal to the number of frames return False
+    return True
 
 def does_json_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpose", "pose2sim"]):
     """

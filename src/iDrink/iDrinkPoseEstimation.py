@@ -39,7 +39,7 @@ def get_all_trial_vids(trial):
     # get trial as str from video name e.g. 'trial_1'
     t_str = re.search(r'trial_\d+', trial.video_files[0]).group(0)
 
-    return glob.glob(os.path.join(cam_dir, "**", f"{t_str}*.mp4"), recursive=True)
+    return glob.glob(os.path.join(cam_dir, "**", f"{t_str}_*.mp4"), recursive=True)
 
 def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', verbose=1):
     """

@@ -61,8 +61,6 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
     self can be Session or Trial Object
     """
 
-
-
     # Check if calibration file already exists
     calib_file = os.path.join(curr_trial.dir_calib, f'Calib_{curr_trial.id_s}_{curr_trial.id_p}.toml')
     if os.path.isfile(calib_file):

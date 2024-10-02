@@ -680,7 +680,7 @@ def run_mode():
                                             df_trials["id_p"] == trial.id_p), "MMPose_done"] = True
 
                             # Safety Check on json files
-                            trial.MMPose_done = iDrinkLog.does_json_exist(trial, root_HPE,
+                            trial.MMPose_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
                                                                           posebacks=["mmpose"])
 
 
@@ -695,7 +695,7 @@ def run_mode():
                                         print(f"starting Pose Estimation for {trial.identifier}")
 
                                     video_files = iDrinkPoseEstimation.get_all_trial_vids(trial)
-                                    iDrinkPoseEstimation.validation_pose_estimation_2d(trial, root_val, video_files=video_files, writevideofiles=True,
+                                    iDrinkPoseEstimation.validation_pose_estimation_2d(trial, root_val, video_files=video_files, writevideofiles=False,
                                                                                        filter_2d=False, DEBUG=False)
 
                                     trial.MMPose_done = True
@@ -733,7 +733,7 @@ def run_mode():
                                             df_trials["id_p"] == trial.id_p), "P2SPose_done"] = True
 
                             # Safety Check on json files
-                            trial.P2SPose_done = iDrinkLog.does_json_exist(trial, root_HPE,
+                            trial.P2SPose_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
                                                                            posebacks=["pose2sim"])
 
                             if trial.P2SPose_done:
@@ -782,7 +782,7 @@ def run_mode():
                                             df_trials["id_p"] == trial.id_p), "Metrabs_multi_done"] = True
 
                             #Safety Check on json files
-                            trial.Metrabs_multi_done = iDrinkLog.does_json_exist(trial, root_HPE,
+                            trial.Metrabs_multi_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
                                                                                  posebacks=["metrabs"])
 
                             if trial.Metrabs_multi_done:
