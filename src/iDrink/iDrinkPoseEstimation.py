@@ -145,13 +145,18 @@ def filt_p2s_pose(trial, root_val, verbose=1):
 
     # iterate over cameras
     for cam in cams:
-        json_dir = glob.glob(os.path.realpath(os.path.join(unfilt_dir, f"{trial.id_p}",
+        json_dir_unfilt = glob.glob(os.path.realpath(os.path.join(unfilt_dir, f"{trial.id_p}",
                                               f"{trial.id_p}_{cam}", "pose2sim", rf"{id_t}_*_json")))[0]
 
-        json_dir_filt = os.path.realpath(os.path.join(filt_dir, os.path.relpath(json_dir, unfilt_dir)))
+        json_dir_filt = os.path.realpath(os.path.join(filt_dir, os.path.relpath(json_dir_unfilt, unfilt_dir)))
 
         # filter the 2D Pose data
-        filter_2d_pose_data(trial, json_dir, json_dir_filt, filter='butter', verbose=verbose)
+        filter_2d_pose_data(trial, json_dir_unfilt, json_dir_filt, filter='butter', verbose=verbose)
+
+        pack_as_zip(json_dir_unfilt)
+        pack_as_zip(json_dir_filt)
+
+
 
 def pose_data_to_json(pose_data_samples):
     """

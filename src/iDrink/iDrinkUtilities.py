@@ -402,7 +402,7 @@ def unpack_zip_to_trial(trial, poseback, filt, root_val, json_dst='pose', verbos
 
 if __name__ == '__main__':
 
-    directories = glob.glob(os.path.join(r"I:\iDrink\validation_root\02_pose_estimation", "*", "*", "*", "*", "*_json"))
+    directories = glob.glob(os.path.join(r"I:\iDrink\validation_root\02_pose_estimation", "*", "*", "*", "pose2sim", "*_json"))
 
     for directory in directories:
 

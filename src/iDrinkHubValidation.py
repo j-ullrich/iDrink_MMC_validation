@@ -732,7 +732,7 @@ def run_mode():
                                 df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
                                             df_trials["id_p"] == trial.id_p), "P2SPose_done"] = True
 
-                            # Safety Check on json files
+                            # Safety Check on zip file
                             trial.P2SPose_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
                                                                            posebacks=["pose2sim"])
 
@@ -742,13 +742,29 @@ def run_mode():
                                 continue
                             else:
                                 try:
+                                    # Prepare Pose Estimation
                                     trial.config_dict['pose']['pose_model'] = 'COCO_17'
                                     vids_used = trial.config_dict['pose']['videos']
-                                    trial.config_dict['pose']['videos'] = iDrinkPoseEstimation.get_all_trial_vids(trial)
+                                    all_vids = iDrinkPoseEstimation.get_all_trial_vids(trial)
+                                    trial.config_dict['pose']['videos'] = all_vids
+                                    trial.config_dict['pose']['save_video'] = 'none'
+
+                                    # Run Pose Estimation
                                     Pose2Sim.poseEstimation(trial.config_dict)
+
+                                    # Filter json_files and packing them to .zip file
+                                    iDrinkPoseEstimation.filt_p2s_pose(trial, root_val, verbose=args.verbose)
+
+                                    """dir_unfilt =
+                                    dir_filt ="""
+
+                                    unfilt_dir = os.path.realpath(
+                                        os.path.join(root_val, "02_pose_estimation", "01_unfiltered"))
+                                    filt_dir = os.path.realpath(
+                                        os.path.join(root_val, "02_pose_estimation", "02_filtered"))
+
                                     trial.config_dict['pose']['pose_model'] = trial.pose_model
 
-                                    iDrinkPoseEstimation.filt_p2s_pose(trial, root_val, verbose=args.verbose)
                                     trial.config_dict['pose']['videos'] = vids_used
                                     trial.P2SPose_done = True
                                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
