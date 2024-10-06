@@ -243,7 +243,7 @@ def does_HPE_zip_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpo
 
     Quick reminder on folder structure
 
-    - root_data
+    - pose_root
         - 01_unfiltered
             - P07
                 - P07_cam1
@@ -349,7 +349,7 @@ def does_json_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpose"
     return True
 
 
-def all_2d_HPE_done(trial, root_HPE = None):
+def all_2d_HPE_done(trial, root_HPE = None, posebacks=["metrabs", "mmpose", "pose2sim"]):
     """
     Checks if all 2D Pose Estimation Methods have been done for a trial.
 
@@ -363,7 +363,7 @@ def all_2d_HPE_done(trial, root_HPE = None):
         return True
     else:
         if root_HPE is not None:
-            all_done = does_json_exist(trial, root_HPE, posebacks=["metrabs", "mmpose", "pose2sim"])
+            all_done = does_HPE_zip_exist(trial, root_HPE, posebacks=posebacks)
             trial.MMPose_done = trial.P2SPose_done = trial.Metrabs_multi_done = all_done
             return all_done
 

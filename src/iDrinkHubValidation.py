@@ -852,10 +852,7 @@ def run_mode():
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
 
-                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
-
-                if pose != 'metrabs_single':
-                    continue
+                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, ["mmpose", "pose2sim"])
 
                 if pose == 'metrabs_single':
                     from Metrabs_PoseEstimation.metrabsPose3D_pt import metrabs_pose_estimation_3d_val
@@ -914,7 +911,7 @@ def run_mode():
                         else:
                             if args.verbose >= 1:
                                 print(f"Trial: {trial.identifier} \t Posemode: {pose}")
-                            iDrinkUtilities.move_json_to_trial(trial, pose, filt, root_val)
+                            iDrinkUtilities.unpack_zip_to_trial(trial, pose, filt, root_val)
                             try:
                                 if pose == "metrabs_multi":
                                     trial.run_pose2sim(only_triangulation=True)
@@ -1020,9 +1017,9 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-    #args.mode = 'pose2sim'
-    #args.mode = 'opensim'
-    args.poseback = ["mmpose", "pose2sim"]
+    args.mode = 'pose2sim'
+    args.mode = 'opensim'
+    #args.poseback = ["mmpose", "pose2sim"]
     args.verbose = 2
 
 
