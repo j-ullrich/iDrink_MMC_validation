@@ -1003,14 +1003,17 @@ def run_mode():
 
             for trial in trial_list:
 
-                measures = iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
-                                                               csv_timestamps=path_csv_murphy_timestamps,
-                                                               csv_measures=path_csv_murphy_measures)
-                measures.get_paths()
-                measures.read_files()
-                measures.get_measures()
-                measures.write_measures()
+                try:
+                    iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
+                                                        csv_timestamps=path_csv_murphy_timestamps,
+                                                        csv_measures=path_csv_murphy_measures)
+                except Exception as e:
+                    if args.verbose >= 2:
+                        print(f"Error in murphy_measures\n"
+                              f"Trial: {trial.identifier}\n"
+                              f"{e}")
 
+                    iDrinkLog.log_error(args, trial, e, 'Murphy', '', log_val_errors)
 
 
                 if args.verbose >= 1:

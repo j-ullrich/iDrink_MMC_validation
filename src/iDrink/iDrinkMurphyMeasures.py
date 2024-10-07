@@ -65,7 +65,7 @@ class MurphyMeasures:
     3. We give the object a trial_object
 
     """
-    def __init__(self, csv_timestamps=None, csv_measures=None,
+    def __init__(self, csv_timestamps=None, csv_measures=None, verbose=0,
                  # For mode 1
                  trial = None, root_data = None,
                  # For mode 2
@@ -79,6 +79,7 @@ class MurphyMeasures:
         self.root_data = root_data
         self.dir_trial = None
 
+        self.verbose = verbose
 
 
         """Settings"""
@@ -111,6 +112,7 @@ class MurphyMeasures:
 
         """Contents of the .csv file"""
         self.trial_id = trial_id
+        self.valid = None
         self.side = None
         self.condition = None
         self.ReachingStart = None
@@ -131,7 +133,7 @@ class MurphyMeasures:
         self.InterjointCoordination = None
         self.trunkDisplacementMM = None
         self.trunkDisplacementDEG = None
-        self.ShoulerFlexionReaching = None
+        self.ShoulderFlexionReaching = None
         self.ElbowExtension = None
         self.shoulderAbduction = None
 
@@ -139,10 +141,11 @@ class MurphyMeasures:
         self.s_id = self.trial_id.split('_')[0]
         self.p_id = self.trial_id.split('_')[1]
         self.t_id = self.trial_id.split('_')[2]
+        self.identifier = self.trial_id
 
 
         if self.csv_measures is not None and os.path.isfile(self.csv_measures):
-            self.df_measures = pd.read_csv(self.csv_measures)
+            self.df_measures = pd.read_csv(self.csv_measures, sep=';')
         else:
             self.df_measures = pd.DataFrame(columns = ['identifier', 'id_p', 'id_t', 'valid', 'side', 'condition',
                                               'ReachingStart','ForwardStart', 'DrinkingStart', 'BackStart',
@@ -150,20 +153,20 @@ class MurphyMeasures:
                                               'PeakVelocity_mms',  'elbowVelocity', 'tTopeakV_s',
                                               'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel',
                                               'NumberMovementUnits', 'InterjointCoordination', 'trunkDisplacementMM',
-                                              'trunkDisplacementDEG','ShoulerFlexionReaching', 'ElbowExtension',
+                                              'trunkDisplacementDEG','shoulderFlexionReaching', 'ElbowExtension',
                                               'shoulderAbduction']
                                    )
 
         if self.csv_timestamps is not None and os.path.isfile(self.csv_timestamps):
-            self.df_timestamps = pd.read_csv(self.csv_timestamps)
+            self.df_timestamps = pd.read_csv(self.csv_timestamps, sep=';')
             self.get_data(self.df_timestamps)
 
         # if paths  are given, directly calculate the measures
         if trial is not None:
-            self.trial_id_t = trial.id_t
-            self.trial_id_p = trial.id_p
-            self.trial_id_s = trial.id_s
-            self.trial_id  = trial.identifier
+            self.id_t = trial.id_t
+            self.id_p = trial.id_p
+            self.id_s = trial.id_s
+            self.identifier  = trial.identifier
 
         if (    self.path_bodyparts_pos is not None
             and self.path_bodyparts_vel is not None
@@ -178,8 +181,12 @@ class MurphyMeasures:
 
         self.get_paths()
         self.read_files()
-        self.get_measures()
-        self.write_measures()
+
+        if self.valid:
+            self.get_measures()
+            self.write_measures()
+        else:
+            print(f"Skipping {self.identifier} due to invalid data.")
 
     def use_butterworth_filter(self, data, cutoff, fs, order=4, normcutoff=False):
         """
@@ -294,8 +301,8 @@ class MurphyMeasures:
         t_start = self.phases[phase_1][0]
         t_end = self.phases[phase_1 if phase_2 is None else phase_2][1]
 
-        id_start = np.where(self.time == t_start)[0][0]
-        id_end = np.where(self.time == t_end)[0][0]
+        id_start = np.where(self.time == self.time.flat[np.abs(self.time - t_start).argmin()])[0][0]
+        id_end = np.where(self.time == self.time.flat[np.abs(self.time - t_end).argmin()])[0][0]
 
         return id_start, id_end
 
@@ -352,7 +359,7 @@ class MurphyMeasures:
                 min_peaks = peaks_min[peaks_min < max_peak]
                 if len(min_peaks) >= 1:
                     min_peak = min_peaks[-1]
-                    diff_peaks = np.sqrt(vel_data[max_peak] - vel_data[min_peak] ** 2)
+                    diff_peaks = np.sqrt((vel_data[max_peak] - vel_data[min_peak]) ** 2)
                     if diff_peaks > min_v_rel:
                         values.append(vel_data[max_peak])
                         max_indices.append(vel_data[max_peak])
@@ -392,7 +399,8 @@ class MurphyMeasures:
         Calculate the trunk displacement in mm.
         """
 
-        id_start = np.where(self.time == self.ReachingStart)[0][0]
+        id_start, _ = self.get_phase_ids("reaching")
+
         displacement = np.linalg.norm(self.trunk_pos[id_start] - self.trunk_pos, axis=1)
 
         max_displacement_mm = np.max(displacement)*1000
@@ -451,7 +459,7 @@ class MurphyMeasures:
         self.elbowVelocity = round(peak_vel_elbow, 3)
 
         # time to peak hand velocity
-        peak_id = np.where(self.hand_vel == peak_vel_hand/1000)[0][0]
+        peak_id = np.where(self.hand_vel == self.hand_vel.flat[np.abs(self.hand_vel - (peak_vel_hand/1000)).argmin()])[0][0]
         self.tTopeakV_s = self.time[peak_id]
 
         # time to first peak hand velocity
@@ -478,11 +486,24 @@ class MurphyMeasures:
 
         self.shoulderAbduction = self.get_max_shoulder_abd_drink_reach()
 
-    def write_measures(self, ):
+    def write_measures(self):
         """
         This function adds the calculated measures to the .csv file.
         """
-        murphy_measures = ["PeakVelocity_mms",
+        murphy_measures = ["identifier",
+                           "id_p",
+                           "id_t",
+                           "id_s",
+                           "side",
+                           "ReachingStart",
+                           "ForwardStart",
+                           "DrinkingStart",
+                           "BackStart",
+                           "ReturningStart",
+                           "RestStart",
+                           "TotalMovementTime",
+                           "condition",
+                           "PeakVelocity_mms",
                            "elbowVelocity",
                            "tTopeakV_s",
                            "tToFirstpeakV_s",
@@ -496,20 +517,20 @@ class MurphyMeasures:
                            "ElbowExtension",
                            "shoulderAbduction"]
 
-        try:
+        if self.identifier in list(self.df_measures['identifier']):
             for column in murphy_measures:
-                self.df_measures.loc[self.df_measures['trial_id'] == self.trial_id, column] = self.__getattribute__(column)
-        except:
-            """
-            Trial not in form of iDrink Trial_id
-            csv containts only trials of single Participant and the trial number is in the form of TXXX.
-            """
-            trial_num = int(self.t_id.split('T')[1])
-            for column in murphy_measures:
-                self.df_measures.loc[self.df_measures['trial'] == trial_num, column] = self.__getattribute__(column)
+                self.df_measures.loc[self.df_measures['identifier'] == self.identifier, column] = self.__getattribute__(
+                    column)
+        else:
+            # Add new row to dataframe
+            new_row = pd.DataFrame([{column: self.__getattribute__(column) for column in murphy_measures}])
+            self.df_measures = pd.concat([self.df_measures, new_row], ignore_index=True)
 
 
-        self.df_measures.to_csv(self.csv_timestamps, index=False)
+        self.df_measures.to_csv(self.csv_measures, sep=';', index=False)
+
+        if self.verbose >= 1:
+            print(f"Measures for {self.identifier} written to {self.csv_measures}")
 
     @staticmethod
     def standardize_data(df, verbose=1):
@@ -526,7 +547,7 @@ class MurphyMeasures:
         :return: Datatype, DataFrame
         """
 
-        def standardize_columns(columns_old, columns_stand, verbose=1):
+        def standardize_columns(columns_old, columns_stand, verbose=0):
             """
             This function takes a list of columns and a list of standardized names and renames the columns to the standardized names.
 
@@ -665,7 +686,7 @@ class MurphyMeasures:
             raise ValueError(f"Error in iDrinkMurphyMeasures.read_file: {file_path} \n"
                              f"invalid file format {os.path.splitext(file_path)}.")
 
-        df = self.standardize_data(df)
+        df = self.standardize_data(df, verbose= self.verbose)
         return meta_dat, df
 
 
@@ -718,11 +739,11 @@ class MurphyMeasures:
         shoulder_abduction = -df[f'arm_add_{self.side.lower()}'].values  # Abduction is the negativ of adduction
         self.shoulder_abduction_pos = self.use_butterworth_filter(shoulder_abduction, cutoff=10, fs=100, order=4, normcutoff=False)
 
-    def get_data(self, df, verbose=1):
+    def get_data(self, df):
         """
         Sync the attributes with the DataFrame.
         """
-        columns_of_interest = ["side", "condition", "ReachingStart", "ForwardStart", "DrinkingStart", "BackStart",
+        columns_of_interest = ["side", "condition", "valid", "ReachingStart", "ForwardStart", "DrinkingStart", "BackStart",
                                "ReturningStart", "RestStart", "TotalMovementTime"]
 
         if self.trial_id is None:
@@ -732,15 +753,18 @@ class MurphyMeasures:
 
         try:
             for column in columns_of_interest:
-                self.__setattr__(column, df.loc[df['trial_id'] == self.trial_id, column].values[0])
+                self.__setattr__(column, df.loc[df['identifier'] == self.trial_id, column].values[0])
         except:
             """
             Trial not in form of iDrink Trial_id
             csv containts only trials of single Participant and the trial number is in the form of TXXX.
             """
-            trial_num = int(self.t_id.split('T')[1])
+
+            if self.p_id not in df['id_p'].values:
+                raise ValueError(f"Error in iDrinkMurphyMeasures.get_data: Participant {self.p_id} not in DataFrame.")
+
             for column in columns_of_interest:
-                self.__setattr__(column, df.loc[df['trial'] == trial_num, column].values[0])
+                self.__setattr__(column, df.loc[(df['id_t'] == self.t_id) & (df['id_p'] == self.p_id), column].values[0])
 
         self.phases = {"reaching": [self.ReachingStart, self.ForwardStart],
                        "forward_transportation": [self.ForwardStart, self.DrinkingStart],
@@ -769,7 +793,7 @@ class MurphyMeasures:
                                               'PeakVelocity_mms',  'elbowVelocity', 'tTopeakV_s',
                                               'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel',
                                               'NumberMovementUnits', 'InterjointCoordination', 'trunkDisplacementMM',
-                                              'trunkDisplacementDEG','ShoulerFlexionReaching', 'ElbowExtension',
+                                              'trunkDisplacementDEG','shoulderFlexionReaching', 'ElbowExtension',
                                               'shoulderAbduction']
                                    )
 
