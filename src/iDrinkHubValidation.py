@@ -992,7 +992,6 @@ def run_mode():
 
             if args.verbose >= 1:
                 opensim_progress.close()
-            print("Johann, take this out")
 
         case "murphy_measures":  # runs only the calculation of murphy measures
             print("Johann, take this out")
@@ -1002,6 +1001,8 @@ def run_mode():
 
         case "full":  # runs the full pipeline
             print("Johann, take this out")
+
+
 
         case _:  # If no mode is given
             raise ValueError("Invalid Mode was given. Please specify a valid mode.")

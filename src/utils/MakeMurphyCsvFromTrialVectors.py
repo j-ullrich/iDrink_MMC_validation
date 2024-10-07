@@ -7,7 +7,7 @@ import numpy as np
 
 from tqdm import tqdm
 
-drives=['C:', 'D:', 'E:', 'I:']
+drives=['C:', 'D:', 'E:', 'F:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
@@ -69,4 +69,4 @@ for id_p in p_list:
 prog.close()
 
 
-df_timestamps.to_csv(path_csv_murphy_timestamps, index=False)
+df_timestamps.to_csv(path_csv_murphy_timestamps, index=False, sep=';')
