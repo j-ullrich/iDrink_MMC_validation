@@ -46,7 +46,7 @@ from fuzzywuzzy import process
 
 from importlib_metadata import metadata
 
-import iDrinkTrial
+from iDrink import iDrinkTrial
 
 
 class MurphyMeasures:
@@ -65,9 +65,9 @@ class MurphyMeasures:
     3. We give the object a trial_object
 
     """
-    def __init__(self, path_csv=None,
+    def __init__(self, csv_timestamps=None, csv_measures=None,
                  # For mode 1
-                 trial = None, root_data = None, source = 'opensim_analyze',
+                 trial = None, root_data = None,
                  # For mode 2
                  trial_id = None,
                  # For mode 3
@@ -82,7 +82,6 @@ class MurphyMeasures:
 
 
         """Settings"""
-        self.source = source
 
         self.path_bodyparts_pos = path_bodyparts_pos
         self.path_bodyparts_vel = path_bodyparts_vel
@@ -92,8 +91,10 @@ class MurphyMeasures:
         self.path_joint_vel = path_joint_vel
         self.path_joint_acc = path_joint_acc
 
-        self.path_csv = path_csv
-        self.df = None
+        self.csv_timestamps = csv_timestamps
+        self.csv_measures = csv_measures
+        self.df_timestamps = None
+        self.df_measures = None
 
         """data to calculate measures"""
         self.time = None
@@ -139,14 +140,30 @@ class MurphyMeasures:
         self.p_id = self.trial_id.split('_')[1]
         self.t_id = self.trial_id.split('_')[2]
 
-        if self.path_csv is not None:
-            self.df = self.read_csv(self.path_csv)
-            self.get_data(self.df)
+
+        if self.csv_measures is not None and os.path.isfile(self.csv_measures):
+            self.df_measures = pd.read_csv(self.csv_measures)
+        else:
+            self.df_measures = pd.DataFrame(columns = ['identifier', 'id_p', 'id_t', 'valid', 'side', 'condition',
+                                              'ReachingStart','ForwardStart', 'DrinkingStart', 'BackStart',
+                                              'ReturningStart','RestStart', 'TotalMovementTime',
+                                              'PeakVelocity_mms',  'elbowVelocity', 'tTopeakV_s',
+                                              'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel',
+                                              'NumberMovementUnits', 'InterjointCoordination', 'trunkDisplacementMM',
+                                              'trunkDisplacementDEG','ShoulerFlexionReaching', 'ElbowExtension',
+                                              'shoulderAbduction']
+                                   )
+
+        if self.csv_timestamps is not None and os.path.isfile(self.csv_timestamps):
+            self.df_timestamps = pd.read_csv(self.csv_timestamps)
+            self.get_data(self.df_timestamps)
 
         # if paths  are given, directly calculate the measures
         if trial is not None:
-            self.trial_id = trial.trial_id
-            self.get_paths()
+            self.trial_id_t = trial.id_t
+            self.trial_id_p = trial.id_p
+            self.trial_id_s = trial.id_s
+            self.trial_id  = trial.identifier
 
         if (    self.path_bodyparts_pos is not None
             and self.path_bodyparts_vel is not None
@@ -200,41 +217,25 @@ class MurphyMeasures:
 
         s_num = re.search(r'\d+', self.s_id).group()
 
-        omc = True if 'OMC' in self.root_data else False
-
         if 'OMC' in self.root_data:
-            path_analyzetool = os.path.join(self.root_data, f'{self.s_id}', f'{self.s_id}_{self.p_id}',
+            root_body_kin = os.path.join(self.root_data, f'{self.s_id}', f'{self.s_id}_{self.p_id}',
                                             f'{self.trial_id}', 'movement_analysis', 'kin_opensim_analyzetool')
-            path_p2s = os.path.join(self.root_data, f'{self.s_id}', f'{self.s_id}_{self.p_id}',
-                                    f'{self.trial_id}', 'movement_analysis', 'kin_p2s')
+            root_joint_kin = os.path.join(self.root_data, f'{self.s_id}', f'{self.s_id}_{self.p_id}',
+                                            f'{self.trial_id}', 'movement_analysis', 'ik_tool')
         else:
-            path_analyzetool = os.path.join(self.root_data, f"setting_{s_num}",
+            root_body_kin = os.path.join(self.root_data, f"setting_{s_num}",
                                             f'{self.s_id}', f'{self.s_id}_{self.p_id}', f'{self.trial_id}', 'movement_analysis',
                                             'kin_opensim_analyzetool')
-            path_p2s = os.path.join(self.root_data, f"setting_{s_num}",
+            root_joint_kin = os.path.join(self.root_data, f"setting_{s_num}",
                                             f'{self.s_id}', f'{self.s_id}_{self.p_id}', f'{self.trial_id}', 'movement_analysis',
-                                            'kin_p2s')
+                                            'ik_tool')
 
-
-        match self.source:
-            case 'opensim_analyze': # Use bodypart and joint values from analyzetool
-                self.path_bodyparts_pos = os.path.join(path_analyzetool, f'{self.trial_id}_BodyKinematics_pos_global.sto')
-                self.path_bodyparts_vel = os.path.join(path_analyzetool, f'{self.trial_id}_BodyKinematics_vel_global.sto')
-                self.path_bodyparts_acc = os.path.join(path_analyzetool, f'{self.trial_id}_BodyKinematics_acc_global.sto')
-                self.path_joint_pos = os.path.join(path_analyzetool, f'{self.trial_id}_Kinematics_q.sto')
-                self.path_joint_vel = os.path.join(path_analyzetool, f'{self.trial_id}_Kinematics_u.sto')
-                self.path_joint_acc = os.path.join(path_analyzetool, f'{self.trial_id}_Kinematics_dudt.sto')
-
-            case 'pose2sim': # Use bodyparts from pose2sim and joint angles from analyzetool
-                self.path_bodyparts_pos = os.path.join(path_p2s, f'{self.trial_id}_Body_kin_p2s_pos.csv')
-                self.path_bodyparts_vel = os.path.join(path_p2s, f'{self.trial_id}_Body_kin_p2s_vel.csv')
-                self.path_bodyparts_acc = os.path.join(path_p2s, f'{self.trial_id}_Body_kin_p2s_acc.csv')
-                self.path_joint_pos = os.path.join(path_analyzetool, f'{self.trial_id}_Kinematics_q.sto')
-                self.path_joint_vel = os.path.join(path_analyzetool, f'{self.trial_id}_Kinematics_u.sto')
-                self.path_joint_acc = os.path.join(path_analyzetool, f'{self.trial_id}_Kinematics_dudt.sto')
-
-            case _:
-                raise ValueError(f"Error in iDrinkMurphyMeasures.get_paths_from_root: {self.source} invalid.")
+        self.path_bodyparts_pos = os.path.join(root_body_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_BodyKinematics_pos_global.sto')
+        self.path_bodyparts_vel = os.path.join(root_body_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_BodyKinematics_vel_global.sto')
+        self.path_bodyparts_acc = os.path.join(root_body_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_BodyKinematics_acc_global.sto')
+        self.path_joint_pos = os.path.join(root_joint_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_Kinematics_pos.csv')
+        self.path_joint_vel = os.path.join(root_joint_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_Kinematics_vel.csv')
+        self.path_joint_acc = os.path.join(root_joint_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_Kinematics_acc.csv')
 
 
     def get_paths_from_trial(self):
@@ -245,25 +246,17 @@ class MurphyMeasures:
 
         self.dir_trial = self.trial.dir_trial
 
-        match self.source:
-            case 'opensim_analyze': # Use bodypart and joint values from analyzetool
-                self.path_bodyparts_pos = self.trial.path_opensim_ana_pos
-                self.path_bodyparts_vel = self.trial.path_opensim_ana_vel
-                self.path_bodyparts_acc = self.trial.path_opensim_ana_acc
-                self.path_joint_pos = self.trial.path_opensim_ana_ang_pos
-                self.path_joint_vel = self.trial.path_opensim_ana_ang_vel
-                self.path_joint_acc = self.trial.path_opensim_ana_ang_acc
+        dir_movement_analysis = os.path.join(self.dir_trial, 'movement_analysis')
 
-            case 'pose2sim': # Use bodyparts from pose2sim and joint angles from analyzetool
-                self.path_bodyparts_pos = self.trial.path_p2s_ik_pos
-                self.path_bodyparts_vel = self.trial.path_p2s_ik_vel
-                self.path_bodyparts_acc = self.trial.path_p2s_ik_acc
-                self.path_joint_pos = self.trial.path_opensim_ana_ang_pos
-                self.path_joint_vel = self.trial.path_opensim_ana_ang_vel
-                self.path_joint_acc = self.trial.path_opensim_ana_ang_acc
+        root_body_kin = os.path.join(dir_movement_analysis, 'kin_opensim_analyzetool')
+        root_joint_kin = os.path.join(dir_movement_analysis, 'ik_tool')
 
-            case _:
-                raise ValueError(f"Error in iDrinkMurphyMeasures.get_paths_from_trial: {self.source} invalid.")
+        self.path_bodyparts_pos = os.path.join(root_body_kin, f'{self.trial.identifier}_BodyKinematics_pos_global.sto')
+        self.path_bodyparts_vel = os.path.join(root_body_kin, f'{self.trial.identifier}_BodyKinematics_vel_global.sto')
+        self.path_bodyparts_acc = os.path.join(root_body_kin, f'{self.trial.identifier}_BodyKinematics_acc_global.sto')
+        self.path_joint_pos = os.path.join(root_joint_kin, f'{self.trial.identifier}_Kinematics_pos.csv')
+        self.path_joint_vel = os.path.join(root_joint_kin, f'{self.trial.identifier}_Kinematics_vel.csv')
+        self.path_joint_acc = os.path.join(root_joint_kin, f'{self.trial.identifier}_Kinematics_acc.csv')
 
 
     def get_paths(self, ):
@@ -277,16 +270,15 @@ class MurphyMeasures:
                   "Murphy object needs a trial_id to retrieve data from DataFrame.")
             return
 
+        if self.trial is not None:
+            self.get_paths_from_trial()
+            return
+
         if self.root_data is None:
             print("No root_data given.")
             return
-
-        if self.trial is not None:
-            self.get_paths_from_trial()
         elif all([self.trial_id, self.root_data]):
             self.get_paths_from_root()
-
-        pass
 
     def get_phase_ids(self, phase_1, phase_2=None):
         """
@@ -336,8 +328,6 @@ class MurphyMeasures:
         We move along the phase and look at local maxima and minima.
         If they exceed the thresholds awr by Murphy we count them as a movement unit.
         """
-
-
 
         df_mov_units = pd.DataFrame(
             columns=["phase", "n_movement_units", "values", "loc_maxima_ids", "loc_minima_ids"], )
@@ -508,7 +498,7 @@ class MurphyMeasures:
 
         try:
             for column in murphy_measures:
-                self.df.loc[self.df['trial_id'] == self.trial_id, column] = self.__getattribute__(column)
+                self.df_measures.loc[self.df_measures['trial_id'] == self.trial_id, column] = self.__getattribute__(column)
         except:
             """
             Trial not in form of iDrink Trial_id
@@ -516,10 +506,10 @@ class MurphyMeasures:
             """
             trial_num = int(self.t_id.split('T')[1])
             for column in murphy_measures:
-                self.df.loc[self.df['trial'] == trial_num, column] = self.__getattribute__(column)
+                self.df_measures.loc[self.df_measures['trial'] == trial_num, column] = self.__getattribute__(column)
 
 
-        self.df.to_csv(self.path_csv, index=False)
+        self.df_measures.to_csv(self.csv_timestamps, index=False)
 
     @staticmethod
     def standardize_data(df, verbose=1):
@@ -728,9 +718,6 @@ class MurphyMeasures:
         shoulder_abduction = -df[f'arm_add_{self.side.lower()}'].values  # Abduction is the negativ of adduction
         self.shoulder_abduction_pos = self.use_butterworth_filter(shoulder_abduction, cutoff=10, fs=100, order=4, normcutoff=False)
 
-
-
-
     def get_data(self, df, verbose=1):
         """
         Sync the attributes with the DataFrame.
@@ -762,14 +749,51 @@ class MurphyMeasures:
                        "returning": [self.ReturningStart, self.RestStart]}
 
 
-    def read_csv(self, path_csv):
+    def get_df_from_murphy(self, path_csv):
         """
-        This function reads the .csv file containing the data. and calls the get_data function.
-        It also returns the DataFrame from the .csv file.
+        Reads, sets and returns .csv already containing Murphy measures.
         """
-        self.df = pd.read_csv(path_csv)
+        self.df_measures = pd.read_csv(path_csv)
 
-        return self.df
+        return self.df_measures
+
+    def get_df_from_timestamps(self, ):
+        """
+        Get DataFrame for Murphy measures based on csv containing timestamps.
+
+        :return:
+        """
+        df_measures = pd.DataFrame(columns = ['identifier', 'id_p', 'id_t', 'valid', 'side', 'condition',
+                                              'ReachingStart','ForwardStart', 'DrinkingStart', 'BackStart',
+                                              'ReturningStart','RestStart', 'TotalMovementTime',
+                                              'PeakVelocity_mms',  'elbowVelocity', 'tTopeakV_s',
+                                              'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel',
+                                              'NumberMovementUnits', 'InterjointCoordination', 'trunkDisplacementMM',
+                                              'trunkDisplacementDEG','ShoulerFlexionReaching', 'ElbowExtension',
+                                              'shoulderAbduction']
+                                   )
+
+        df_timestamps = pd.read_csv(self.csv_timestamps)
+
+        for index, row in df_timestamps.iterrows():
+            self.trial_id = row['trial_id']
+            self.get_data(df_timestamps)
+            self.get_paths()
+            self.read_files()
+            self.get_measures()
+            self.write_measures()
+
+            df_measures.loc[len(df_measures)] = [row['identifier'], row['id_p'], row['id_t'], row['valid'], row['side'], row['condition'],
+                                            self.ReachingStart, self.ForwardStart, self.DrinkingStart, self.BackStart,
+                                            self.ReturningStart, self.RestStart, self.TotalMovementTime,
+                                            self.PeakVelocity_mms, self.elbowVelocity, self.tTopeakV_s,
+                                            self.tToFirstpeakV_s, self.tTopeakV_rel, self.tToFirstpeakV_rel,
+                                            self.NumberMovementUnits, self.InterjointCoordination, self.trunkDisplacementMM,
+                                            self.trunkDisplacementDEG, self.ShoulderFlexionReaching, self.ElbowExtension,
+                                            self.shoulderAbduction]
+
+
+        self.df_measures = df_measures
 
 if __name__ == '__main__':
 
@@ -781,23 +805,16 @@ if __name__ == '__main__':
         drive = '/media/devteam-dart/Extreme SSD'
         root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
     else:
-        path_phases = r"I:\P01_trialVectors.csv"  # Path to the .csv file containing the data
+        path_phases = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_measures.csv"  # Path to the .csv file containing murphy measures
+        path_timestamps = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_timestamps.csv" # Path to the .csv file containing timestamps
         root_data = r"I:\iDrink\validation_root\03_data"  # Root directory of all iDrink Data
         root_data_omc = r"I:\iDrink\validation_root\03_data\OMC"
         dir_trials = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P01" # Directory containing folders of P01
 
 
-    pd.DataFrame(columns = ['trial', 'side', 'condition',
-                            'ReachingStart', 'ForwardStart', 'DrinkingStart',  'BackStart', 'ReturningStart', 'RestStart',
-                            'TotalMovementTime', 'PeakVelocity_mms',  'elbowVelocity',
-                            'tTopeakV_s', 'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel',
-                            'NumberMovementUnits', 'InterjointCoordination',
-                            'trunkDisplacementMM', 'trunkDisplacementDEG',
-                            'ShoulerFlexionReaching', 'ElbowExtension', 'shoulderAbduction'
-                            ]
-                 )
 
-    measures = MurphyMeasures(path_csv=path_phases, trial_id='S15133_P01_T001', root_data=root_data_omc)
+
+    measures = MurphyMeasures(csv_timestamps=path_timestamps, trial_id='S15133_P01_T001', root_data=root_data_omc)
     measures.get_paths()
     measures.read_files()
     measures.get_measures()

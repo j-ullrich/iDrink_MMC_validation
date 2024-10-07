@@ -188,6 +188,8 @@ def mot_to_csv(curr_trial=None, path_mot=None, path_dst=None, verbose=1):
     _, dat_measured = read_opensim_file(path_mot)
     dat_measured.to_csv(path_dst, index=False)
 
+    get_joint_velocity_acceleration(csv_pos=path_dst, dir_out=os.path.dirname(path_dst), filter_pos=False, verbose=verbose)
+
     if verbose >= 1:
         print(f"Data from: \t{path_mot}\n"
               f"saved to: \t{path_dst}\n")
@@ -370,6 +372,7 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
 
     # Save the angles calculated by the Inverse Kinematics Tool to a .csv file
     mot_to_csv(curr_trial)
+
 
 
 if __name__ == '__main__':

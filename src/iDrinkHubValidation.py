@@ -11,7 +11,7 @@ from tqdm import tqdm
 import argparse
 import pandas as pd
 
-from iDrink import iDrinkTrial, iDrinkPoseEstimation, iDrinkLog, iDrinkOpenSim, iDrinkUtilities
+from iDrink import iDrinkTrial, iDrinkPoseEstimation, iDrinkLog, iDrinkOpenSim, iDrinkUtilities, iDrinkMurphyMeasures
 from iDrink.iDrinkCalibration import delta_calibration_val, delta_full_calibration_val
 
 
@@ -90,6 +90,10 @@ log_calib_full = os.path.join(root_logs, "calib_errors_full.csv")
 
 os.environ['DATA_ROOT'] = root_iDrink  # Set the DATA_ROOT Environment Variable for Metrabs
 os.environ['ROOT_DIR'] = root_iDrink # Set the ROOT_DIR Environment Variable for Metrabs
+
+# prepare statistic paths
+path_csv_murphy_timestamps = os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv')
+path_csv_murphy_measures = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
 
 
 
@@ -994,7 +998,27 @@ def run_mode():
                 opensim_progress.close()
 
         case "murphy_measures":  # runs only the calculation of murphy measures
-            print("Johann, take this out")
+            if args.verbose >= 1:
+                murphy_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Murphy Measures", unit="Trial")
+
+            for trial in trial_list:
+
+                measures = iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
+                                                               csv_timestamps=path_csv_murphy_timestamps,
+                                                               csv_measures=path_csv_murphy_measures)
+                measures.get_paths()
+                measures.read_files()
+                measures.get_measures()
+                measures.write_measures()
+
+
+
+                if args.verbose >= 1:
+                    murphy_progress.update(1)
+
+            if args.verbose >= 1:
+                murphy_progress.close()
+
 
         case "statistics":  # runs only the statistic script
             print("Johann, take this out")
@@ -1020,6 +1044,7 @@ if __name__ == '__main__':
     args.mode = "pose_estimation"
     args.mode = 'pose2sim'
     args.mode = 'opensim'
+    args.mode = 'murphy_measures'
     #args.poseback = ["mmpose", "pose2sim"]
     args.verbose = 2
 
