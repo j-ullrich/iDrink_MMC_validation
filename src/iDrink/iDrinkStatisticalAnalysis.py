@@ -177,20 +177,135 @@ def run_stat_cont_on_trial(df_mmc, df_omc, to_compare, isjoint, root_stat, verbo
 
         df_stat_cont[column] = [std, rmse, pearson, pearson_pval, rom_error, min_error, max_error, median_error, mean_error]
 
-
-
-
-
     #sp.stats.tukey_hsd(df_stat_cont.loc['rom_error'].values)
 
     df_stat_cont = pd.concat([df_stat_cont, roms])
     return df_stat_cont
 
 
-def run_stat_cont_over_trials(trial_list, list_df_stat_cont, ):
+def run_stat_cont_over_trials(trial_list, root_stat, root_omc, joints_of_interest=None, body_parts_of_interest=None,
+                              body_parts_of_interest_no_axes=None):
+    """
+    Iterates over trials, creates DataFrames containing the statistical values for each trial.
 
+    Loads files of OMC recording and MMC recording and runs statistical analysis on them.
+
+    For each Trial a DataFrame & .csv file is created for position, velocity and acceleration of joint and end effector values.
+
+    The csv files are saved in the root_stat folder.
+
+
+    :param trial_list:
+    :param list_df_stat_cont:
+    :return:
+    """
+    if joints_of_interest is None: # Default Joints of Interest
+        joints_of_interest = ['hip_flexion_r','hip_adduction_r','hip_rotation_r',
+                              'hip_flexion_l','hip_adduction_l','hip_rotation_l',
+                              'neck_flexion','neck_bending','neck_rotation',
+                              'arm_flex_r','arm_add_r','arm_rot_r',
+                              'elbow_flex_r','pro_sup_r',
+                              'wrist_flex_r','wrist_dev_r',
+                              'arm_flex_l','arm_add_l','arm_rot_l',
+                              'elbow_flex_l','pro_sup_l',
+                              'wrist_flex_l','wrist_dev_l'
+                              ]
+
+    if body_parts_of_interest is None: # Default Body Parts of Interest
+        body_parts_of_interest = ['time','pelvis_x','pelvis_y','pelvis_z',
+                                  'femur_r_x','femur_r_y','femur_r_z','patella_r_x','patella_r_y','patella_r_z',
+                                  'tibia_r_x','tibia_r_y','tibia_r_z','talus_r_x','talus_r_y','talus_r_z',
+                                  'calcn_r_x','calcn_r_y','calcn_r_z','toes_r_x','toes_r_y','toes_r_z',
+                                  'femur_l_x','femur_l_y','femur_l_z','patella_l_x','patella_l_y','patella_l_z',
+                                  'tibia_l_x','tibia_l_y','tibia_l_z','talus_l_x','talus_l_y','talus_l_z',
+                                  'calcn_l_x','calcn_l_y','calcn_l_z','toes_l_x','toes_l_y','toes_l_z',
+                                  'lumbar5_x','lumbar5_y','lumbar5_z','lumbar4_x','lumbar4_y','lumbar4_z',
+                                  'lumbar3_x','lumbar3_y','lumbar3_z','lumbar2_x','lumbar2_y','lumbar2_z',
+                                  'lumbar1_x','lumbar1_y','lumbar1_z','torso_x','torso_y','torso_z',
+                                  'head_x','head_y','head_z','abdomen_x','abdomen_y','abdomen_z',
+                                  'humerus_r_x','humerus_r_y','humerus_r_z','ulna_r_x','ulna_r_y','ulna_r_z',
+                                  'radius_r_x','radius_r_y','radius_r_z','hand_r_x','hand_r_y','hand_r_z',
+                                  'humerus_l_x','humerus_l_y','humerus_l_z','ulna_l_x','ulna_l_y','ulna_l_z',
+                                  'radius_l_x','radius_l_y','radius_l_z','hand_l_x','hand_l_y','hand_l_z']
+
+    if body_parts_of_interest_no_axes is None: # Default Body Parts of Interest without axes
+        body_parts_of_interest_no_axes = ['pelvis','femur_r','patella_r','tibia_r','talus_r',
+                                          'calcn_r','toes_r','femur_l','patella_l','tibia_l','talus_l',
+                                          'calcn_l','toes_l','lumbar5','lumbar4','lumbar3','lumbar2',
+                                          'lumbar1','torso','head','abdomen','humerus_r','ulna_r','radius_r',
+                                          'hand_r','humerus_l','ulna_l','radius_l','hand_l']
+
+
+    # Sort values of interest so its more organized
+    joints_of_interest = sorted(joints_of_interest)
+    body_parts_of_interest = sorted(body_parts_of_interest)
+    body_parts_of_interest_no_axes = sorted(list(set([part.strip('_x_y_z') for part in body_parts_of_interest])))
+
+    dir_destination = os.path.join(root_stat, '01_continuous', '01_on_trial')
 
     for trial in trial_list:
+
+        # get OMC dataframes
+        omc_endeff_pos = get_omc_file(trial, root_omc, endeff='pos')
+        omc_endeff_vel = get_omc_file(trial, root_omc, endeff='vel')
+        omc_endeff_acc = get_omc_file(trial, root_omc, endeff='acc')
+        omc_joint_pos = get_omc_file(trial, root_omc, joint='pos')
+        omc_joint_vel = get_omc_file(trial, root_omc, joint='vel')
+        omc_joint_acc = get_omc_file(trial, root_omc, joint='acc')
+
+        # get MMC dataframes
+        mmc_endeff_pos = get_dataframes(trial.opensim_ana_pos)
+        mmc_endeff_vel = get_dataframes(trial.opensim_ana_vel)
+        mmc_endeff_acc = get_dataframes(trial.opensim_ana_acc)
+        mmc_joint_pos = get_dataframes(trial.opensim_ik_ang_pos)
+        mmc_joint_vel = get_dataframes(trial.opensim_ik_ang_vel)
+        mmc_joint_acc = get_dataframes(trial.opensim_ik_ang_acc)
+
+
+        # endeffector statistics
+        df_stat_endeff_pos = run_stat_cont_on_trial(mmc_endeff_pos, omc_endeff_pos,
+                                                    body_parts_of_interest, isjoint=False,
+                                                    root_stat=root_stat)
+        df_stat_endeff_vel = run_stat_cont_on_trial(mmc_endeff_vel, omc_endeff_vel,
+                                                    body_parts_of_interest, isjoint=False,
+                                                    root_stat=root_stat)
+        df_stat_endeff_acc = run_stat_cont_on_trial(mmc_endeff_acc, omc_endeff_acc,
+                                                    body_parts_of_interest, isjoint=False,
+                                                    root_stat=root_stat)
+
+        df_stat_endeff_vel_magnitude =
+        df_stat_endeff_vel_magnitude =
+
+        csv_stat_endeff_pos = os.path.join(dir_destination, f'{trial.identifier}_stat_endeff_pos.csv')
+        csv_stat_endeff_vel = os.path.join(dir_destination, f'{trial.identifier}_stat_endeff_vel.csv')
+        csv_stat_endeff_acc = os.path.join(dir_destination, f'{trial.identifier}_stat_endeff_acc.csv')
+        csv_stat_endeff_vel_magnitude = os.path.join(dir_destination, f'{trial.identifier}_stat_end_vel_magnitude.csv')
+        csv_stat_endeff_acc_magnitude = os.path.join(dir_destination, f'{trial.identifier}_stat_end_acc_magnitude.csv')
+
+
+        df_stat_endeff_pos.to_csv(csv_stat_endeff_pos, sep=';')
+        df_stat_endeff_vel.to_csv(csv_stat_endeff_vel, sep=';')
+        df_stat_endeff_acc.to_csv(csv_stat_endeff_acc, sep=';')
+
+        # Joint statistics
+        df_stat_joint_pos = run_stat_cont_on_trial(mmc_joint_pos, omc_joint_pos,
+                                                    joints_of_interest, isjoint=True,
+                                                    root_stat=root_stat)
+        df_stat_joint_vel = run_stat_cont_on_trial(mmc_joint_vel, omc_joint_vel,
+                                                    joints_of_interest, isjoint=True,
+                                                    root_stat=root_stat)
+        df_stat_joint_acc = run_stat_cont_on_trial(mmc_joint_acc, omc_joint_acc,
+                                                    joints_of_interest, isjoint=True,
+                                                    root_stat=root_stat)
+
+        csv_stat_joint_pos = os.path.join(dir_destination, f'{trial.identifier}_stat_joint_pos.csv')
+        csv_stat_joint_vel = os.path.join(dir_destination, f'{trial.identifier}_stat_joint_vel.csv')
+        csv_stat_joint_acc = os.path.join(dir_destination, f'{trial.identifier}_stat_joint_acc.csv')
+        df_stat_joint_pos.to_csv(csv_stat_joint_pos, sep=';')
+        df_stat_joint_vel.to_csv(csv_stat_joint_vel, sep=';')
+        df_stat_joint_acc.to_csv(csv_stat_joint_acc, sep=';')
+
+
 
 
     shapiro_rom = sp.stats.shapiro(df_stat_cont.loc['rom_error'].values)
@@ -334,34 +449,115 @@ def standardize_data(df, metadata=None, verbose=1):
                          "Neither 'elbow_flex_l' nor 'hand_l_x' are in Data.\n"
                          "Please check the data and try again.")
 
-    return kinematicState, df
+    return df, kinematicState
 
 def get_dataframes(files):
+    """
+    Reads files containing position, velocity or acceleration of endeffector or joint data.
+
+
+
+    :param files: list of filepaths, can be string
+    :return: df_pos, df_vel, df_acc, if path of either of these is not given, it returns None
+    """
+
+    df_pos = None
+    df_vel = None
+    df_acc = None
+    single_file = False
+    kinematicState = ""
+
+    if type(files) is not dict:
+        single_file = True
+        files = [files]
+
     for file in files:
         metadata = None
         if os.path.splitext(file)[1] == '.csv':
-            df_mmc_pos = pd.read_csv(file)
+            df = pd.read_csv(file)
+            df,_ = standardize_data(df)
+
             if 'pos' in file:
-                metadata = 'Coordinates'
+                kinematicState = 'pos'
+            elif 'vel' in file:
+                kinematicState = 'vel'
+            elif 'acc' in file:
+                kinematicState = 'acc'
         else:
             metadata, df = read_opensim_file(file)
-        kinematicState, df = standardize_data(df, metadata)
-        match kinematicState:
-            case 'pos':
-                df_pos = df
-            case 'vel':
-                df_vel = df
-            case 'acc':
-                df_acc = df
-            case _:
-                raise ValueError("Error in iDrinkStatisticalAnalysis\n"
-                                 "Kinematic State not recognized.")
+            df, kinematicState = standardize_data(df, metadata)
+
+        if single_file:
+            return df
+        else:
+            match kinematicState:
+                case 'pos':
+                    df_pos = df
+                case 'vel':
+                    df_vel = df
+                case 'acc':
+                    df_acc = df
+                case _:
+                    raise ValueError("Error in iDrinkStatisticalAnalysis\n"
+                                     "Kinematic State not recognized.")
     return df_pos, df_vel, df_acc
+
+def get_omc_file(trial, root_omc, endeff=None, joint=None):
+    """
+    Gets the OMC file for the given trial.
+
+    :param trial:
+    :param endeff: 'pos', 'vel', 'acc'
+    :param joint: 'pos', 'vel', 'acc'
+    :return:
+    """
+    if all([endeff, joint]):
+        raise ValueError("Error in iDrinkStatisticalAnalysis.get_omc_file\n"
+                         "Both endeff and joint are not None.\n"
+                         "Please specify only one.")
+
+    id_s = 'S15133'
+    id_p = trial.id_p
+    id_t = trial.id_t
+
+    root_mov_ana = os.path.join(root_omc, f'{id_s}_{id_p}', f'{id_s}_{id_p}_{id_t}', 'movement_analysis')
+
+    if endeff:
+        match endeff:
+            case 'pos':
+                path_file = os.path.join(root_mov_ana, 'kin_opensim_analyzetool', f'{id_s}_{id_p}_{id_t}_BodyKinematics_pos_global.sto')
+            case 'vel':
+                path_file = os.path.join(root_mov_ana, 'kin_opensim_analyzetool', f'{id_s}_{id_p}_{id_t}_BodyKinematics_vel_global.sto')
+            case 'acc':
+                path_file = os.path.join(root_mov_ana, 'kin_opensim_analyzetool', f'{id_s}_{id_p}_{id_t}_BodyKinematics_acc_global.sto')
+            case _:
+                raise ValueError(f"Error in iDrinkStatisticalAnalysis.get_omc_file\n"
+                                 f"Endeff not recognized.\n"
+                                 f"value given: {endeff}")
+    elif joint:
+        match joint:
+            case 'pos':
+                path_file = os.path.join(root_mov_ana, 'ik_tool', f'{id_s}_{id_p}_{id_t}_Kinematics_pos.csv')
+            case 'vel':
+                path_file = os.path.join(root_mov_ana, 'ik_tool', f'{id_s}_{id_p}_{id_t}_Kinematics_vel.csv')
+            case 'acc':
+                path_file = os.path.join(root_mov_ana, 'ik_tool', f'{id_s}_{id_p}_{id_t}_Kinematics_acc.csv')
+            case _:
+                raise ValueError(f"Error in iDrinkStatisticalAnalysis.get_omc_file\n"
+                                 f"Joint not recognized.\n"
+                                 f"value given: {joint}")
+    else:
+        raise ValueError("Error in iDrinkStatisticalAnalysis.get_omc_file\n"
+                         "Neither endeff nor joint are specified.\n"
+                         "Please specify one.")
+
+    df_omc = get_dataframes(path_file)
+
+    return df_omc
 
 
 if __name__ == '__main__':
     # this part is for Development and Debugging
-
 
     if sys.gettrace() is not None:
         print("Debug Mode is activated\n"
@@ -377,6 +573,7 @@ if __name__ == '__main__':
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")
     root_stat = os.path.join(root_val, '04_Statistics')
+    root_omc = os.path.join(root_val, '03_data', 'OMC', 'S15133')
 
     joints_of_interest = ['hip_flexion_r','hip_adduction_r','hip_rotation_r',
                           'hip_flexion_l','hip_adduction_l','hip_rotation_l',
@@ -436,7 +633,6 @@ if __name__ == '__main__':
     continuous = True
     isjoint = True
 
-
     df_mmc_pos, df_mmc_vel, df_mmc_acc = get_dataframes(files_mmc)
 
     files = {
@@ -450,4 +646,6 @@ if __name__ == '__main__':
     df_omc_pos, df_omc_vel, df_omc_acc = get_dataframes(files_omc)
 
     if continuous:
-        run_stat_cont_on_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
+        df_stat_cont = run_stat_cont_on_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
+
+

@@ -98,8 +98,7 @@ else:
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
-p_list = ['P30',
-          'P31',
+p_list = ['P31',
           'P34',]
 
 if verbose >=2:
