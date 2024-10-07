@@ -98,12 +98,11 @@ else:
 if DEBUG:
     p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
-p_list = ['P31',
-          'P34',]
-
 if verbose >=2:
     print(f"p_list: \n"
             f"{p_list}")
+p_list = ["P01", "P02", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17",
+          "P19", "P23", "P24", "P25", "P27", "P28", "P30", "P31", "P34"]
 
 for p_id in p_list:
 
@@ -151,8 +150,6 @@ for p_id in p_list:
 
         new_filename = f"{trial.identifier}_{trc_nameparts[-2]}_{trc_nameparts[-1]}"
         shutil.copy2(trc_file, os.path.join(dir_pose3d, new_filename))
-
-
 
         trial_list.append(trial)
 

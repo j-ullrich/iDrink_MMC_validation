@@ -1,5 +1,6 @@
 import logging
 import logging.handlers
+import sys
 import os
 import string
 import glob
@@ -92,8 +93,104 @@ def read_opensim_file(file_path):
 
     # Read the rest of the file into a DataFrame
     df = pd.read_csv(file_path, skiprows=len(metadata), sep="\t")
-
     return metadata, df
+
+def get_joint_velocity_acceleration(csv_pos, dir_out=None, filter_pos=True, verbose=1):
+    """
+    Calculates velocity and acceleration for joint positions.
+
+    if dir_out is not given, the csv files will be written into the same folder as the input file.
+
+    :param csv_pos:
+    :param dir_out:
+    :return:
+    """
+    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+    from iDrinkAnalytics import use_butterworth_filter
+
+    if dir_out is None:
+        dir_out = os.path.dirname(csv_pos)
+
+    # Read Data
+    df_pos = pd.read_csv(csv_pos)
+    list_columns = df_pos.columns.tolist()
+
+    df_vel = pd.DataFrame(columns=list_columns)
+    df_vel["time"] = df_pos["time"]
+
+    df_acc = df_vel.copy(deep=True)
+
+    for component in df_pos.columns[2:]:
+        # Calculate gradient for each component and write it to DataFrame
+
+        if filter_pos:
+            comp_array = use_butterworth_filter(np.array(df_pos[component]), cutoff=10, fs=100, order=6, normcutoff=False)
+        else:
+            comp_array = np.array(df_pos[component])
+
+        comp_array = np.gradient(comp_array)
+
+        # write to Dataframe
+        df_vel[component] = comp_array
+        df_acc[component] = np.gradient(comp_array)
+
+    # Save to .csv
+    df_vel.to_csv(os.path.join(dir_out, os.path.basename(csv_pos).replace("pos", "vel")), index=False)
+    df_acc.to_csv(os.path.join(dir_out, os.path.basename(csv_pos).replace("pos", "acc")), index=False)
+
+    if verbose >= 1:
+        print(f"Joint Velocity and Acceleration calculated and saved to:\n"
+              f"{os.path.join(dir_out, os.path.basename(csv_pos).replace('pos', 'vel'))}\n"
+              f"{os.path.join(dir_out, os.path.basename(csv_pos).replace('pos', 'acc'))}\n")
+
+def mot_to_csv(curr_trial=None, path_mot=None, path_dst=None, verbose=1):
+    """
+    This function saves the angles calculated by the Inverse Kinematics Tool to a .csv file.
+
+    there are two options:
+
+    1. trial is given -> source and destination paths are retrieved front object.
+    2. path_mot and path_dst are given -> source and destination paths are given as arguments.
+
+    If all are given, priority lies on the path_mot and path_dst arguments.
+
+    :param curr_trial: iDrinkTrial Object
+    :param path_mot: path to the .mot file
+    :param dir_dst: path to the destination folder
+
+    """
+
+    mode1 = False if curr_trial is None else True
+    mode2 = False if path_mot is None or path_dst is None else True
+
+    if not mode1 and not mode2:
+        raise ValueError(f"Error in iDrinkOpenSim.ik_tool_to_csv\n"
+                         f"Either curr_trial or path_mot and path_dst must be given.\n"
+                         f"Current values are:\n"
+                         f"curr_trial: {curr_trial}\t path_mot: {path_mot}\t path_dst: {path_dst}")
+
+    # Get Filename and path
+    if path_dst is None:
+
+        dir_out = curr_trial.dir_kin_ik_tool
+        # Make sure, Folder exists
+        if not os.path.exists(dir_out):
+            os.makedirs(dir_out, exist_ok=True)
+
+        path_dst = os.path.realpath(os.path.join(dir_out, f"{curr_trial.identifier}_Kinematics_pos.csv"))
+
+
+
+    # Read data and save to .csv
+    if path_mot is None:
+        path_src = os.path.join(curr_trial.dir_trial, curr_trial.opensim_motion)
+
+    _, dat_measured = read_opensim_file(path_mot)
+    dat_measured.to_csv(path_dst, index=False)
+
+    if verbose >= 1:
+        print(f"Data from: \t{path_mot}\n"
+              f"saved to: \t{path_dst}\n")
 
 
 def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
@@ -174,13 +271,11 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
             comp = {"mhip": -1,
                     "rhip": -1,
                     "lhip": -1,
-                    "pelv": -1
-                    }
+                    "pelv": -1}
         else:
             comp = {"CHip": -1,
                     "RHip": -1,
-                    "LHip": -1
-                    }
+                    "LHip": -1}
         hips = {}
 
         for c in comp.keys():
@@ -273,15 +368,26 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
     curr_trial.path_opensim_ana_ang_vel = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*Kinematics_u*"))[0]
     curr_trial.path_opensim_ana_ang_acc = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*Kinematics_dudt*"))[0]
 
+    # Save the angles calculated by the Inverse Kinematics Tool to a .csv file
+    mot_to_csv(curr_trial)
 
-    from Pose2Sim.Utilities import bodykin_from_mot_osim
 
-    bodykin_csv = os.path.realpath(os.path.join(curr_trial.dir_kin_p2s,
-                                                f"{curr_trial.get_filename()}_Body_kin_p2s_pos.csv"))
-    if not os.path.exists(curr_trial.dir_kin_p2s):
-        os.makedirs(curr_trial.dir_kin_p2s)
-    bodykin_from_mot_osim.bodykin_from_mot_osim_func(os.path.join(curr_trial.dir_trial, curr_trial.opensim_motion),
-                                                     os.path.join(curr_trial.dir_trial,
-                                                                  curr_trial.opensim_model_scaled), bodykin_csv)
-    if curr_trial.correct_skeleton:
-        correct_skeleton_orientation(os.path.join(curr_trial.dir_trial, curr_trial.opensim_motion))
+if __name__ == '__main__':
+
+    mot_omc = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\pose-3d\S15133_P07_T043_R_affected.mot"
+    omc_dir_dst = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\ik_tool"
+    path_omc_pos = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\ik_tool\S15133_P07_T043_Kinematics_pos.csv"
+    path_omc_vel = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\ik_tool\S15133_P07_T043_Kinematics_vel.csv"
+    path_omc_acc = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\ik_tool\S15133_P07_T043_Kinematics_acc.csv"
+
+    mot_mmc = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\pose-3d\S003_P07_T043_0-928_filt_butterworth.mot"
+    mmc_dir_dst = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\ik_tool"
+    path_mmc_pos = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\ik_tool\S003_P07_T043_Kinematics_pos.csv"
+    path_mmc_vel = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\ik_tool\S003_P07_T043_Kinematics_vel.csv"
+    path_mmc_acc = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\ik_tool\S003_P07_T043_Kinematics_acc.csv"
+
+    mot_to_csv(path_mot=mot_omc, path_dst=path_omc_pos)
+    get_joint_velocity_acceleration(csv_pos=path_omc_pos, dir_out=omc_dir_dst)
+
+    mot_to_csv(path_mot=mot_mmc, path_dst=path_mmc_pos)
+    get_joint_velocity_acceleration(csv_pos=path_mmc_pos, dir_out=mmc_dir_dst)

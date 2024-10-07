@@ -88,7 +88,7 @@ def get_paired_rom(df_stat, roms):
 
 
 
-def run_stat_cont_on_trial(df_mmc, df_omc, to_compare, isjoint, root_stat, verbose=1):
+def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, root_stat, verbose=1):
     """
     Compares two Dataframes containing positional data, velocity or acceleration data.
 
@@ -177,14 +177,17 @@ def run_stat_cont_on_trial(df_mmc, df_omc, to_compare, isjoint, root_stat, verbo
 
         df_stat_cont[column] = [std, rmse, pearson, pearson_pval, rom_error, min_error, max_error, median_error, mean_error]
 
+    shapiro_rom = sp.stats.shapiro(df_stat_cont.loc['rom_error'].values)
+    df_paired_rom_diff = get_paired_rom(df_stat_cont, roms)
+
     #sp.stats.tukey_hsd(df_stat_cont.loc['rom_error'].values)
 
     df_stat_cont = pd.concat([df_stat_cont, roms])
     return df_stat_cont
 
 
-def run_stat_cont_over_trials(trial_list, root_stat, root_omc, joints_of_interest=None, body_parts_of_interest=None,
-                              body_parts_of_interest_no_axes=None):
+def run_comparison_trial_OMC(trial_list, root_stat, root_omc, joints_of_interest=None, body_parts_of_interest=None,
+                             body_parts_of_interest_no_axes=None):
     """
     Iterates over trials, creates DataFrames containing the statistical values for each trial.
 
@@ -199,6 +202,14 @@ def run_stat_cont_over_trials(trial_list, root_stat, root_omc, joints_of_interes
     :param list_df_stat_cont:
     :return:
     """
+
+    def reduce_axes(data):
+        """
+        This function gets absolute velocity based on velocity in 3 Dimensions
+        """
+
+        return np.sqrt(np.sum(np.array([axis ** 2 for axis in data]), axis=0))
+
     if joints_of_interest is None: # Default Joints of Interest
         joints_of_interest = ['hip_flexion_r','hip_adduction_r','hip_rotation_r',
                               'hip_flexion_l','hip_adduction_l','hip_rotation_l',
@@ -208,8 +219,7 @@ def run_stat_cont_over_trials(trial_list, root_stat, root_omc, joints_of_interes
                               'wrist_flex_r','wrist_dev_r',
                               'arm_flex_l','arm_add_l','arm_rot_l',
                               'elbow_flex_l','pro_sup_l',
-                              'wrist_flex_l','wrist_dev_l'
-                              ]
+                              'wrist_flex_l','wrist_dev_l']
 
     if body_parts_of_interest is None: # Default Body Parts of Interest
         body_parts_of_interest = ['time','pelvis_x','pelvis_y','pelvis_z',
@@ -245,7 +255,7 @@ def run_stat_cont_over_trials(trial_list, root_stat, root_omc, joints_of_interes
 
     for trial in trial_list:
 
-        # get OMC dataframes
+        """get OMC dataframes"""
         omc_endeff_pos = get_omc_file(trial, root_omc, endeff='pos')
         omc_endeff_vel = get_omc_file(trial, root_omc, endeff='vel')
         omc_endeff_acc = get_omc_file(trial, root_omc, endeff='acc')
@@ -253,7 +263,7 @@ def run_stat_cont_over_trials(trial_list, root_stat, root_omc, joints_of_interes
         omc_joint_vel = get_omc_file(trial, root_omc, joint='vel')
         omc_joint_acc = get_omc_file(trial, root_omc, joint='acc')
 
-        # get MMC dataframes
+        """get MMC dataframes"""
         mmc_endeff_pos = get_dataframes(trial.opensim_ana_pos)
         mmc_endeff_vel = get_dataframes(trial.opensim_ana_vel)
         mmc_endeff_acc = get_dataframes(trial.opensim_ana_acc)
@@ -262,42 +272,41 @@ def run_stat_cont_over_trials(trial_list, root_stat, root_omc, joints_of_interes
         mmc_joint_acc = get_dataframes(trial.opensim_ik_ang_acc)
 
 
-        # endeffector statistics
-        df_stat_endeff_pos = run_stat_cont_on_trial(mmc_endeff_pos, omc_endeff_pos,
+        """endeffector statistics"""
+        df_stat_endeff_pos = compare_timeseries_for_trial(mmc_endeff_pos, omc_endeff_pos,
                                                     body_parts_of_interest, isjoint=False,
                                                     root_stat=root_stat)
-        df_stat_endeff_vel = run_stat_cont_on_trial(mmc_endeff_vel, omc_endeff_vel,
+        df_stat_endeff_vel = compare_timeseries_for_trial(mmc_endeff_vel, omc_endeff_vel,
                                                     body_parts_of_interest, isjoint=False,
                                                     root_stat=root_stat)
-        df_stat_endeff_acc = run_stat_cont_on_trial(mmc_endeff_acc, omc_endeff_acc,
+        df_stat_endeff_acc = compare_timeseries_for_trial(mmc_endeff_acc, omc_endeff_acc,
                                                     body_parts_of_interest, isjoint=False,
                                                     root_stat=root_stat)
-
-        df_stat_endeff_vel_magnitude =
-        df_stat_endeff_vel_magnitude =
-
         csv_stat_endeff_pos = os.path.join(dir_destination, f'{trial.identifier}_stat_endeff_pos.csv')
         csv_stat_endeff_vel = os.path.join(dir_destination, f'{trial.identifier}_stat_endeff_vel.csv')
         csv_stat_endeff_acc = os.path.join(dir_destination, f'{trial.identifier}_stat_endeff_acc.csv')
-        csv_stat_endeff_vel_magnitude = os.path.join(dir_destination, f'{trial.identifier}_stat_end_vel_magnitude.csv')
-        csv_stat_endeff_acc_magnitude = os.path.join(dir_destination, f'{trial.identifier}_stat_end_acc_magnitude.csv')
-
-
         df_stat_endeff_pos.to_csv(csv_stat_endeff_pos, sep=';')
         df_stat_endeff_vel.to_csv(csv_stat_endeff_vel, sep=';')
         df_stat_endeff_acc.to_csv(csv_stat_endeff_acc, sep=';')
 
-        # Joint statistics
-        df_stat_joint_pos = run_stat_cont_on_trial(mmc_joint_pos, omc_joint_pos,
-                                                    joints_of_interest, isjoint=True,
-                                                    root_stat=root_stat)
-        df_stat_joint_vel = run_stat_cont_on_trial(mmc_joint_vel, omc_joint_vel,
-                                                    joints_of_interest, isjoint=True,
-                                                    root_stat=root_stat)
-        df_stat_joint_acc = run_stat_cont_on_trial(mmc_joint_acc, omc_joint_acc,
-                                                    joints_of_interest, isjoint=True,
-                                                    root_stat=root_stat)
+        """endeffector statistics vel & acc magnitude"""
+        df_stat_endeff_vel_magnitude = reduce_axes(df_stat_endeff_vel)
+        df_stat_endeff_acc_magnitude = reduce_axes(df_stat_endeff_acc)
+        csv_stat_endeff_vel_magnitude = os.path.join(dir_destination, f'{trial.identifier}_stat_end_vel_magnitude.csv')
+        csv_stat_endeff_acc_magnitude = os.path.join(dir_destination, f'{trial.identifier}_stat_end_acc_magnitude.csv')
+        df_stat_endeff_vel_magnitude.to_csv(csv_stat_endeff_vel_magnitude, sep=';')
+        df_stat_endeff_acc_magnitude.to_csv(csv_stat_endeff_acc_magnitude, sep=';')
 
+        """Joint statistics"""
+        df_stat_joint_pos = compare_timeseries_for_trial(mmc_joint_pos, omc_joint_pos,
+                                                    joints_of_interest, isjoint=True,
+                                                    root_stat=root_stat)
+        df_stat_joint_vel = compare_timeseries_for_trial(mmc_joint_vel, omc_joint_vel,
+                                                    joints_of_interest, isjoint=True,
+                                                    root_stat=root_stat)
+        df_stat_joint_acc = compare_timeseries_for_trial(mmc_joint_acc, omc_joint_acc,
+                                                    joints_of_interest, isjoint=True,
+                                                    root_stat=root_stat)
         csv_stat_joint_pos = os.path.join(dir_destination, f'{trial.identifier}_stat_joint_pos.csv')
         csv_stat_joint_vel = os.path.join(dir_destination, f'{trial.identifier}_stat_joint_vel.csv')
         csv_stat_joint_acc = os.path.join(dir_destination, f'{trial.identifier}_stat_joint_acc.csv')
@@ -306,10 +315,6 @@ def run_stat_cont_over_trials(trial_list, root_stat, root_omc, joints_of_interes
         df_stat_joint_acc.to_csv(csv_stat_joint_acc, sep=';')
 
 
-
-
-    shapiro_rom = sp.stats.shapiro(df_stat_cont.loc['rom_error'].values)
-    df_paired_rom_diff = get_paired_rom(df_stat_cont, roms)
 
 def standardize_data(df, metadata=None, verbose=1):
     """
@@ -608,26 +613,17 @@ if __name__ == '__main__':
         'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_acc_global.sto")}
 
     joint_kin_OMC = {
-        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P01\S15133_P01_T001\movement_analysis\kin_opensim_analyzetool\S15133_P01_T001_Kinematics_q.sto"),
-        'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P01\S15133_P01_T001\movement_analysis\kin_opensim_analyzetool\S15133_P01_T001_Kinematics_u.sto"),
-        'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P01\S15133_P01_T001\movement_analysis\kin_opensim_analyzetool\S15133_P01_T001_Kinematics_dudt.sto")}
+        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_q.sto"),
+        'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_u.sto"),
+        'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_dudt.sto")}
     body_kin_OMC = {
-        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P01\S15133_P01_T001\movement_analysis\kin_opensim_analyzetool\S15133_P01_T001_BodyKinematics_pos_global.sto"),
-        'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P01\S15133_P01_T001\movement_analysis\kin_opensim_analyzetool\S15133_P01_T001_BodyKinematics_vel_global.sto"),
-        'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P01\S15133_P01_T001\movement_analysis\kin_opensim_analyzetool\S15133_P01_T001_BodyKinematics_acc_global.sto")}
+        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_pos_global.sto"),
+        'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_vel_global.sto"),
+        'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_acc_global.sto")}
 
     body_kin_p2s_OMC = {
-        'pos': os.path.join(drive, r"D:\iDrink\validation_root\03_data\OMC\S15133\S15133_P01\S15133_P01_T001\movement_analysis\kin_p2s\S15133_P01_T001_Body_kin_p2s_pos.csv")
+        'pos': os.path.join(drive, r"D:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_p2s\S15133_P07_T043_Body_kin_p2s_pos.csv")
     }
-
-    # Body Kin position by pose2sim
-    body_kin_p2s = {
-        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_p2s\S003_P07_T043_affected_Body_kin_p2s_pos.csv")
-        }
-
-    files = {'joint_kin_openism' : joint_kin_openism,
-             'body_kin_opensim' : body_kin_opensim,
-             'body_kin_p2s' : body_kin_p2s}
 
     files_mmc = [joint_kin_openism.get('pos'), joint_kin_openism.get('vel'), joint_kin_openism.get('acc')]
     continuous = True
@@ -638,7 +634,6 @@ if __name__ == '__main__':
     files = {
         'joint_kin_OMC' : joint_kin_OMC,
         'body_kin_OMC' : body_kin_OMC,
-        'body_kin_p2s_OMC' : body_kin_p2s_OMC
     }
 
     files_omc = [joint_kin_OMC.get('pos'), joint_kin_OMC.get('vel'), joint_kin_OMC.get('acc')]
@@ -646,6 +641,6 @@ if __name__ == '__main__':
     df_omc_pos, df_omc_vel, df_omc_acc = get_dataframes(files_omc)
 
     if continuous:
-        df_stat_cont = run_stat_cont_on_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
+        df_stat_cont = compare_timeseries_for_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
 
 
