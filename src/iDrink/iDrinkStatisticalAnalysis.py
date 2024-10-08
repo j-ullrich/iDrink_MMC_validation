@@ -172,24 +172,37 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
     df_abs_diff.iloc[:, 4:] = np.abs(df_abs_diff.iloc[:, 4:])
 
     # Create DataFrame and calculate mean of each column
-    df_mean = pd.DataFrame(columns=['id_s'] + murphy_measures)
-    df_rmse = pd.DataFrame(columns=['id_s'] + murphy_measures)
+    df_mean = pd.DataFrame(columns=['id_s', 'id_p'] + murphy_measures)
+    df_rmse = pd.DataFrame(columns=['id_s', 'id_p'] + murphy_measures)
     for id_s in idx_s_mmc:
-        # mean Error
-        df_mean.loc[len(df_mean), 'id_s'] = id_s
-        df_mean.iloc[len(df_mean)-1, 1:] = np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]], axis=0)
+        idx_p = sorted(list(df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique()))
 
-        # Root Mean Squared Error
+        for id_p in idx_p:
+            # mean Error
+            df_mean.loc[len(df_mean), 'id_s'] = id_s
+            df_mean.loc[len(df_mean)-1, 'id_p'] = id_p
+            df_mean.iloc[len(df_mean)-1, 2:] = np.mean(df_diff.loc[(df_diff['id_s'] == id_s) & (df_diff['id_p'] == id_p), df_diff.columns[4:]], axis=0)
+
+
+            # Root Mean Squared Error
+            df_rmse.loc[len(df_rmse), 'id_s'] = id_s
+            df_rmse.loc[len(df_rmse) - 1, 'id_p'] = id_p
+            df_rmse.iloc[len(df_rmse) - 1, 2:] = np.sqrt(np.mean(df_diff.loc[(df_diff['id_s'] == id_s) & (df_diff['id_p'] == id_p), df_diff.columns[4:]]**2, axis=0))
+
+        # mean for setting over all participants
+        df_mean.loc[len(df_mean), 'id_s'] = id_s
+        df_mean.loc[len(df_mean) - 1, 'id_p'] = ''
+        df_mean.iloc[len(df_mean) - 1, 2:] = np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]], axis=0)
+
         df_rmse.loc[len(df_rmse), 'id_s'] = id_s
-        df_rmse.iloc[len(df_rmse) - 1, 1:] = np.sqrt(np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]]**2, axis=0))
+        df_rmse.loc[len(df_rmse) - 1, 'id_p'] = ''
+        df_rmse.iloc[len(df_rmse) - 1, 2:] = np.sqrt(np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]]**2, axis=0))
+
+
+
 
     # Create DataFrame for each trial
     run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
-
-
-
-
-
 
 
     pass

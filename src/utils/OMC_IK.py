@@ -127,6 +127,9 @@ def run_opensim_OMC():
             dir_p = os.path.realpath(os.path.join(dir_s, f"{id_s}_{p_id}"))
             dir_t = os.path.realpath(os.path.join(dir_p, identifier))
 
+            if "P01_T029" not in identifier:
+                continue
+
 
 
             trial = iDrinkTrial.Trial(id_s=id_s, id_p=p_id, id_t=id_t, identifier=identifier,
@@ -219,4 +222,6 @@ def get_mot_based_vel_acc(root_omc, verbose=1):
 if __name__ == "__main__":
     pass
 
-    get_mot_based_vel_acc(root_omc=root_dat_out, verbose=1)
+    run_opensim_OMC()
+
+    #get_mot_based_vel_acc(root_omc=root_dat_out, verbose=1)

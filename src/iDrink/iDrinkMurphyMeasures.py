@@ -471,7 +471,7 @@ class MurphyMeasures:
 
         self.InterjointCoordination = self.get_interjoint_coordination(self.elbow_flex_pos, self.shoulder_flex_pos)
 
-        self.trunkDisplacementMM = self.get_trunk_displacement()
+        self.trunkDisplacementMM = self.get_trunk_displacement() # trunk displacement in mm
 
         self.trunkDisplacementDEG = None  # TODO: Find way to implement
 
