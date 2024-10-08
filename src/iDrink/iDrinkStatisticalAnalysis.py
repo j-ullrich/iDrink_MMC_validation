@@ -49,8 +49,40 @@ def resample_dataframes(df1, df2, max_time=None):
 
     return df1, df2
 
+def run_stat_murphy(df, id_s, root_stat_cat, verbose=1):
+    """
+    Calculates statistical measures for the given DataFrame.
 
-def runs_statistics_discrete(path_csv_murphy, root_stat):
+    It creates a subfolder in the root_stat folder with the id_s as name.
+    In this folder are .csv files containing the data for each trial in the setting.
+
+    One .csv File contains the average difference between MMC and OMC for all trials.
+
+    :param df:
+    :param id_s:
+    :param root_stat_cat:
+    :param verbose:
+    :return:
+    """
+    id_s_omc = 'S15133'
+    idx_p = df['id_p'].unique()
+
+    for id_p in idx_p:
+        idx_t = sorted(list(df[(df['id_p']==id_p) & (df['id_s']==id_s )]['id_t'].unique()))
+
+        for id_t in idx_t:
+            identifier = f"{id_s}_{id_p}_{id_t}"
+
+            path_trial_stat_csv = os.path.join(root_stat_cat, id_s, f'{identifier}_stat.csv')
+
+
+
+
+
+
+
+
+def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
     """
     Takes Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
     :param df_mmc:
@@ -58,23 +90,46 @@ def runs_statistics_discrete(path_csv_murphy, root_stat):
     :return:
     """
     df_murphy = pd.read_csv(path_csv_murphy, sep=';')
+    root_stat_cat = os.path.join(root_stat, '02_categorical')
 
-    idx_s_mmc = df_murphy['id_s'].unique()
+    idx_s = df_murphy['id_s'].unique()
+    idx_s_mmc = np.delete(idx_s, np.where(idx_s == 'S15133'))
 
     # Create subset of DataFrame containing all trials that are also in OMC
     for id_s in idx_s_mmc:
 
+        df_s = df_murphy[df_murphy['id_s'] == id_s]
+        df_omc = df_murphy[df_murphy['id_s'] == 'S15133']
 
-    constructed_identifier = f'S15133_{trial.id_p}_{trial.id_t}'
+        idx_p = df_s['id_p'].unique()
+        idx_t = df_s['id_t'].unique()
+        df = pd.DataFrame(columns=df_murphy.columns)
+        for id_p in idx_p:
+            for id_t in idx_t:
+                df = pd.concat([df, df_omc[(df_omc['id_p'] == id_p) & (df_omc['id_t'] == id_t)]])
+
+        df = pd.concat([df_s, df])
+
+        # Create DataFrame for each trial
+        run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
+
+
+
+
+
+
+
+        pass
+    """constructed_identifier = f'S15133_{trial.id_p}_{trial.id_t}'
     if constructed_identifier not in df_murphy['identifier'].values:
         raise ValueError(f"Error in {os.path.basename(__file__)}.{runs_statistics_discrete.__name__}\n"
                          f"Identifier {constructed_identifier} not found in DataFrame.")
 
     # Access rows
     df_mmc = df_murphy[df_murphy['id_s'] == trial.id_s]
-    df_omc = df_murphy[df_murphy['identifier'] == constructed_identifier]
+    df_omc = df_murphy[df_murphy['identifier'] == constructed_identifier]"""
 
-    pass
+
 
 def get_paired_rom(df_stat, roms):
     """
@@ -654,4 +709,4 @@ if __name__ == '__main__':
     else:
         csv_murphy = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
 
-        runs_statistics_discrete(csv_murphy, root_data)
+        runs_statistics_discrete(csv_murphy, root_stat)

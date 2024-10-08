@@ -1,6 +1,6 @@
-<mxfile host="drawio-plugin" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" modified="2024-10-06T15:21:20.639Z" etag="1YAoxcmNp52v9CNco5tU" version="22.1.22" type="embed" pages="4">
+<mxfile host="drawio-plugin" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" modified="2024-10-08T12:07:41.051Z" etag="_WDWeEsQh7vx70yAdOzw" version="22.1.22" type="embed" pages="4">
   <diagram name="Validation Pipeline" id="cTNYEhEPU5jRSqe9hr1z">
-    <mxGraphModel dx="1892" dy="1017" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1628" dy="427" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -167,7 +167,7 @@
         <mxCell id="X1e9lBfZdGJECuIq955r-90" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="X1e9lBfZdGJECuIq955r-55" target="X1e9lBfZdGJECuIq955r-70" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="-mlpUxMoFCbqRl9JcVZI-1" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="X1e9lBfZdGJECuIq955r-70" target="X1e9lBfZdGJECuIq955r-92">
+        <mxCell id="-mlpUxMoFCbqRl9JcVZI-1" value="" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="X1e9lBfZdGJECuIq955r-70" target="X1e9lBfZdGJECuIq955r-92" edge="1">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="400" y="660" as="sourcePoint" />
             <mxPoint x="40" y="640" as="targetPoint" />
@@ -178,20 +178,20 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="-mlpUxMoFCbqRl9JcVZI-2" value="metrabs" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="-mlpUxMoFCbqRl9JcVZI-2" value="metrabs" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="240" y="840" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="-mlpUxMoFCbqRl9JcVZI-3" value="MMPose" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="-mlpUxMoFCbqRl9JcVZI-3" value="MMPose" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="440" y="840" width="120" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="-mlpUxMoFCbqRl9JcVZI-4" value="Pose2Sim&lt;br&gt;RTmlib" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+        <mxCell id="-mlpUxMoFCbqRl9JcVZI-4" value="Pose2Sim&lt;br&gt;RTmlib" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
           <mxGeometry x="640" y="840" width="120" height="60" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
   <diagram id="G-v-RlKd_GFZ50NiNK6M" name="Statistics¨">
-    <mxGraphModel dx="799" dy="763" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="801" dy="427" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -415,7 +415,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="PlMNAmcODcLZFb0mktVv" name="Statistics Pipeline">
-    <mxGraphModel dx="1377" dy="725" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1602" dy="854" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />

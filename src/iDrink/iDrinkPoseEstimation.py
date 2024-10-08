@@ -91,7 +91,7 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
                     arr_data[person_id, :, keypoint_id] = smooth_timeseries(curr_trial, arr_data[person_id, :, keypoint_id])
 
                 case 'butter':
-                    arr_data[person_id, :, keypoint_id] = use_butterworth_filter(curr_trial=curr_trial, data=arr_data[person_id, :, keypoint_id],
+                    arr_data[person_id, :, keypoint_id] = use_butterworth_filter(data=arr_data[person_id, :, keypoint_id],
                                                                          cutoff=curr_trial.butterworth_cutoff,
                                                                          fs=curr_trial.frame_rate,
                                                                          order=curr_trial.butterworth_order)
