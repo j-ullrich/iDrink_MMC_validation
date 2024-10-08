@@ -120,6 +120,9 @@ def get_joint_velocity_acceleration(csv_pos, dir_out=None, filter_pos=True, verb
 
     df_acc = df_vel.copy(deep=True)
 
+    if verbose >= 1:
+        progressbar = tqdm(total=len(df_pos.columns[2:]), desc="Calculating Joint Velocity and Acceleration", unit="Component")
+
     for component in df_pos.columns[2:]:
         # Calculate gradient for each component and write it to DataFrame
 
@@ -133,6 +136,12 @@ def get_joint_velocity_acceleration(csv_pos, dir_out=None, filter_pos=True, verb
         # write to Dataframe
         df_vel[component] = comp_array
         df_acc[component] = np.gradient(comp_array)
+
+        if verbose >= 1:
+            progressbar.update(1)
+
+    if verbose >= 1:
+        progressbar.close()
 
     # Save to .csv
     df_vel.to_csv(os.path.join(dir_out, os.path.basename(csv_pos).replace("pos", "vel")), index=False)

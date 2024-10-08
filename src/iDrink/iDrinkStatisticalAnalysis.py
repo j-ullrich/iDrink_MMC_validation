@@ -50,13 +50,29 @@ def resample_dataframes(df1, df2, max_time=None):
     return df1, df2
 
 
-def runs_statistics_discrete(df_mmc, df_omc, root_stat):
+def runs_statistics_discrete(path_csv_murphy, root_stat):
     """
-    Takess Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
+    Takes Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
     :param df_mmc:
     :param df_omc:
     :return:
     """
+    df_murphy = pd.read_csv(path_csv_murphy, sep=';')
+
+    idx_s_mmc = df_murphy['id_s'].unique()
+
+    # Create subset of DataFrame containing all trials that are also in OMC
+    for id_s in idx_s_mmc:
+
+
+    constructed_identifier = f'S15133_{trial.id_p}_{trial.id_t}'
+    if constructed_identifier not in df_murphy['identifier'].values:
+        raise ValueError(f"Error in {os.path.basename(__file__)}.{runs_statistics_discrete.__name__}\n"
+                         f"Identifier {constructed_identifier} not found in DataFrame.")
+
+    # Access rows
+    df_mmc = df_murphy[df_murphy['id_s'] == trial.id_s]
+    df_omc = df_murphy[df_murphy['identifier'] == constructed_identifier]
 
     pass
 
@@ -569,78 +585,73 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     """Set Root Paths for Processing"""
-    drives = ['C:', 'D:', 'E:', 'F:', 'G:' 'I:']
+    drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'I:']
     if os.name == 'posix':  # Running on Linux
         drive = '/media/devteam-dart/Extreme SSD'
     else:
-        drive = drives[1]
+        drive = drives[5]
 
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")
     root_stat = os.path.join(root_val, '04_Statistics')
     root_omc = os.path.join(root_val, '03_data', 'OMC', 'S15133')
+    root_data = os.path.join(root_val, "03_data")
 
-    joints_of_interest = ['hip_flexion_r','hip_adduction_r','hip_rotation_r',
-                          'hip_flexion_l','hip_adduction_l','hip_rotation_l',
-                          'neck_flexion','neck_bending','neck_rotation',
-                          'arm_flex_r','arm_add_r','arm_rot_r',
-                          'elbow_flex_r','pro_sup_r',
-                          'wrist_flex_r','wrist_dev_r',
-                          'arm_flex_l','arm_add_l','arm_rot_l',
-                          'elbow_flex_l','pro_sup_l',
-                          'wrist_flex_l','wrist_dev_l'
-                          ]
+    test_timeseries = False
 
+    if test_timeseries:
+        joints_of_interest = ['hip_flexion_r','hip_adduction_r','hip_rotation_r',
+                              'hip_flexion_l','hip_adduction_l','hip_rotation_l',
+                              'neck_flexion','neck_bending','neck_rotation',
+                              'arm_flex_r','arm_add_r','arm_rot_r',
+                              'elbow_flex_r','pro_sup_r',
+                              'wrist_flex_r','wrist_dev_r',
+                              'arm_flex_l','arm_add_l','arm_rot_l',
+                              'elbow_flex_l','pro_sup_l',
+                              'wrist_flex_l','wrist_dev_l'
+                              ]
 
-    """joint_kin_openism= {'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_q.sto"),
-                'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_u.sto"),
-                'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_dudt.sto")}
-    body_kin_opensim = {'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_pos_global.sto"),
-                    'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_vel_global.sto"),
-                    'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_acc_global.sto")}
+        joint_kin_openism = {
+            'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_q.sto"),
+            'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_u.sto"),
+            'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_dudt.sto")}
+        body_kin_opensim = {
+            'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_pos_global.sto"),
+            'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_vel_global.sto"),
+            'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_acc_global.sto")}
 
-    # Body Kin position by pose2sim
-    body_kin_p2s = {'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_p2s\S003_P07_T043_affected_Body_kin_p2s_pos.csv")
-                }"""
+        joint_kin_OMC = {
+            'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_q.sto"),
+            'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_u.sto"),
+            'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_dudt.sto")}
+        body_kin_OMC = {
+            'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_pos_global.sto"),
+            'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_vel_global.sto"),
+            'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_acc_global.sto")}
 
-    joint_kin_openism = {
-        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_q.sto"),
-        'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_u.sto"),
-        'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_dudt.sto")}
-    body_kin_opensim = {
-        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_pos_global.sto"),
-        'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_vel_global.sto"),
-        'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_acc_global.sto")}
+        body_kin_p2s_OMC = {
+            'pos': os.path.join(drive, r"D:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_p2s\S15133_P07_T043_Body_kin_p2s_pos.csv")
+        }
 
-    joint_kin_OMC = {
-        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_q.sto"),
-        'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_u.sto"),
-        'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_dudt.sto")}
-    body_kin_OMC = {
-        'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_pos_global.sto"),
-        'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_vel_global.sto"),
-        'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_acc_global.sto")}
+        files_mmc = [joint_kin_openism.get('pos'), joint_kin_openism.get('vel'), joint_kin_openism.get('acc')]
+        continuous = True
+        isjoint = True
 
-    body_kin_p2s_OMC = {
-        'pos': os.path.join(drive, r"D:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_p2s\S15133_P07_T043_Body_kin_p2s_pos.csv")
-    }
+        df_mmc_pos, df_mmc_vel, df_mmc_acc = get_dataframes(files_mmc)
 
-    files_mmc = [joint_kin_openism.get('pos'), joint_kin_openism.get('vel'), joint_kin_openism.get('acc')]
-    continuous = True
-    isjoint = True
+        files = {
+            'joint_kin_OMC' : joint_kin_OMC,
+            'body_kin_OMC' : body_kin_OMC,
+        }
 
-    df_mmc_pos, df_mmc_vel, df_mmc_acc = get_dataframes(files_mmc)
+        files_omc = [joint_kin_OMC.get('pos'), joint_kin_OMC.get('vel'), joint_kin_OMC.get('acc')]
 
-    files = {
-        'joint_kin_OMC' : joint_kin_OMC,
-        'body_kin_OMC' : body_kin_OMC,
-    }
+        df_omc_pos, df_omc_vel, df_omc_acc = get_dataframes(files_omc)
 
-    files_omc = [joint_kin_OMC.get('pos'), joint_kin_OMC.get('vel'), joint_kin_OMC.get('acc')]
+        if continuous:
+            df_stat_cont = compare_timeseries_for_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
 
-    df_omc_pos, df_omc_vel, df_omc_acc = get_dataframes(files_omc)
+    else:
+        csv_murphy = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
 
-    if continuous:
-        df_stat_cont = compare_timeseries_for_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
-
-
+        runs_statistics_discrete(csv_murphy, root_data)

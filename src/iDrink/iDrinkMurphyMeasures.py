@@ -153,7 +153,7 @@ class MurphyMeasures:
                                               'PeakVelocity_mms',  'elbowVelocity', 'tTopeakV_s',
                                               'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel',
                                               'NumberMovementUnits', 'InterjointCoordination', 'trunkDisplacementMM',
-                                              'trunkDisplacementDEG','shoulderFlexionReaching', 'ElbowExtension',
+                                              'trunkDisplacementDEG','ShoulderFlexionReaching', 'ElbowExtension',
                                               'shoulderAbduction']
                                    )
 
@@ -491,10 +491,11 @@ class MurphyMeasures:
         This function adds the calculated measures to the .csv file.
         """
         murphy_measures = ["identifier",
+                           "id_s",
                            "id_p",
                            "id_t",
-                           "id_s",
                            "side",
+                           "valid",
                            "ReachingStart",
                            "ForwardStart",
                            "DrinkingStart",
@@ -785,15 +786,17 @@ class MurphyMeasures:
         """
         Get DataFrame for Murphy measures based on csv containing timestamps.
 
+        #TODO: Check if still needed
+
         :return:
         """
-        df_measures = pd.DataFrame(columns = ['identifier', 'id_p', 'id_t', 'valid', 'side', 'condition',
+        df_measures = pd.DataFrame(columns = ['identifier', 'id_s', 'id_p', 'id_t', 'valid', 'side', 'condition',
                                               'ReachingStart','ForwardStart', 'DrinkingStart', 'BackStart',
                                               'ReturningStart','RestStart', 'TotalMovementTime',
                                               'PeakVelocity_mms',  'elbowVelocity', 'tTopeakV_s',
                                               'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel',
                                               'NumberMovementUnits', 'InterjointCoordination', 'trunkDisplacementMM',
-                                              'trunkDisplacementDEG','shoulderFlexionReaching', 'ElbowExtension',
+                                              'trunkDisplacementDEG','ShoulderFlexionReaching', 'ElbowExtension',
                                               'shoulderAbduction']
                                    )
 
@@ -807,7 +810,7 @@ class MurphyMeasures:
             self.get_measures()
             self.write_measures()
 
-            df_measures.loc[len(df_measures)] = [row['identifier'], row['id_p'], row['id_t'], row['valid'], row['side'], row['condition'],
+            df_measures.loc[len(df_measures)] = [row['identifier'], row['id_s'], row['id_p'], row['id_t'], row['valid'], row['side'], row['condition'],
                                             self.ReachingStart, self.ForwardStart, self.DrinkingStart, self.BackStart,
                                             self.ReturningStart, self.RestStart, self.TotalMovementTime,
                                             self.PeakVelocity_mms, self.elbowVelocity, self.tTopeakV_s,
