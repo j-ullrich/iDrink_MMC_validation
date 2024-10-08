@@ -83,7 +83,7 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
     if os.path.isfile(path_error_csv):
         df_error = pd.read_csv(path_error_csv, sep=';')
     else:
-        df_error = pd.DataFrame(columns=["date", "time", "s_id", "p_id",  "cam_used", "error"])
+        df_error = pd.DataFrame(columns=["date", "time", "id_s", "id_p",  "cam_used", "error"])
 
     # Find all video files in the calibration folder
     cams = curr_trial.used_cams
@@ -117,7 +117,7 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
     videos = [[video] for video in video_files]
     error, all_rows = cgroup.calibrate_videos(videos, board)
 
-    new_row = pd.Series({"date": time.strftime("%d.%m.%Y"), "time": time.strftime("%H:%M:%S"), "s_id": curr_trial.id_s, "p_id": curr_trial.id_p, "cam_used": cam_names, "error": error})
+    new_row = pd.Series({"date": time.strftime("%d.%m.%Y"), "time": time.strftime("%H:%M:%S"), "id_s": curr_trial.id_s, "id_p": curr_trial.id_p, "cam_used": cam_names, "error": error})
 
     df_error = pd.concat([df_error, new_row.to_frame().T], ignore_index=True)
 
@@ -153,7 +153,7 @@ def delta_full_calibration_val(curr_trial, path_error_csv, verbose=1):
     if os.path.isfile(path_error_csv):
         df_error = pd.read_csv(path_error_csv, sep=';')
     else:
-        df_error = pd.DataFrame(columns=["p_id",  "cam_used", "error"])
+        df_error = pd.DataFrame(columns=["id_p",  "cam_used", "error"])
 
     # Find all video files in the calibration folder
     cams = curr_trial.used_cams
@@ -186,7 +186,7 @@ def delta_full_calibration_val(curr_trial, path_error_csv, verbose=1):
     videos = [[video] for video in video_files]
     error, all_rows = cgroup.calibrate_videos(videos, board)
 
-    new_row = pd.Series({"p_id": curr_trial.id_p, "cam_used": cam_names, "error": error})
+    new_row = pd.Series({"id_p": curr_trial.id_p, "cam_used": cam_names, "error": error})
     df_error = pd.concat([df_error, new_row.to_frame().T], ignore_index=True)
 
     # Save the camera group configuration to a TOML file named after the configuration

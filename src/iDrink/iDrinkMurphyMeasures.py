@@ -65,11 +65,9 @@ class MurphyMeasures:
     3. We give the object a trial_object
 
     """
-    def __init__(self, csv_timestamps=None, csv_measures=None, verbose=0,
+    def __init__(self,trial_id = None, csv_timestamps=None, csv_measures=None, verbose=0,
                  # For mode 1
                  trial = None, root_data = None,
-                 # For mode 2
-                 trial_id = None,
                  # For mode 3
                  path_bodyparts_pos = None, path_bodyparts_vel = None, path_bodyparts_acc=None,
                  path_joint_pos = None, path_joint_vel = None, path_joint_acc = None
@@ -138,9 +136,9 @@ class MurphyMeasures:
         self.shoulderAbduction = None
 
         """Other useful variables"""
-        self.s_id = self.trial_id.split('_')[0]
-        self.p_id = self.trial_id.split('_')[1]
-        self.t_id = self.trial_id.split('_')[2]
+        self.id_s = self.trial_id.split('_')[0]
+        self.id_p = self.trial_id.split('_')[1]
+        self.id_t = self.trial_id.split('_')[2]
         self.identifier = self.trial_id
 
 
@@ -168,18 +166,15 @@ class MurphyMeasures:
             self.id_s = trial.id_s
             self.identifier  = trial.identifier
 
-        if (    self.path_bodyparts_pos is not None
-            and self.path_bodyparts_vel is not None
-            and self.path_bodyparts_acc is not None
-            and self.path_joint_pos is not None
-            and self.path_joint_vel is not None
-            and self.path_joint_acc is not None):
+        if (    self.path_bodyparts_pos is None
+            and self.path_bodyparts_vel is None
+            and self.path_bodyparts_acc is None
+            and self.path_joint_pos is None
+            and self.path_joint_vel is None
+            and self.path_joint_acc is None):
 
-            self.read_files()
-            self.get_measures()
-            self.write_measures()
+            self.get_paths()
 
-        self.get_paths()
         self.read_files()
 
         if self.valid:
@@ -222,27 +217,27 @@ class MurphyMeasures:
 
     def get_paths_from_root(self):
 
-        s_num = re.search(r'\d+', self.s_id).group()
+        s_num = re.search(r'\d+', self.id_s).group()
 
         if 'OMC' in self.root_data:
-            root_body_kin = os.path.join(self.root_data, f'{self.s_id}', f'{self.s_id}_{self.p_id}',
+            root_body_kin = os.path.join(self.root_data, f'{self.id_s}', f'{self.id_s}_{self.id_p}',
                                             f'{self.trial_id}', 'movement_analysis', 'kin_opensim_analyzetool')
-            root_joint_kin = os.path.join(self.root_data, f'{self.s_id}', f'{self.s_id}_{self.p_id}',
+            root_joint_kin = os.path.join(self.root_data, f'{self.id_s}', f'{self.id_s}_{self.id_p}',
                                             f'{self.trial_id}', 'movement_analysis', 'ik_tool')
         else:
             root_body_kin = os.path.join(self.root_data, f"setting_{s_num}",
-                                            f'{self.s_id}', f'{self.s_id}_{self.p_id}', f'{self.trial_id}', 'movement_analysis',
+                                            f'{self.id_s}', f'{self.id_s}_{self.id_p}', f'{self.trial_id}', 'movement_analysis',
                                             'kin_opensim_analyzetool')
             root_joint_kin = os.path.join(self.root_data, f"setting_{s_num}",
-                                            f'{self.s_id}', f'{self.s_id}_{self.p_id}', f'{self.trial_id}', 'movement_analysis',
+                                            f'{self.id_s}', f'{self.id_s}_{self.id_p}', f'{self.trial_id}', 'movement_analysis',
                                             'ik_tool')
 
-        self.path_bodyparts_pos = os.path.join(root_body_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_BodyKinematics_pos_global.sto')
-        self.path_bodyparts_vel = os.path.join(root_body_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_BodyKinematics_vel_global.sto')
-        self.path_bodyparts_acc = os.path.join(root_body_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_BodyKinematics_acc_global.sto')
-        self.path_joint_pos = os.path.join(root_joint_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_Kinematics_pos.csv')
-        self.path_joint_vel = os.path.join(root_joint_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_Kinematics_vel.csv')
-        self.path_joint_acc = os.path.join(root_joint_kin, f'{self.s_id}_{self.p_id}', f'{self.trial_id}_Kinematics_acc.csv')
+        self.path_bodyparts_pos = os.path.join(root_body_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_BodyKinematics_pos_global.sto')
+        self.path_bodyparts_vel = os.path.join(root_body_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_BodyKinematics_vel_global.sto')
+        self.path_bodyparts_acc = os.path.join(root_body_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_BodyKinematics_acc_global.sto')
+        self.path_joint_pos = os.path.join(root_joint_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_Kinematics_pos.csv')
+        self.path_joint_vel = os.path.join(root_joint_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_Kinematics_vel.csv')
+        self.path_joint_acc = os.path.join(root_joint_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_Kinematics_acc.csv')
 
 
     def get_paths_from_trial(self):
@@ -642,9 +637,10 @@ class MurphyMeasures:
             df.columns = standardize_columns(df.columns, stand_bodypart, verbose)
 
         else:
-            raise ValueError("Error in iDrinkStatisticalAnalysis.standardize_data\n"
+            raise ValueError("\n"
+                             "Error in iDrinkStatisticalAnalysis.standardize_data\n"
                              "Neither 'elbow_flex_l' nor 'hand_l_x' are in Data.\n"
-                             "Please check the data and try again.")
+                             "Please check the data and try again.\n")
 
         return df
 
@@ -667,7 +663,8 @@ class MurphyMeasures:
         """
         # Read Metadata and end at "endheader"
         if os.path.isfile(file_path) is False:
-            raise FileNotFoundError(f"Error in iDrinkMurphyMeasures.read_file: {file_path} not found.")
+            raise FileNotFoundError(f"\n"
+                                    f"Error in iDrinkMurphyMeasures.read_file: {file_path} not found.\n")
 
         if os.path.splitext(file_path)[1] == '.sto':
             meta_dat = []
@@ -684,8 +681,9 @@ class MurphyMeasures:
             meta_dat = None
             df = pd.read_csv(file_path)
         else:
-            raise ValueError(f"Error in iDrinkMurphyMeasures.read_file: {file_path} \n"
-                             f"invalid file format {os.path.splitext(file_path)}.")
+            raise ValueError(f"\n"
+                             f"Error in iDrinkMurphyMeasures.read_file: {file_path} \n"
+                             f"invalid file format {os.path.splitext(file_path)}.\n")
 
         df = self.standardize_data(df, verbose= self.verbose)
         return meta_dat, df
@@ -761,11 +759,12 @@ class MurphyMeasures:
             csv containts only trials of single Participant and the trial number is in the form of TXXX.
             """
 
-            if self.p_id not in df['id_p'].values:
-                raise ValueError(f"Error in iDrinkMurphyMeasures.get_data: Participant {self.p_id} not in DataFrame.")
+            if self.id_p not in df['id_p'].values:
+                raise ValueError(f"\n"
+                                 f"Error in iDrinkMurphyMeasures.get_data: Participant {self.id_p} not in DataFrame.\n")
 
             for column in columns_of_interest:
-                self.__setattr__(column, df.loc[(df['id_t'] == self.t_id) & (df['id_p'] == self.p_id), column].values[0])
+                self.__setattr__(column, df.loc[(df['id_t'] == self.id_t) & (df['id_p'] == self.id_p), column].values[0])
 
         self.phases = {"reaching": [self.ReachingStart, self.ForwardStart],
                        "forward_transportation": [self.ForwardStart, self.DrinkingStart],

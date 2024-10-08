@@ -39,7 +39,7 @@ def run():
     df_timestamps = pd.DataFrame(columns=['id_p', 'id_t', 'valid', 'side', 'condition', 'ReachingStart',
            'ForwardStart', 'DrinkingStart', 'BackStart', 'ReturningStart',
            'RestStart', 'TotalMovementTime'])
-    prog = tqdm(total=len(p_list), desc=f'Processing participants', unit='p_id')
+    prog = tqdm(total=len(p_list), desc=f'Processing participants', unit='id_p')
 
     for id_p in p_list:
 

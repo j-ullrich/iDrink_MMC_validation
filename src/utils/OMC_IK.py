@@ -179,6 +179,13 @@ def get_mot_based_vel_acc(root_omc, verbose=1):
 
     p_list = sorted([p.split("_")[1] for p in os.listdir(dir_s)])
     progress_bar = None
+
+    total = 0
+    for id_p in p_list:
+        p_dir = os.path.join(root_omc, f"{id_s}_{id_p}")
+        t_list = sorted([t.split("_")[2] for t in os.listdir(p_dir)])
+        total += len(t_list)
+
     for id_p in p_list:
 
         p_dir = os.path.join(dir_s, f"{id_s}_{id_p}")
@@ -187,7 +194,6 @@ def get_mot_based_vel_acc(root_omc, verbose=1):
 
         if verbose >= 1:
             if progress_bar is None:
-                total = len(p_list) * len(t_list)
                 progress_bar = tqdm(total=total, desc="Processing Trials", unit="trials")
         for t_id in t_list:
             if verbose >= 1:
@@ -210,10 +216,7 @@ def get_mot_based_vel_acc(root_omc, verbose=1):
         progress_bar.close()
 
 
-
-
 if __name__ == "__main__":
     pass
 
     get_mot_based_vel_acc(root_omc=root_dat_out, verbose=1)
-    #parser
