@@ -20,6 +20,20 @@ import scipy as sp
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from iDrinkOpenSim import read_opensim_file
 
+murphy_measures = ["PeakVelocity_mms",
+                   "elbowVelocity",
+                   "tTopeakV_s",
+                   "tToFirstpeakV_s",
+                   "tTopeakV_rel",
+                   "tToFirstpeakV_rel",
+                   "NumberMovementUnits",
+                   "InterjointCoordination",
+                   "trunkDisplacementMM",
+                   "trunkDisplacementDEG",
+                   "ShoulderFlexionReaching",
+                   "ElbowExtension",
+                   "shoulderAbduction"]
+
 def resample_dataframes(df1, df2, max_time=None):
     """
     Resamples two DataFrames to the same amount of rows.
@@ -64,6 +78,12 @@ def run_stat_murphy(df, id_s, root_stat_cat, verbose=1):
     :param verbose:
     :return:
     """
+    global murphy_measures
+
+    csv_out = os.path.join(root_stat_cat, id_s, f'{id_s}_stat.csv')
+
+    df_s = pd.DataFrame(columns=['identifier', 'id_s', 'id_p', 'id_t'] + murphy_measures)
+
     id_s_omc = 'S15133'
     idx_p = df['id_p'].unique()
 
@@ -75,12 +95,46 @@ def run_stat_murphy(df, id_s, root_stat_cat, verbose=1):
 
             path_trial_stat_csv = os.path.join(root_stat_cat, id_s, f'{identifier}_stat.csv')
 
+            row_mmc = df.loc[df['identifier'] == identifier, murphy_measures].values[0]
+            row_omc = df.loc[(df['id_s'] == id_s_omc) & (df['id_p'] == id_p) & (df['id_t'] == id_t), murphy_measures].values[0]
 
 
 
 
+def get_mmc_omc_difference(df, root_stat_cat, verbose=1):
+    """
+    Creates DataFrame containing the difference between OMC and MMC measurments for each trial.
 
+    :param df:
+    :param verbose:
+    :return:
+    """
+    global murphy_measures
 
+    df_diff = pd.DataFrame(columns=['identifier', 'id_s', 'id_p', 'id_t'] + murphy_measures)
+
+    id_s_omc = 'S15133'
+    idx_s = sorted(df['id_s'].unique())
+    for id_s in idx_s:
+        idx_p = sorted(list(df[df['id_s'] == id_s]['id_p'].unique()))
+        for id_p in idx_p:
+            idx_t = sorted(list(df[(df['id_p'] == id_p) & (df['id_s'] == id_s)]['id_t'].unique()))
+
+            for id_t in idx_t:
+                identifier = f"{id_s}_{id_p}_{id_t}"
+
+                path_trial_stat_csv = os.path.join(root_stat_cat, id_s, f'{identifier}_stat.csv')
+
+                row_mmc = df.loc[df['identifier'] == identifier, murphy_measures].values[0]
+                row_omc = df.loc[(df['id_s'] == id_s_omc) & (df['id_p'] == id_p) & (df['id_t'] == id_t), murphy_measures].values[0]
+
+                diff = row_mmc - row_omc
+
+                row_diff = [identifier, id_s, id_p, id_t] + list(diff)
+
+                df_diff.loc[df_diff.shape[0]] = row_diff
+
+    return df_diff
 
 def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
     """
@@ -89,6 +143,8 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
     :param df_omc:
     :return:
     """
+    global murphy_measures
+
     df_murphy = pd.read_csv(path_csv_murphy, sep=';')
     root_stat_cat = os.path.join(root_stat, '02_categorical')
 
@@ -96,22 +152,39 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
     idx_s_mmc = np.delete(idx_s, np.where(idx_s == 'S15133'))
 
     # Create subset of DataFrame containing all trials that are also in OMC
+    df = pd.DataFrame(columns=df_murphy.columns)
     for id_s in idx_s_mmc:
 
         df_s = df_murphy[df_murphy['id_s'] == id_s]
         df_omc = df_murphy[df_murphy['id_s'] == 'S15133']
+        idx_p = sorted(list(df_murphy[df_murphy['id_s']==id_s]['id_p'].unique()))
 
-        idx_p = df_s['id_p'].unique()
-        idx_t = df_s['id_t'].unique()
-        df = pd.DataFrame(columns=df_murphy.columns)
         for id_p in idx_p:
+            idx_t = sorted(list(df_murphy[(df_murphy['id_p']==id_p) & (df_murphy['id_s']==id_s )]['id_t'].unique()))
             for id_t in idx_t:
                 df = pd.concat([df, df_omc[(df_omc['id_p'] == id_p) & (df_omc['id_t'] == id_t)]])
 
         df = pd.concat([df_s, df])
+    df_diff = get_mmc_omc_difference(df, root_stat_cat, verbose=verbose)
 
-        # Create DataFrame for each trial
-        run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
+    # Create DataFrame containing absolute values of the differences
+    df_abs_diff = df_diff.copy()
+    df_abs_diff.iloc[:, 4:] = np.abs(df_abs_diff.iloc[:, 4:])
+
+    # Create DataFrame and calculate mean of each column
+    df_mean = pd.DataFrame(columns=['id_s'] + murphy_measures)
+    df_rmse = pd.DataFrame(columns=['id_s'] + murphy_measures)
+    for id_s in idx_s_mmc:
+        # mean Error
+        df_mean.loc[len(df_mean), 'id_s'] = id_s
+        df_mean.iloc[len(df_mean)-1, 1:] = np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]], axis=0)
+
+        # Root Mean Squared Error
+        df_rmse.loc[len(df_rmse), 'id_s'] = id_s
+        df_rmse.iloc[len(df_rmse) - 1, 1:] = np.sqrt(np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]]**2, axis=0))
+
+    # Create DataFrame for each trial
+    run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
 
 
 
@@ -119,7 +192,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
 
 
 
-        pass
+    pass
     """constructed_identifier = f'S15133_{trial.id_p}_{trial.id_t}'
     if constructed_identifier not in df_murphy['identifier'].values:
         raise ValueError(f"Error in {os.path.basename(__file__)}.{runs_statistics_discrete.__name__}\n"
