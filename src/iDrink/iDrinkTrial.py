@@ -665,7 +665,7 @@ class Trial:
 
 
         self.opensim_model = os.path.join(self.dir_default, f"iDrink_{self.pose_model}.osim")
-        self.opensim_model_scaled = os.path.join(self.dir_trial, f"Scaled_{self.pose_model}.osim")
+        self.opensim_model_scaled = os.path.join(self.dir_trial, f"{self.identifier}_Scaled_{self.pose_model}.osim")
 
         self.opensim_scaling = os.path.join(self.dir_trial, f"Scaling_Setup_iDrink_{self.pose_model}.xml")
         self.opensim_inverse_kinematics = os.path.join(self.dir_trial, f"IK_Setup_iDrink_{self.pose_model}.xml")
