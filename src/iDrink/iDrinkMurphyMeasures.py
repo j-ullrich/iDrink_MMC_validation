@@ -71,7 +71,7 @@ class MurphyMeasures:
                  # For mode 1
                  trial = None, root_data = None,
                  # For mode 3
-                 path_bodyparts_pos = None, path_bodyparts_vel = None, path_bodyparts_acc=None,
+                 path_bodyparts_pos = None, path_bodyparts_vel = None, path_bodyparts_acc=None, path_trunk_pos=None,
                  path_joint_pos = None, path_joint_vel = None, path_joint_acc = None
                  ):
 
@@ -87,6 +87,7 @@ class MurphyMeasures:
         self.path_bodyparts_pos = path_bodyparts_pos
         self.path_bodyparts_vel = path_bodyparts_vel
         self.path_bodyparts_acc = path_bodyparts_acc
+        self.path_trunk_pos = path_trunk_pos
 
         self.path_joint_pos = path_joint_pos
         self.path_joint_vel = path_joint_vel
@@ -238,6 +239,8 @@ class MurphyMeasures:
         self.path_bodyparts_pos = os.path.join(root_body_kin, f'{self.trial_id}_BodyKinematics_pos_global.sto')
         self.path_bodyparts_vel = os.path.join(root_body_kin, f'{self.trial_id}_BodyKinematics_vel_global.sto')
         self.path_bodyparts_acc = os.path.join(root_body_kin, f'{self.trial_id}_BodyKinematics_acc_global.sto')
+        self.path_trunk_pos = os.path.join(root_body_kin, f'{self.trial_id}_OutputsVec3.sto')
+
         self.path_joint_pos = os.path.join(root_joint_kin, f'{self.trial_id}_Kinematics_pos.csv')
         self.path_joint_vel = os.path.join(root_joint_kin, f'{self.trial_id}_Kinematics_vel.csv')
         self.path_joint_acc = os.path.join(root_joint_kin, f'{self.trial_id}_Kinematics_acc.csv')
@@ -259,6 +262,8 @@ class MurphyMeasures:
         self.path_bodyparts_pos = os.path.join(root_body_kin, f'{self.trial.identifier}_BodyKinematics_pos_global.sto')
         self.path_bodyparts_vel = os.path.join(root_body_kin, f'{self.trial.identifier}_BodyKinematics_vel_global.sto')
         self.path_bodyparts_acc = os.path.join(root_body_kin, f'{self.trial.identifier}_BodyKinematics_acc_global.sto')
+        self.path_trunk_pos = os.path.join(root_body_kin, f'{self.trial.identifier}_OutputsVec3.sto')
+
         self.path_joint_pos = os.path.join(root_joint_kin, f'{self.trial.identifier}_Kinematics_pos.csv')
         self.path_joint_vel = os.path.join(root_joint_kin, f'{self.trial.identifier}_Kinematics_vel.csv')
         self.path_joint_acc = os.path.join(root_joint_kin, f'{self.trial.identifier}_Kinematics_acc.csv')
@@ -371,6 +376,7 @@ class MurphyMeasures:
 
         return mov_units_sum, mov_units_mean, df_mov_units
 
+
     @ staticmethod
     def get_interjoint_coordination(pos_joint1, pos_joint2):
         """
@@ -398,9 +404,7 @@ class MurphyMeasures:
         """
 
         id_start, _ = self.get_phase_ids("reaching")
-
         displacement = np.linalg.norm(self.trunk_pos[id_start] - self.trunk_pos, axis=1)
-
         max_displacement_mm = np.max(displacement)*1000
 
         return round(max_displacement_mm, 4)
@@ -663,7 +667,7 @@ class MurphyMeasures:
         return df
 
 
-    def read_file(self, file_path):
+    def read_file(self, file_path, standardize=True):
         """
         Reads a file and returns meta_dat and a DataFrame
         :param path:
@@ -679,6 +683,37 @@ class MurphyMeasures:
             Metadata: List
             Data: pandas Dataframe
         """
+        def get_dataframe_from_vec3(df):
+            """
+            Reads Dataframe retrieved from Outputreporter and returns a DataFrame with columns for each axis.
+            :param df:
+            :return:
+            """
+
+            new_df = pd.DataFrame()
+
+            for column in df.columns:
+
+                if column == 'time':
+                    new_df['time'] = df['time']
+                    continue
+
+                new_column = column.split('/')[-1].split('|')[0]
+                new_columns = [f'{new_column}_{axis}' for axis in ['x', 'y', 'z']]
+
+                splitted_column = df[column].str.split(',', expand=True)
+
+                if splitted_column.shape[1] == len(new_columns):
+                    new_df[new_columns] = splitted_column.astype(np.float64)
+
+                else:
+                    for i, c in enumerate(splitted_column):
+                        new_df[f'{new_column}_{i}'] = splitted_column[c]
+
+
+            return new_df
+
+
         # Read Metadata and end at "endheader"
         if os.path.isfile(file_path) is False:
             raise FileNotFoundError(f"\n"
@@ -695,6 +730,12 @@ class MurphyMeasures:
 
             # Read the rest of the file into a DataFrame
             df = pd.read_csv(file_path, skiprows=len(meta_dat), sep="\t")
+
+            for meta in meta_dat:
+                if "Vec3" in meta:
+                    df = get_dataframe_from_vec3(df)
+
+
         elif  os.path.splitext(file_path)[1] == '.csv':
             meta_dat = None
             df = pd.read_csv(file_path)
@@ -702,8 +743,8 @@ class MurphyMeasures:
             raise ValueError(f"\n"
                              f"Error in iDrinkMurphyMeasures.read_file: {file_path} \n"
                              f"invalid file format {os.path.splitext(file_path)}.\n")
-
-        df = self.standardize_data(df, verbose= self.verbose)
+        if standardize:
+            df = self.standardize_data(df, verbose= self.verbose)
         return meta_dat, df
 
 
@@ -718,12 +759,14 @@ class MurphyMeasures:
 
         :return:
         """
+
         def magnitude(data):
             """
             This function returns magnitude of a n-dimensional vector
             """
 
-            return np.sqrt(np.sum(np.array([axis**2 for axis in data]), axis=0))
+            return np.sqrt(np.sum(np.array([axis ** 2 for axis in data]), axis=0))
+
 
         _, df = self.read_file(self.path_bodyparts_vel)
         self.time = df['time'].values
@@ -734,11 +777,12 @@ class MurphyMeasures:
         self.hand_vel = self.use_butterworth_filter(hand_vel, cutoff=10, fs=100, order=4, normcutoff=False)
 
         # Get Bodypart Positions
-        _, df = self.read_file(self.path_bodyparts_pos)
+        _, df = self.read_file(self.path_trunk_pos, standardize=False)
         # TODO: Decide what to use for trunk displacement
-        trunk_pos = [df[f'head_{axis}'].values for axis in ['x', 'y', 'z']]  # For now, we use head position
+        trunk_pos = [df[f'chest_{axis}'].values for axis in ['x', 'y', 'z']] # For now, we use head position
         self.trunk_pos = self.use_butterworth_filter(trunk_pos, cutoff=10, fs=100, order=4, normcutoff=False).transpose()
 
+        _, df = self.read_file(self.path_bodyparts_pos)
         trunk_ang =[df[f'torso_{axis}'].values for axis in ['ox', 'oy', 'oz']]
         trunk_ang = magnitude(trunk_ang)
         self.trunk_ang = self.use_butterworth_filter(trunk_ang, cutoff=10, fs=100, order=4, normcutoff=False)

@@ -192,7 +192,7 @@ def mot_to_csv(curr_trial=None, path_mot=None, path_dst=None, verbose=1):
 
     # Read data and save to .csv
     if path_mot is None:
-        path_src = os.path.join(curr_trial.dir_trial, curr_trial.opensim_motion)
+        path_mot = os.path.join(curr_trial.dir_trial, curr_trial.opensim_motion)
 
     _, dat_measured = read_opensim_file(path_mot)
     dat_measured.to_csv(path_dst, index=False)

@@ -64,6 +64,7 @@ def run(verbose=1):
                 progress.set_description(f"Processing {id_p}_{id_t}")
 
             identifier = f"{id_s}_{id_p}_{id_t}"
+
             t_dir = os.path.join(p_dir, f"{id_s}_{id_p}_{id_t}")
 
             dir_bodykin = os.path.join(t_dir, 'movement_analysis', 'kin_opensim_analyzetool')
@@ -72,6 +73,8 @@ def run(verbose=1):
             path_bodyparts_pos = os.path.join(dir_bodykin, f'{identifier}_BodyKinematics_pos_global.sto')
             path_bodyparts_vel = os.path.join(dir_bodykin, f'{identifier}_BodyKinematics_vel_global.sto')
             path_bodyparts_acc = os.path.join(dir_bodykin, f'{identifier}_BodyKinematics_acc_global.sto')
+
+            path_trunk_pos = os.path.join(dir_bodykin, f'{identifier}_OutputsVec3.sto')
 
             path_joint_pos = os.path.join(dir_jointkin, f'{identifier}_Kinematics_pos.csv')
             path_joint_vel = os.path.join(dir_jointkin, f'{identifier}_Kinematics_vel.csv')
@@ -82,6 +85,7 @@ def run(verbose=1):
                                                     path_bodyparts_pos=path_bodyparts_pos,
                                                     path_bodyparts_vel=path_bodyparts_vel,
                                                     path_bodyparts_acc=path_bodyparts_acc,
+                                                    path_trunk_pos=path_trunk_pos,
                                                     path_joint_pos=path_joint_pos,
                                                     path_joint_vel=path_joint_vel,
                                                     path_joint_acc=path_joint_acc

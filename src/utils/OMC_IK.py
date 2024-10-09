@@ -112,10 +112,10 @@ def run_opensim_OMC(stabilize_hip=True):
         trc_dir = os.path.realpath(os.path.join(root_OMC, p_id, "trc"))
         trc_files = glob.glob(os.path.join(trc_dir, "*.trc"))
 
-        if DEBUG:
+        """if DEBUG:
             unaffected_trials = glob.glob(os.path.join(trc_dir, "*unaffected*.trc"))
             affected_trials = [f for f in glob.glob(os.path.join(trc_dir, "*affected*.trc")) if "unaffected" not in f]
-            trc_files = unaffected_trials[:3] + affected_trials[:3]
+            trc_files = unaffected_trials[:3] + affected_trials[:3]"""
 
         if verbose >= 2:
             print(f"trc_files for {p_id}: \n"
