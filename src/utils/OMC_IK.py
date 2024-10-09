@@ -24,7 +24,7 @@ def prepare_opensim(self, filterflag="filt"):
 
     self.opensim_model = os.path.join(self.dir_default, f"iDrink_{self.pose_model}.osim")
     #self.opensim_model_scaled = os.path.join(self.dir_trial, f"Scaled_{self.pose_model}.osim")
-    self.opensim_model_scaled = f"Scaled_{self.pose_model}.osim"
+    self.opensim_model_scaled = f"{self.identifier}_Scaled_{self.pose_model}.osim"
 
     self.opensim_scaling = os.path.join(self.dir_trial, f"Scaling_Setup_iDrink_{self.pose_model}.xml")
     self.opensim_inverse_kinematics = os.path.join(self.dir_trial, f"IK_Setup_iDrink_{self.pose_model}.xml")
@@ -38,7 +38,7 @@ def prepare_opensim(self, filterflag="filt"):
                               0] + ".mot"
 
     self.opensim_scaling_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered,
-                                                          frame_range=[0, 10], as_string=True)
+                                                          frame_range=[0, 20], as_string=True)
     self.opensim_IK_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=True)
     self.opensim_ana_init_t = str(
         self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=False)[0])
@@ -62,7 +62,7 @@ default_dir = os.path.join(root_val, "01_default_files")
 root_logs = os.path.join(root_val, "05_logs")
 csv_path = os.path.join(root_logs, "OMC_Opensim_log.csv")
 
-def run_opensim_OMC():
+def run_opensim_OMC(stabilize_hip=True):
     DEBUG = False
     verbose = 1
     p_list = os.listdir(root_OMC)
@@ -102,8 +102,10 @@ def run_opensim_OMC():
     if verbose >=2:
         print(f"p_list: \n"
                 f"{p_list}")
-    p_list = ["P01", "P02", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17",
-              "P19", "P23", "P24", "P25", "P27", "P28", "P30", "P31", "P34"]
+    """p_list = ["P01", "P02", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17",
+              "P19", "P23", "P24", "P25", "P27", "P28", "P30", "P31", "P34"]"""
+
+    p_list = p_new_struc
 
     for p_id in p_list:
 
@@ -127,14 +129,15 @@ def run_opensim_OMC():
             dir_p = os.path.realpath(os.path.join(dir_s, f"{id_s}_{p_id}"))
             dir_t = os.path.realpath(os.path.join(dir_p, identifier))
 
-            if "P01_T029" not in identifier:
-                continue
+            """if "P01_T029" not in identifier:
+                continue"""
 
 
 
             trial = iDrinkTrial.Trial(id_s=id_s, id_p=p_id, id_t=id_t, identifier=identifier,
                                       dir_session=dir_s, dir_participant=dir_p, dir_trial=dir_t,
                                       dir_default=default_dir, pose_model='OMC')
+            trial.stabilize_hip = stabilize_hip
 
             trial.create_trial(for_omc=True)
             trial.load_configuration()
@@ -220,7 +223,6 @@ def get_mot_based_vel_acc(root_omc, verbose=1):
 
 
 if __name__ == "__main__":
-    pass
 
     run_opensim_OMC()
 

@@ -198,7 +198,16 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
         df_rmse.loc[len(df_rmse) - 1, 'id_p'] = ''
         df_rmse.iloc[len(df_rmse) - 1, 2:] = np.sqrt(np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]]**2, axis=0))
 
+    # Write to  csv
+    path_csv_murphy_diff = os.path.join(root_stat_cat, f'stat_murphy_diff.csv')
+    path_csv_murphy_abs_diff = os.path.join(root_stat_cat, f'stat_murphy_abs_diff.csv')
+    path_csv_murphy_mean = os.path.join(root_stat_cat, f'stat_murphy_mean.csv')
+    path_csv_murphy_rmse = os.path.join(root_stat_cat, f'stat_murphy_rmse.csv')
 
+    df_diff.to_csv(path_csv_murphy_diff, sep=';')
+    df_abs_diff.to_csv(path_csv_murphy_abs_diff, sep=';')
+    df_mean.to_csv(path_csv_murphy_mean, sep=';')
+    df_rmse.to_csv(path_csv_murphy_rmse, sep=';')
 
 
     # Create DataFrame for each trial
