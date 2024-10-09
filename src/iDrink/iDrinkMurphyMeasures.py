@@ -38,6 +38,7 @@ path to csv containing the following columns:
 """
 import os
 import re
+import sys
 
 import pandas as pd
 import numpy as np
@@ -46,6 +47,7 @@ from fuzzywuzzy import process
 
 from importlib_metadata import metadata
 
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial
 
 
@@ -107,6 +109,7 @@ class MurphyMeasures:
         self.shoulder_abduction_pos = None
 
         self.trunk_pos = None
+        self.trunk_ang = None
 
         """Contents of the .csv file"""
         self.trial_id = trial_id
@@ -232,12 +235,12 @@ class MurphyMeasures:
                                             f'{self.id_s}', f'{self.id_s}_{self.id_p}', f'{self.trial_id}', 'movement_analysis',
                                             'ik_tool')
 
-        self.path_bodyparts_pos = os.path.join(root_body_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_BodyKinematics_pos_global.sto')
-        self.path_bodyparts_vel = os.path.join(root_body_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_BodyKinematics_vel_global.sto')
-        self.path_bodyparts_acc = os.path.join(root_body_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_BodyKinematics_acc_global.sto')
-        self.path_joint_pos = os.path.join(root_joint_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_Kinematics_pos.csv')
-        self.path_joint_vel = os.path.join(root_joint_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_Kinematics_vel.csv')
-        self.path_joint_acc = os.path.join(root_joint_kin, f'{self.id_s}_{self.id_p}', f'{self.trial_id}_Kinematics_acc.csv')
+        self.path_bodyparts_pos = os.path.join(root_body_kin, f'{self.trial_id}_BodyKinematics_pos_global.sto')
+        self.path_bodyparts_vel = os.path.join(root_body_kin, f'{self.trial_id}_BodyKinematics_vel_global.sto')
+        self.path_bodyparts_acc = os.path.join(root_body_kin, f'{self.trial_id}_BodyKinematics_acc_global.sto')
+        self.path_joint_pos = os.path.join(root_joint_kin, f'{self.trial_id}_Kinematics_pos.csv')
+        self.path_joint_vel = os.path.join(root_joint_kin, f'{self.trial_id}_Kinematics_vel.csv')
+        self.path_joint_acc = os.path.join(root_joint_kin, f'{self.trial_id}_Kinematics_acc.csv')
 
 
     def get_paths_from_trial(self):
@@ -402,6 +405,21 @@ class MurphyMeasures:
 
         return round(max_displacement_mm, 4)
 
+
+    def get_trunk_rotation(self, ):
+        """
+        Calculate the trunk rotation in degrees.
+        """
+
+        id_start, _ = self.get_phase_ids("reaching")
+
+        rotation = self.trunk_ang[id_start] - self.trunk_ang
+
+        max_rotation_deg = np.max(rotation)
+
+        return round(max_rotation_deg, 4)
+
+
     def get_max_shoulder_flexion_reaching(self, ):
         """
         Calculate the shoulder flexion during reaching phase.
@@ -473,7 +491,7 @@ class MurphyMeasures:
 
         self.trunkDisplacementMM = self.get_trunk_displacement() # trunk displacement in mm
 
-        self.trunkDisplacementDEG = None  # TODO: Find way to implement
+        self.trunkDisplacementDEG = self.get_trunk_rotation()  # Trunk Displacement in degrees
 
         self.ShoulderFlexionReaching = self.get_max_shoulder_flexion_reaching()
 
@@ -700,9 +718,9 @@ class MurphyMeasures:
 
         :return:
         """
-        def reduce_axes(data):
+        def magnitude(data):
             """
-            This function gets absolute velocity based on velocity in 3 Dimensions
+            This function returns magnitude of a n-dimensional vector
             """
 
             return np.sqrt(np.sum(np.array([axis**2 for axis in data]), axis=0))
@@ -712,7 +730,7 @@ class MurphyMeasures:
 
         # Get Bodypart velocities
         hand_vel = [df[f'hand_{self.side.lower()}_{axis}'].values for axis in ['x', 'y', 'z']]
-        hand_vel = np.sqrt(reduce_axes(hand_vel) ** 2)
+        hand_vel = magnitude(hand_vel)
         self.hand_vel = self.use_butterworth_filter(hand_vel, cutoff=10, fs=100, order=4, normcutoff=False)
 
         # Get Bodypart Positions
@@ -720,6 +738,11 @@ class MurphyMeasures:
         # TODO: Decide what to use for trunk displacement
         trunk_pos = [df[f'head_{axis}'].values for axis in ['x', 'y', 'z']]  # For now, we use head position
         self.trunk_pos = self.use_butterworth_filter(trunk_pos, cutoff=10, fs=100, order=4, normcutoff=False).transpose()
+
+        trunk_ang =[df[f'torso_{axis}'].values for axis in ['ox', 'oy', 'oz']]
+        trunk_ang = magnitude(trunk_ang)
+        self.trunk_ang = self.use_butterworth_filter(trunk_ang, cutoff=10, fs=100, order=4, normcutoff=False)
+
 
         # get joint velocities
         _, df = self.read_file(self.path_joint_vel)
@@ -834,8 +857,8 @@ if __name__ == '__main__':
         path_phases = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_measures.csv"  # Path to the .csv file containing murphy measures
         path_timestamps = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_timestamps.csv" # Path to the .csv file containing timestamps
         root_data = r"I:\iDrink\validation_root\03_data"  # Root directory of all iDrink Data
-        root_data_omc = r"I:\iDrink\validation_root\03_data\OMC"
-        dir_trials = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P01" # Directory containing folders of P01
+        root_data_omc = r"I:\iDrink\validation_root\03_data\OMC_old"
+        dir_trials = r"I:\iDrink\validation_root\03_data\OMC_old\S15133\S15133_P01" # Directory containing folders of P01
 
 
 
