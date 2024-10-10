@@ -372,12 +372,19 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
     analyzetool.run()
 
     # Add paths of Analyzertool Output to trial Object
-    curr_trial.path_opensim_ana_pos = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*BodyKinematics_pos*"))[0]
-    curr_trial.path_opensim_ana_vel = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*BodyKinematics_vel*"))[0]
-    curr_trial.path_opensim_ana_acc = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*BodyKinematics_acc*"))[0]
-    curr_trial.path_opensim_ana_ang_pos = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*Kinematics_q*"))[0]
-    curr_trial.path_opensim_ana_ang_vel = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*Kinematics_u*"))[0]
-    curr_trial.path_opensim_ana_ang_acc = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*Kinematics_dudt*"))[0]
+    try:
+        curr_trial.path_opensim_ana_pos = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*BodyKinematics_pos*"))[0]
+        curr_trial.path_opensim_ana_vel = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*BodyKinematics_vel*"))[0]
+        curr_trial.path_opensim_ana_acc = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*BodyKinematics_acc*"))[0]
+    except IndexError:
+        print("No Body Kinematics found in AnalyzeTool Results.")
+
+    try:
+        curr_trial.path_opensim_ana_ang_pos = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*Kinematics_q*"))[0]
+        curr_trial.path_opensim_ana_ang_vel = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*Kinematics_u*"))[0]
+        curr_trial.path_opensim_ana_ang_acc = glob.glob(os.path.join(curr_trial.dir_anatool_results, r"*Kinematics_dudt*"))[0]
+    except IndexError:
+        print("No Angular Kinematics found in AnalyzeTool Results.")
 
     # Save the angles calculated by the Inverse Kinematics Tool to a .csv file
     mot_to_csv(curr_trial)

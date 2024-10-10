@@ -52,7 +52,7 @@ if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
     root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 else:
-    drive = drives[3]
+    drive = drives[1]
     root_iDrink = os.path.join(drive, '\iDrink')  # Root directory of all iDrink Data
 
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.
@@ -129,11 +129,6 @@ def run_opensim_OMC(stabilize_hip=True):
             dir_p = os.path.realpath(os.path.join(dir_s, f"{id_s}_{p_id}"))
             dir_t = os.path.realpath(os.path.join(dir_p, identifier))
 
-            """if "P01_T029" not in identifier:
-                continue"""
-
-
-
             trial = iDrinkTrial.Trial(id_s=id_s, id_p=p_id, id_t=id_t, identifier=identifier,
                                       dir_session=dir_s, dir_participant=dir_p, dir_trial=dir_t,
                                       dir_default=default_dir, pose_model='OMC')
@@ -143,7 +138,10 @@ def run_opensim_OMC(stabilize_hip=True):
             trial.load_configuration()
 
             #trial_done = iDrinkLog.files_exist(os.path.join(dir_t, 'pose-3d'), '.mot', verbose=1)
-            trial_done = iDrinkLog.files_exist(trial.dir_kin_p2s, '.csv', verbose=1)
+
+
+
+            trial_done = iDrinkLog.files_exist(trial.dir_kin_ik_tool, '.csv', verbose=1)
 
             if trial_done:
                 print(f"Skipping {identifier} as it is already done.")
