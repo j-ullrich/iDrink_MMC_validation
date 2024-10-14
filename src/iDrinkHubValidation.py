@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[1] + '\\'
+    drive = drives[3] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -545,8 +545,7 @@ def create_trial_objects():
 
     if df_trials is not None:
         trial_list = iDrinkLog.trials_from_csv(args, df_trials, df_settings, root_data, default_dir)
-
-    if not trial_list:
+    else:
         # Create the trial objects depending on the mode
         match args.mode:
             case "pose_estimation":
@@ -1047,7 +1046,7 @@ if __name__ == '__main__':
     args.mode = "pose_estimation"
     args.mode = 'pose2sim'
     args.mode = 'opensim'
-    args.mode = 'murphy_measures'
+    #args.mode = 'murphy_measures'
     #args.poseback = ["mmpose", "pose2sim"]
     args.verbose = 2
 

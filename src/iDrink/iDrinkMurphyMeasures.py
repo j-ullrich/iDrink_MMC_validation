@@ -456,6 +456,17 @@ class MurphyMeasures:
 
         return max(max_sh_abd_reach, max_sh_abd_drink)
 
+    def get_peaks_of_movement(self, data):
+
+        id_start, id_end = self.get_phase_ids("reaching", "returning")
+
+        peaks, peaks_info = scipy.signal.find_peaks(data[id_start:id_end], prominence=max(data)*0.1)
+
+        peaks = [peak + id_start for peak in peaks]
+
+        return peaks, peaks_info
+
+
     def get_measures(self, ):
         """
         This function calculates the Murphy measures from the given data.
@@ -464,8 +475,11 @@ class MurphyMeasures:
 
         # TODO: Decide on prominence value
         """Peak needs to be at least 10% of max velocity"""
-        peak_ids_hand, _ = scipy.signal.find_peaks(self.hand_vel, prominence=max(self.hand_vel)*0.1)
-        peak_ids_elbow, _ = scipy.signal.find_peaks(self.elbow_vel, prominence=max(self.elbow_vel)*0.1)
+        """peak_ids_hand, _ = scipy.signal.find_peaks(self.hand_vel, prominence=max(self.hand_vel)*0.1)
+        peak_ids_elbow, _ = scipy.signal.find_peaks(self.elbow_vel, prominence=max(self.elbow_vel)*0.1)"""
+
+        peak_ids_hand, _ = self.get_peaks_of_movement(self.hand_vel)
+        peak_ids_elbow, _ = self.get_peaks_of_movement(self.elbow_vel)
 
         # max velocity of hand mm/s
         peak_vel_hand = np.max([self.hand_vel[peak] for peak in peak_ids_hand])*1000
@@ -901,7 +915,7 @@ if __name__ == '__main__':
         path_phases = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_measures.csv"  # Path to the .csv file containing murphy measures
         path_timestamps = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_timestamps.csv" # Path to the .csv file containing timestamps
         root_data = r"I:\iDrink\validation_root\03_data"  # Root directory of all iDrink Data
-        root_data_omc = r"I:\iDrink\validation_root\03_data\OMC_old"
+        root_data_omc = r"I:\iDrink\validation_root\03_data\OMC"
         dir_trials = r"I:\iDrink\validation_root\03_data\OMC_old\S15133\S15133_P01" # Directory containing folders of P01
 
 

@@ -50,7 +50,7 @@ if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
     root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 else:
-    drive = drives[1]
+    drive = drives[3]
     root_iDrink = os.path.join(drive, '\iDrink')  # Root directory of all iDrink Data
 
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.

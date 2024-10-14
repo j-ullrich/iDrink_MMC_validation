@@ -169,6 +169,11 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
     # get Drive in use
     drive = os.path.splitdrive(root_data)[0]
 
+    if os.name == 'posix':
+        drive = drive + '/'
+    elif os.name == 'nt':
+        drive = drive + '\\'
+
     trial_list = []
     if args.verbose >= 1:
         progress = tqdm(total=df_trials.shape[0], desc="Creating Trial Objects", unit="Trial")
@@ -191,6 +196,7 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         dir_calib = correct_drive(row["dir_calib"], drive)
         dir_calib_videos = correct_drive(row["dir_calib_videos"], drive)
 
+        # Convert paths from Windows to Linux or vice versa
         if os.name == 'posix' and '\\' in dir_trial:
             # Replace backslashes with forward slashes
             base = root_data.split('iDrink')[0]
