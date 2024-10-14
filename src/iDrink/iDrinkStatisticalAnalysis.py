@@ -101,7 +101,7 @@ def run_stat_murphy(df, id_s, root_stat_cat, verbose=1):
 
 
 
-def get_mmc_omc_difference(df, root_stat_cat, verbose=1):
+def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verbose=1):
     """
     Creates DataFrame containing the difference between OMC and MMC measurments for each trial.
 
@@ -124,9 +124,36 @@ def get_mmc_omc_difference(df, root_stat_cat, verbose=1):
                 identifier = f"{id_s}_{id_p}_{id_t}"
 
                 path_trial_stat_csv = os.path.join(root_stat_cat, id_s, f'{identifier}_stat.csv')
+                got_mmc = False
+                try:
+                    row_mmc = df.loc[df['identifier'] == identifier, murphy_measures].values[0]
+                    got_mmc = True
+                    row_omc = df.loc[(df['id_s'] == id_s_omc) & (df['id_p'] == id_p) & (df['id_t'] == id_t), murphy_measures].values[0]
+                except IndexError:
+                    if verbose >= 1:
+                        if got_mmc:
+                            print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
+                                  f"Trial: {id_s_omc}_{id_p}_{id_t} not found in OMC")
+                        else:
+                            print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
+                                  f"Trial: {id_s}_{id_p}_{id_t} not found in MMC")
+                    continue
 
-                row_mmc = df.loc[df['identifier'] == identifier, murphy_measures].values[0]
-                row_omc = df.loc[(df['id_s'] == id_s_omc) & (df['id_p'] == id_p) & (df['id_t'] == id_t), murphy_measures].values[0]
+                # Check if PeakVelocity_mms is beyond threshold
+                if row_omc[murphy_measures.index("PeakVelocity_mms")] >= thresh_PeakVelocity_mms:
+                    if verbose >= 1:
+                        print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
+                              f"PeakVelocity_mms beyond threshold for trial {id_s_omc}_{id_p}_{id_t}\n"
+                              f"Value: {row_omc[murphy_measures.index('PeakVelocity_mms')]}\n"
+                              f"Threshold: {thresh_PeakVelocity_mms}")
+                    continue
+                elif row_mmc[murphy_measures.index("PeakVelocity_mms")] >= thresh_PeakVelocity_mms:
+                    if verbose >= 1:
+                        print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
+                              f"PeakVelocity_mms beyond threshold for trial {id_s}_{id_p}_{id_t}\n"
+                              f"Value: {row_mmc[murphy_measures.index('PeakVelocity_mms')]}\n"
+                              f"Threshold: {thresh_PeakVelocity_mms}")
+                    continue
 
                 diff = row_mmc - row_omc
 
