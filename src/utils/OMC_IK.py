@@ -4,12 +4,10 @@ import sys
 import time
 import re
 import shutil
-import subprocess
+from operator import index
 
-from click import progressbar
 from tqdm import tqdm
 
-import argparse
 import pandas as pd
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
@@ -145,7 +143,12 @@ def run_opensim_OMC(stabilize_hip=True):
 
             if trial_done:
                 print(f"Skipping {identifier} as it is already done.")
-                df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"), "identifier": identifier, "status": "Already Done", "exception": ""}, ignore_index=True)
+                new_row = pd.DataFrame({"Date": time.strftime("%d.%m.%Y"),
+                                                  "Time": time.strftime("%H:%M:%S"),
+                                                  "identifier": identifier,
+                                                  "status": "Already Done",
+                                                  "exception": ""}, index=[len(df_log)])
+                df_log = pd.concat([df_log, new_row], ignore_index=True)
                 iDrinkUtilities.del_geometry_from_trial(trial)
                 continue
 
@@ -161,14 +164,23 @@ def run_opensim_OMC(stabilize_hip=True):
             try:
                 prepare_opensim(trial, filterflag=None)
                 iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'))
-                df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"),
-                                        "identifier": identifier, "status": "success", "exception": ""}, ignore_index=True)
+
+                new_row = pd.DataFrame({"Date": time.strftime("%d.%m.%Y"),
+                                        "Time": time.strftime("%H:%M:%S"),
+                                        "identifier": identifier,
+                                        "status": "success",
+                                        "exception": ""}, index=[len(df_log)])
+                df_log = pd.concat([df_log, new_row], ignore_index=True)
 
             except Exception as e:
                 print(e)
                 time.sleep(3)
-                df_log = df_log.append({"Date": time.strftime("%d.%m.%Y"), "Time": time.strftime("%H:%M:%S"),
-                                        "identifier": identifier, "status": "failed", "exception": str(e)}, ignore_index=True)
+                new_row = pd.DataFrame({"Date": time.strftime("%d.%m.%Y"),
+                                        "Time": time.strftime("%H:%M:%S"),
+                                        "identifier": identifier,
+                                        "status": "failed",
+                                        "exception": str(e)}, index=[len(df_log)])
+                df_log = pd.concat([df_log, new_row], ignore_index=True)
 
             iDrinkUtilities.del_geometry_from_trial(trial)
             df_log.to_csv(csv_path, index=False)
