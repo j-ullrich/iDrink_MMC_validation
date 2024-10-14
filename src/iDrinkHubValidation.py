@@ -606,21 +606,10 @@ def create_trial_objects():
         # Run the pipeline
         trial.run_pipeline(mode)"""
 
+def run_calibrations(trial_list):
 
-
-def run_mode():
-    """
-    Runs the pipeline for given mode.
-
-    :param:
-    :return:
-    """
-    global df_trials
-    # First create list of trials to iterate through
-    trial_list = create_trial_objects()
-
-    # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     for trial in trial_list:
+
         try:
             if trial.calib == None:
                 if args.verbose >= 2:
@@ -629,7 +618,7 @@ def run_mode():
                 delta_calibration_val(trial, log_calib, args.verbose, df_settings, root_data)
 
         except Exception as e:
-            if args.verbose >=2:
+            if args.verbose >= 2:
                 print(f"Error in Calibration for {trial.identifier}")
                 print(e)
             iDrinkLog.log_error(args, trial, e, 'calibration', '', log_val_errors)
@@ -643,7 +632,23 @@ def run_mode():
                 print(e)
             iDrinkLog.log_error(args, trial, e, 'calibration_full', '', log_val_errors)
 
-    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+    return iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+
+def run_mode():
+    """
+    Runs the pipeline for given mode.
+
+    :param:
+    :return:
+    """
+    global df_trials
+    # First create list of trials to iterate through
+    trial_list = create_trial_objects()
+
+    # before starting on any mode, make sure, each Trial has their respective calibration file generated.
+    if args.mode in ["pose_estimation", "pose2sim"]:
+        df_trials = run_calibrations(trial_list)
+
 
     match args.mode:
         case "pose_estimation":  # Runs only the Pose Estimation
@@ -959,7 +964,9 @@ def run_mode():
                 if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'OS_done'].values[0]:
                     trial.OS_done = True
                 else:
-                    trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.mot')
+                    trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
+
+                trial.OS_done = False
                 if trial.OS_done:
                     if args.verbose >= 2:
                         print(f"Opensim for {trial.identifier} already done.")
