@@ -259,7 +259,7 @@ def del_json_from_trial(trial, pose_only=True, verbose=1):
     if pose_only:
         json_dirs = glob.glob(os.path.join(trial.dir_trial, 'pose', '*_json'))
     else:
-        json_dirs = glob.glob(os.path.join(trial.dir_trial, '**', '*_json'))
+        json_dirs = glob.glob(os.path.join(trial.dir_trial, '**', '*_json'), recursive=True)
 
     if verbose >= 1:
         prog = tqdm(json_dirs, desc="Deleting json files", position=0, leave=True)
@@ -270,6 +270,39 @@ def del_json_from_trial(trial, pose_only=True, verbose=1):
             prog.update(1)
     if verbose >= 1:
         prog.close()
+
+def del_json_from_root(root, verbose=1):
+    """Deletes all json files that are in a folder structrue with root as root directory"""
+
+    # Look for are .json files in tree and delete themd
+
+    json_dirs = glob.glob(os.path.join(root, '**', '*_json.zip'), recursive=True)
+    if json_dirs == []:
+        json_dirs = glob.glob(os.path.join(root, '**', '*_json'), recursive=True)
+    if json_dirs == []:
+        json_files = glob.glob(os.path.join(root, '**', '*.json'), recursive=True)
+
+
+
+    if json_dirs != []:
+        if verbose >= 1:
+            prog = tqdm(json_dirs, desc="Deleting json Directories", position=0, leave=True, unit='dir')
+        for dir in json_dirs:
+            shutil.rmtree(dir)
+            if verbose >= 1:
+                prog.update(1)
+        if verbose >= 1:
+            prog.close()
+    else:
+        if verbose >= 1:
+            prog = tqdm(json_files, desc="Deleting json files", position=0, leave=True, unit='file')
+        for file in json_files:
+            os.remove(file)
+            if verbose >= 1:
+                prog.update(1)
+        if verbose >= 1:
+            prog.close()
+
 
 def del_geometry_from_trial(trial, verbose=1):
     """
@@ -382,7 +415,7 @@ def unpack_zip_to_trial(trial, poseback, filt, root_val, json_dst='pose', verbos
 
 
     for cam, json_dir_src in cam_json:
-        basename = f"{trial.identifier}_{cam}_{os.path.basename(json_dir_src)}"
+        basename = f"{trial.identifier}_{cam}_{os.path.basename(json_dir_src).split('.zip')[0]}"
         json_dir_dst = os.path.join(dir_pose, basename)
 
 
@@ -404,11 +437,16 @@ if __name__ == '__main__':
 
     directories = glob.glob(os.path.join(r"I:\iDrink\validation_root\02_pose_estimation", "*", "*", "*", "pose2sim", "*_json"))
 
-    for directory in directories:
+    """for directory in directories:
 
         if glob.glob(os.path.join(directory, "*.zip")):
             continue
-        zip_file = pack_as_zip(directory)
+        zip_file = pack_as_zip(directory)"""
+
+    root = r"E:\iDrink\validation_root\03_data_test"
+
+    del_json_from_root(root)
+
 
     """directory_unzip = r"I:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07\P07_cam1\metrabs\trial_1_L_unaffected_json - Kopie_unzip"
     unpack_zip_into_directory(zip_file, directory_unzip)"""
