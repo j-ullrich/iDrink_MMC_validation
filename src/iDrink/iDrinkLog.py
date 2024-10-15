@@ -29,7 +29,7 @@ def get_new_row(trial, columns):
             new_row[column] = ', '.join(getattr(trial, column))
     return new_row
 
-def update_trial_csv(args, trial_list, csv_path, columns_to_add = None):
+def update_trial_csv(trial_list, csv_path, columns_to_add = None, verbose=1):
     """
     Updates the csv file containing the trial_informations.
 
@@ -48,22 +48,11 @@ def update_trial_csv(args, trial_list, csv_path, columns_to_add = None):
     if args.verbose >= 1:
         progress = tqdm(total=len(trial_list), desc="Updating CSV", unit="Trial")
     for trial in trial_list:
-
         df_trials = pd.concat([df_trials, get_new_row(trial, df_trials.columns).to_frame().T], axis=0, ignore_index=True)
 
         if columns_to_add is not None:
             df_trials = pd.concat([df_trials, get_new_row(trial, columns_to_add).to_frame().T], axis=0,
                                   ignore_index=True)
-
-            """
-            Old Version -- Keep until new version is tested
-            for column in columns_to_add:
-                try:
-                    df_trials.loc[df_trials.identifier == trial.identifier, column] = getattr(trial, column)
-                except:
-                    df_trials.loc[df_trials.identifier == trial.identifier, column] = ', '.join(getattr(trial, column))
-            """
-
         if args.verbose >= 1:
             progress.update(1)
 

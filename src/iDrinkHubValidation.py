@@ -632,7 +632,7 @@ def run_calibrations(trial_list):
                 print(e)
             iDrinkLog.log_error(args, trial, e, 'calibration_full', '', log_val_errors)
 
-    return iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+    return iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
 def run_mode():
     """
@@ -709,7 +709,7 @@ def run_mode():
                                     trial.MMPose_done = True
                                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
 
-                                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
                                 except Exception as e:
                                     if args.verbose>=2:
                                         print(f"Error in Pose Estimation\n"
@@ -720,9 +720,9 @@ def run_mode():
                                     trial.MMPose_done = False
 
                             if i % 10 == 0:  # Update after every 10 trials
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
-                        df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                        df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
 
                     case "pose2sim":
@@ -777,7 +777,7 @@ def run_mode():
                                     trial.P2SPose_done = True
                                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
 
-                                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
                                 except Exception as e:
                                     if args.verbose >= 2:
                                         print(f"Error in Pose Estimation\n"
@@ -788,9 +788,9 @@ def run_mode():
                                     trial.P2SPose_done = False
 
                             if i % 10 == 0:
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
-                        df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                        df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
                     case "metrabs_multi":
                         from Metrabs_PoseEstimation.metrabsPose2D_pt import metrabs_pose_estimation_2d_val
@@ -825,7 +825,7 @@ def run_mode():
                                     trial.Metrabs_multi_done = True
 
                                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
-                                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
                                 except Exception as e:
                                     if args.verbose >= 2:
                                         print(f"Error in Pose Estimation\n"
@@ -836,14 +836,14 @@ def run_mode():
                                     trial.Metrabs_multi_done = False
 
                             if i % 10 == 0:  # Update after every 10 trials
-                                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
                     case _:  # If no valid mode is given
                         print(f"Invalid HPE-Mode: {poseback}\n"
                               f"Please specify a valid mode.")
                         sys.exit(1)
 
-                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
 
         case "pose2sim":  # Runs only Pose2Sim
@@ -944,7 +944,7 @@ def run_mode():
                     p2s_progress.update(1)
 
                 if i % 5 == 0:  # Update after every 5 trials
-                    df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
             if args.verbose >= 1:
                 p2s_progress.close()
@@ -952,7 +952,7 @@ def run_mode():
                 print("Pose2Sim could not be completed for all Trials. Please Check whether Pose Estimaiton is fully done.\n"
                       "If not, please run Pose Estimation first. And then repeat Pose2Sim Mode.")
 
-            df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+            df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
         case "opensim":  # Runs only Opensim
             if args.verbose >= 1:
@@ -964,9 +964,8 @@ def run_mode():
                 if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'OS_done'].values[0]:
                     trial.OS_done = True
                 else:
-                    trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
+                    trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), 'Vec3.csv')
 
-                trial.OS_done = False
                 if trial.OS_done:
                     if args.verbose >= 2:
                         print(f"Opensim for {trial.identifier} already done.")
@@ -998,7 +997,7 @@ def run_mode():
                     opensim_progress.update(1)
 
 
-                df_trials = iDrinkLog.update_trial_csv(args, trial_list, log_val_trials)
+                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
             if args.verbose >= 1:
                 opensim_progress.close()

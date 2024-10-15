@@ -318,7 +318,9 @@ def del_geometry_from_trial(trial, verbose=1):
     if os.path.exists(geometry_dir):
         shutil.rmtree(geometry_dir)
         if verbose >= 1:
-            print(f"Deleted Geometry Folder in {trial.identifier}")
+            print(f"\n"
+                  f"Deleted Geometry Folder in {trial.identifier}\n"
+                  f"")
 
 
 def pack_as_zip(directory, verbose=1):
