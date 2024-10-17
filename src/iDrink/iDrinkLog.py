@@ -45,7 +45,7 @@ def update_trial_csv(trial_list, csv_path, columns_to_add = None, verbose=1):
     df_trials_old.to_csv(csv_path.split(".csv")[0] + "_safety.csv", sep=';', index=False)
     df_trials = pd.DataFrame(columns=df_trials_old.columns)
 
-    if args.verbose >= 1:
+    if verbose >= 1:
         progress = tqdm(total=len(trial_list), desc="Updating CSV", unit="Trial")
     for trial in trial_list:
         df_trials = pd.concat([df_trials, get_new_row(trial, df_trials.columns).to_frame().T], axis=0, ignore_index=True)
@@ -53,10 +53,10 @@ def update_trial_csv(trial_list, csv_path, columns_to_add = None, verbose=1):
         if columns_to_add is not None:
             df_trials = pd.concat([df_trials, get_new_row(trial, columns_to_add).to_frame().T], axis=0,
                                   ignore_index=True)
-        if args.verbose >= 1:
+        if verbose >= 1:
             progress.update(1)
 
-    if args.verbose >= 1:
+    if verbose >= 1:
         progress.close()
 
     df_trials.to_csv(csv_path, sep=';', index=False)
@@ -232,7 +232,7 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         print(f"Number of Trials created: {len(trial_list)}")
     return trial_list
 
-def does_HPE_zip_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpose", "pose2sim"]):
+def does_HPE_zip_exist(trial, pose_root, filtered=True, posebacks=["openpose", "metrabs", "mmpose", "pose2sim"]):
     """
     Checks if the zip files exist for all camera recordings of a trial.
 
@@ -271,9 +271,14 @@ def does_HPE_zip_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpo
     if type(posebacks) is str:
         posebacks = [posebacks]
 
+    if filtered:
+        filt = '02_filtered'
+    else:
+        filt = '01_unfiltered'
+
     # Check if the json files exist for all cameras
     for cam in cams:
-        cam_dir = os.path.realpath(os.path.join(pose_root, '02_filtered', id_p, f"{id_p}_{cam}"))
+        cam_dir = os.path.realpath(os.path.join(pose_root, filt, id_p, f"{id_p}_{cam}"))
         if not os.path.isdir(cam_dir):
             return False
         for poseback in posebacks:
@@ -282,7 +287,7 @@ def does_HPE_zip_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpo
                 return False  # If for one camera the number of json files is not equal to the number of frames return False
     return True
 
-def does_json_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpose", "pose2sim"]):
+def does_json_exist(trial, pose_root, filtered=True, posebacks=["openpose", "metrabs", "mmpose", "pose2sim"]):
     """
     Checks if json files exist for all camera recordings of a trial.
 
@@ -332,9 +337,14 @@ def does_json_exist(trial, pose_root, posebacks=["openpose", "metrabs", "mmpose"
         trial.n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         cap.release()
 
+    if filtered:
+        filt = '02_filtered'
+    else:
+        filt = '01_unfiltered'
+
     # Check if the json files exist for all cameras
     for cam in cams:
-        cam_dir = os.path.realpath(os.path.join(pose_root, '02_filtered', id_p, f"{id_p}_{cam}"))
+        cam_dir = os.path.realpath(os.path.join(pose_root, filt, id_p, f"{id_p}_{cam}"))
         if not os.path.isdir(cam_dir):
             return False
         for poseback in posebacks:

@@ -362,12 +362,15 @@ def pack_as_zip(directory, verbose=1):
     return zip_file
 
 
-def unpack_zip_into_directory(zip_file, directory, verbose=1):
+def unpack_zip_into_directory(zip_file, directory, delete_zip=False, verbose=1):
     """
     Unpacks a zip file into a directory.
 
+    if delete_zip is True, the zip file is deleted after unpacking.
+
     :param zip_file:
     :param directory:
+    :param delete_zip:
     :param verbose:
     :return:
     """
@@ -378,6 +381,9 @@ def unpack_zip_into_directory(zip_file, directory, verbose=1):
 
     with zipfile.ZipFile(zip_file, 'r') as zip_ref:
         zip_ref.extractall(path=directory)
+
+    if delete_zip:
+        os.remove(zip_file)
 
 def unpack_zip_to_trial(trial, poseback, filt, root_val, json_dst='pose', verbose=1):
     """
