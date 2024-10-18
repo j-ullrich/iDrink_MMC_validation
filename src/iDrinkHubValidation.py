@@ -1052,7 +1052,7 @@ if __name__ == '__main__':
     args.mode = "pose_estimation"
     args.mode = 'pose2sim'
     args.mode = 'opensim'
-    args.mode = 'murphy_measures'
+    #args.mode = 'murphy_measures'
     #args.poseback = ["mmpose", "pose2sim"]
     args.verbose = 2
 

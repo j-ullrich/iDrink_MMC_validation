@@ -65,21 +65,31 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
         os.makedirs(json_dir_filt, exist_ok=True)
 
     # Load Data from json Files
+    if verbose >= 1:
+        progress = tqdm(total=len(json_files), desc=f"Loading json-files in {os.path.basename(json_dir)}", position=0, leave=True)
     for frame_id, json_file in enumerate(json_files):
-        if verbose >= 2:
-            print(f"Loading: {frame_id} \t {json_file}")
+
+
         with open(os.path.join(json_dir, json_file)) as f:
+            if verbose >= 1:
+                progress.set_description(f"Loading: {f}")
             data = json.load(f)
             if not array_created:
-                array_created = True
                 arr_data = np.zeros((len(data['people']), len(json_files), len(data['people'][0]['pose_keypoints_2d'])))  # [person_id][Frame_id][Keypoint_id]
+                array_created = True
 
             for i in range(len(data['people'])):
                 try:
                     arr_data[i, frame_id] = data['people'][i]['pose_keypoints_2d']
                 except Exception as e:
-                    print(f"Error in {json_file}: {e}")
+                    print(f"Error in {os.path.basename(__file__)}.{filter_2d_pose_data.__name__} while loading data from json {json_file}\n"
+                          f"{e}")
                     print(f"Data: {data['people'][i]['pose_keypoints_2d']}")
+        if verbose >= 1:
+            progress.update(1)
+
+    if verbose >= 1:
+        progress.close()
 
 
     # Filter the Data
@@ -113,8 +123,9 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
             try: # TODO: Add function to find most probable person if there are too many --> Which is the cause of this error in p2s HPE
                 data['people'][i]['pose_keypoints_2d'] = arr_data[i, frame_id].tolist()
             except Exception as e:
-                print(f"Error in {json_file}: {e}")
-                print(f"Data: {data['people'][i]['pose_keypoints_2d']}")
+                print(f"Error in {os.path.basename(__file__)}.{filter_2d_pose_data.__name__} while writing {json_file}\n "
+                      f"{e}\n"
+                      f"Data: {data['people'][i]['pose_keypoints_2d']}")
 
         with open(os.path.join(json_dir_filt, json_file), 'w') as f:
             json.dump(data, f, indent=6)
@@ -139,8 +150,12 @@ def filt_p2s_pose(trial, root_val, verbose=1):
     unfilt_dir = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "01_unfiltered"))
     filt_dir = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "02_filtered"))
 
-    cam_dirs = glob.glob(os.path.realpath(os.path.join(filt_dir, trial.id_p, f"{trial.id_p}_cam*")))
+    cam_dirs = glob.glob(os.path.realpath(os.path.join(unfilt_dir, trial.id_p, f"{trial.id_p}_cam*")))
     cams = [re.search(r'cam\d+', cam).group(0) for cam in cam_dirs]
+
+    if verbose >= 2:
+        print(f"Filtering Pose Data for {trial.id_p}_{trial.id_t}\n"
+              f"Cameras:\t{cams}\n")
 
 
     # iterate over cameras
@@ -149,6 +164,10 @@ def filt_p2s_pose(trial, root_val, verbose=1):
                                               f"{trial.id_p}_{cam}", "pose2sim", rf"{id_t}_*_json")))[0]
 
         json_dir_filt = os.path.realpath(os.path.join(filt_dir, os.path.relpath(json_dir_unfilt, unfilt_dir)))
+
+        if verbose >= 2:
+            print("Source:\t", json_dir_unfilt, "\n")
+            print("Destination:\t", json_dir_filt, "\n")
 
         # filter the 2D Pose data
         filter_2d_pose_data(trial, json_dir_unfilt, json_dir_filt, filter='butter', verbose=verbose)
