@@ -98,9 +98,6 @@ def run_stat_murphy(df, id_s, root_stat_cat, verbose=1):
             row_mmc = df.loc[df['identifier'] == identifier, murphy_measures].values[0]
             row_omc = df.loc[(df['id_s'] == id_s_omc) & (df['id_p'] == id_p) & (df['id_t'] == id_t), murphy_measures].values[0]
 
-
-
-
 def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verbose=1):
     """
     Creates DataFrame containing the difference between OMC and MMC measurments for each trial.
@@ -141,14 +138,14 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
 
                 # Check if PeakVelocity_mms is beyond threshold
                 if row_omc[murphy_measures.index("PeakVelocity_mms")] >= thresh_PeakVelocity_mms:
-                    if verbose >= 1:
+                    if verbose >= 2:
                         print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
                               f"PeakVelocity_mms beyond threshold for trial {id_s_omc}_{id_p}_{id_t}\n"
                               f"Value: {row_omc[murphy_measures.index('PeakVelocity_mms')]}\n"
                               f"Threshold: {thresh_PeakVelocity_mms}")
                     continue
                 elif row_mmc[murphy_measures.index("PeakVelocity_mms")] >= thresh_PeakVelocity_mms:
-                    if verbose >= 1:
+                    if verbose >= 2:
                         print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
                               f"PeakVelocity_mms beyond threshold for trial {id_s}_{id_p}_{id_t}\n"
                               f"Value: {row_mmc[murphy_measures.index('PeakVelocity_mms')]}\n"
@@ -162,6 +159,97 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
                 df_diff.loc[df_diff.shape[0]] = row_diff
 
     return df_diff
+
+def get_datlists(df_murphy, measure, id_s, id_p=None):
+    """
+    Returns two lists containing the data of the OMC and MMC of the given measure.
+
+    if id_p is None, the function returns the data of all participants for the setting and measure
+
+    The data are sorted by the id_t in ascending order. If an id_t has to exist for omc and mmc to be added to the datalists.
+
+    :param df_murphy:
+    :param measure:
+    :param id_s:
+    :param id_p:
+    :return:
+    """
+
+
+
+    if id_p is None:
+        idx_p = sorted(list(df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique()))
+        idx_p = [id_p for id_p in idx_p if id_p in df_murphy[(df_murphy['id_s'] == 'S15133')]['id_p'].values]
+    else:
+        idx_p = [id_p]
+
+    dat_ref = []
+    dat_meas = []
+    for id_p in idx_p:
+        idx_t = sorted(list(df_murphy[(df_murphy['id_p'] == id_p) & (df_murphy['id_s'] == id_s)]['id_t'].unique()))
+        idx_t = [id_t for id_t in idx_t if id_t in df_murphy[(df_murphy['id_s'] == 'S15133') &
+                                                             (df_murphy['id_p'] == id_p)]['id_t'].values]
+        for id_t in idx_t:
+            dat_ref.append(df_murphy[(df_murphy['id_s'] == 'S15133') & (df_murphy['id_p'] == id_p) & (df_murphy['id_t'] == id_t)][measure].values[0])
+            dat_meas.append(df_murphy[(df_murphy['id_s'] == id_s) & (df_murphy['id_p'] == id_p) & (df_murphy['id_t'] == id_t)][measure].values[0])
+
+    return np.array(dat_ref), np.array(dat_meas)
+
+def save_plots_murphy(df_murphy, root_stat_cat, verbose=1):
+    """
+    Creates plots for the Murphy Measures of the MMC and OMC and saves them in the Statistics Folder.
+
+    :param df_murphy:
+    :param root_stat_cat:
+    :param verbose:
+    :return:
+    """
+    import iDrinkValPlots as iDrinkVP
+    global murphy_measures
+
+    idx_s = df_murphy['id_s'].unique()
+    idx_s_mmc = np.delete(idx_s, np.where(idx_s == 'S15133'))
+
+    root_plots = os.path.join(root_stat_cat, 'plots')
+
+    if not os.path.exists(root_plots):
+        os.makedirs(root_plots)
+
+    if verbose >= 1:
+        progress = tqdm(total=len(idx_s_mmc) * len(list(df_murphy['id_p'].unique())), desc="Creating Plots")
+    for id_s in idx_s_mmc:
+        idx_p = sorted(list(df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique()))
+        fullsettingplotted = False
+
+        for id_p in idx_p:
+            if verbose >= 1:
+                progress.set_description(f"Creating Plots for {id_s}_{id_p}")
+            idx_t = sorted(list(df_murphy[(df_murphy['id_p'] == id_p) & (df_murphy['id_s'] == id_s)]['id_t'].unique()))
+
+            for measure in murphy_measures:
+                dat_ref, dat_meas = get_datlists(df_murphy, measure, id_s, id_p)
+
+                path = os.path.join(root_plots,  f'bland_altman_{id_s}_{id_p}_{measure}.png')
+                iDrinkVP.plot_blandaltman(dat_ref, dat_meas, measure, id_s,
+                                          id_p, path=path, verbose=verbose, show_plots=False)
+
+                if not fullsettingplotted:
+                    dat_ref, dat_meas = get_datlists(df_murphy, measure, id_s)
+
+                    path = os.path.join(root_plots,  f'bland_altman_{id_s}_all_{measure}.png')
+                    iDrinkVP.plot_blandaltman(dat_ref, dat_meas, measure, id_s,
+                                              id_p, path=path, verbose=verbose, show_plots=False)
+                    fullsettingplotted = True
+
+            if verbose >= 1:
+                progress.update(1)
+
+    if verbose >= 1:
+        progress.close()
+
+
+
+    pass
 
 def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
     """
@@ -236,9 +324,11 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
     df_mean.to_csv(path_csv_murphy_mean, sep=';')
     df_rmse.to_csv(path_csv_murphy_rmse, sep=';')
 
+    save_plots_murphy(df_murphy, root_stat_cat, verbose=verbose)
 
     # Create DataFrame for each trial
     run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
+
 
 
     pass
@@ -766,7 +856,7 @@ if __name__ == '__main__':
     if os.name == 'posix':  # Running on Linux
         drive = '/media/devteam-dart/Extreme SSD'
     else:
-        drive = drives[5]
+        drive = drives[5] + '\\'
 
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")
@@ -829,6 +919,6 @@ if __name__ == '__main__':
             df_stat_cont = compare_timeseries_for_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
 
     else:
-        csv_murphy = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
+        csv_murphy = os.path.realpath(os.path.join(root_stat, '02_categorical', 'murphy_measures.csv'))
 
         runs_statistics_discrete(csv_murphy, root_stat)

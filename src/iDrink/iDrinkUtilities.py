@@ -434,21 +434,62 @@ def unpack_zip_to_trial(trial, poseback, filt, root_val, json_dst='pose', verbos
     if verbose >= 1:
         prog.close()
 
+def copy_files_from_to_dir(dir_src, dir_dst, empty_dst=False, filetype=None, verbose=1):
+    """
+    Move files from one directory to another.
+
+    if filetype is given, only files with this filetype are moved.
+
+    if empty_dst is True, the destination directory is emptied before moving files.
+
+    :param dir_src:
+    :param dir_dst:
+    :param filetype:
+    :param verbose:
+    :return:
+    """
+
+    if not os.path.exists(dir_dst):
+        os.makedirs(dir_dst, exist_ok=True)
+
+    if empty_dst:
+        for file in glob.glob(os.path.join(dir_dst, "*")):
+            os.remove(file)
+
+    if filetype is not None:
+        files = glob.glob(os.path.join(dir_src, f"*.{filetype}"))
+    else:
+        files = glob.glob(os.path.join(dir_src, "*"))
+
+    if verbose >= 1:
+        prog = tqdm(files, desc="Moving Files", unit="file", position=0, leave=True)
+
+    for file in files:
+        shutil.copy2(file, dir_dst, )
+
+        if verbose >= 1:
+            prog.update(1)
+
+    if verbose >= 1:
+        prog.close()
+
 
 if __name__ == '__main__':
 
-    directories = glob.glob(os.path.join(r"I:\iDrink\validation_root\02_pose_estimation", "*", "*", "*", "pose2sim", "*_json"))
+    root = r"I:\iDrink\validation_root\03_data"
 
-    """for directory in directories:
+    trial_dirs = glob.glob(os.path.join(root, "setting*", "*", "*", "*", "S*P*T*"))
 
-        if glob.glob(os.path.join(directory, "*.zip")):
-            continue
-        zip_file = pack_as_zip(directory)"""
+    progress = tqdm(trial_dirs, desc="Moving Files", unit="Trial", position=0, leave=True)
 
-    root = r"E:\iDrink\validation_root\03_data_test"
+    for trial_d in trial_dirs:
+        dir_src = os.path.join(trial_d, 'dir_trial not in path')
+        dir_dst = os.path.join(trial_d, 'movement_analysis', 'kin_opensim_analyzetool')
 
-    del_json_from_root(root)
+        copy_files_from_to_dir(dir_src, dir_dst, empty_dst=True, verbose=0)
 
+        progress.update(1)
+    progress.close()
 
     """directory_unzip = r"I:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07\P07_cam1\metrabs\trial_1_L_unaffected_json - Kopie_unzip"
     unpack_zip_into_directory(zip_file, directory_unzip)"""

@@ -45,7 +45,7 @@ def update_trial_csv(trial_list, csv_path, columns_to_add = None, verbose=1):
     df_trials_old.to_csv(csv_path.split(".csv")[0] + "_safety.csv", sep=';', index=False)
     df_trials = pd.DataFrame(columns=df_trials_old.columns)
 
-    if args.verbose >= 1:
+    if verbose >= 1:
         progress = tqdm(total=len(trial_list), desc="Updating CSV", unit="Trial")
     for trial in trial_list:
         df_trials = pd.concat([df_trials, get_new_row(trial, df_trials.columns).to_frame().T], axis=0, ignore_index=True)
@@ -53,10 +53,10 @@ def update_trial_csv(trial_list, csv_path, columns_to_add = None, verbose=1):
         if columns_to_add is not None:
             df_trials = pd.concat([df_trials, get_new_row(trial, columns_to_add).to_frame().T], axis=0,
                                   ignore_index=True)
-        if args.verbose >= 1:
+        if verbose >= 1:
             progress.update(1)
 
-    if args.verbose >= 1:
+    if verbose >= 1:
         progress.close()
 
     df_trials.to_csv(csv_path, sep=';', index=False)
@@ -178,12 +178,12 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         pose_model = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", id_s).group()), "pose_model"].values[0]
 
         # Drive in path
-        dir_session = correct_drive(row["dir_session"], drive)
-        dir_participant = correct_drive(row["dir_participant"], drive)
-        dir_trial = correct_drive(row["dir_trial"], drive)
-        video_files = correct_drive(ast.literal_eval(row["video_files"]), drive)
-        dir_calib = correct_drive(row["dir_calib"], drive)
-        dir_calib_videos = correct_drive(row["dir_calib_videos"], drive)
+        dir_session = os.path.realpath(correct_drive(row["dir_session"], drive))
+        dir_participant = os.path.realpath(correct_drive(row["dir_participant"], drive))
+        dir_trial = os.path.realpath(correct_drive(row["dir_trial"], drive))
+        video_files = [os.path.realpath(file) for file in correct_drive(ast.literal_eval(row["video_files"]), drive)]
+        dir_calib = os.path.realpath(correct_drive(row["dir_calib"], drive))
+        dir_calib_videos = os.path.realpath(correct_drive(row["dir_calib_videos"], drive))
 
         # Convert paths from Windows to Linux or vice versa
         if os.name == 'posix' and '\\' in dir_trial:
