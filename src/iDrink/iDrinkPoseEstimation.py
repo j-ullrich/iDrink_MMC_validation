@@ -65,10 +65,14 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
         os.makedirs(json_dir_filt, exist_ok=True)
 
     # Load Data from json Files
+    if verbose >= 1:
+        progress = tqdm(total=len(json_files), desc=f"Loading json-files in {os.path.basename(json_dir)}", position=0, leave=True)
     for frame_id, json_file in enumerate(json_files):
-        if verbose >= 2:
-            print(f"Loading: {frame_id} \t {json_file}")
+
+
         with open(os.path.join(json_dir, json_file)) as f:
+            if verbose >= 1:
+                progress.set_description(f"Loading: {f}")
             data = json.load(f)
             if not array_created:
                 arr_data = np.zeros((len(data['people']), len(json_files), len(data['people'][0]['pose_keypoints_2d'])))  # [person_id][Frame_id][Keypoint_id]
@@ -81,6 +85,11 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
                     print(f"Error in {os.path.basename(__file__)}.{filter_2d_pose_data.__name__} while loading data from json {json_file}\n"
                           f"{e}")
                     print(f"Data: {data['people'][i]['pose_keypoints_2d']}")
+        if verbose >= 1:
+            progress.update(1)
+
+    if verbose >= 1:
+        progress.close()
 
 
     # Filter the Data
