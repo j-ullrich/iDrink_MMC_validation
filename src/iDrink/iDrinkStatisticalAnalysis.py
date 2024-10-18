@@ -236,10 +236,11 @@ def save_plots_murphy(df_murphy, root_stat_cat, verbose=1):
                 if not fullsettingplotted:
                     dat_ref, dat_meas = get_datlists(df_murphy, measure, id_s)
 
-                    path = os.path.join(root_plots,  f'bland_altman_{id_s}_all_{measure}.png')
+                    path = os.path.join(root_plots,  f'bland_altman_all_{id_s}_{measure}.png')
                     iDrinkVP.plot_blandaltman(dat_ref, dat_meas, measure, id_s,
-                                              id_p, path=path, verbose=verbose, show_plots=False)
-                    fullsettingplotted = True
+                                              path=path, verbose=verbose, show_plots=False)
+
+            fullsettingplotted = True
 
             if verbose >= 1:
                 progress.update(1)
@@ -251,7 +252,7 @@ def save_plots_murphy(df_murphy, root_stat_cat, verbose=1):
 
     pass
 
-def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
+def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms = 3000, thresh_elbowVelocity=None, verbose=1):
     """
     Takes Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
     :param df_mmc:
@@ -265,6 +266,12 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
 
     idx_s = df_murphy['id_s'].unique()
     idx_s_mmc = np.delete(idx_s, np.where(idx_s == 'S15133'))
+
+    # delete rows in df_murphy if PeakVelocity_mms is beyond threshold and if
+    df_murphy = df_murphy[df_murphy['PeakVelocity_mms'] < thresh_PeakVelocity_mms]
+    if thresh_elbowVelocity is not None:
+        df_murphy = df_murphy[df_murphy['elbowVelocity'] < thresh_elbowVelocity]
+
 
     # Create subset of DataFrame containing all trials that are also in OMC
     df = pd.DataFrame(columns=df_murphy.columns)
@@ -280,7 +287,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, verbose=1):
                 df = pd.concat([df, df_omc[(df_omc['id_p'] == id_p) & (df_omc['id_t'] == id_t)]])
 
         df = pd.concat([df_s, df])
-    df_diff = get_mmc_omc_difference(df, root_stat_cat, verbose=verbose)
+    df_diff = get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=thresh_PeakVelocity_mms, verbose=verbose)
 
     # Create DataFrame containing absolute values of the differences
     df_abs_diff = df_diff.copy()
@@ -921,4 +928,4 @@ if __name__ == '__main__':
     else:
         csv_murphy = os.path.realpath(os.path.join(root_stat, '02_categorical', 'murphy_measures.csv'))
 
-        runs_statistics_discrete(csv_murphy, root_stat)
+        runs_statistics_discrete(csv_murphy, root_stat, thresh_PeakVelocity_mms=1000, thresh_elbowVelocity=4)

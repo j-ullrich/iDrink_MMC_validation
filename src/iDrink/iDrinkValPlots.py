@@ -18,27 +18,37 @@ def plot_blandaltman(dat_ref, dat_measured, measured_value, id_s, id_p=None, pat
     :return:
     """
     import plotly.graph_objects as go
+    import statsmodels.api as sm
 
-    # calculate mean, difference, mean of differences, standard deviation of differences, upper and lower limits
+    # calculate mean, difference, mean of differences, standard deviation of differences, upper and lower limits, smoother
     mean = np.mean([dat_ref, dat_measured], axis=0)
     diff = dat_ref - dat_measured
     mean_diff = np.mean(diff)
     std_diff = np.std(diff)
-    upper_limit = mean_diff + 1.96 * std_diff
-    lower_limit = mean_diff - 1.96 * std_diff
+    sd = 1.96
+    upper_limit = mean_diff + sd * std_diff
+    lower_limit = mean_diff - sd * std_diff
+    lowess = sm.nonparametric.lowess(diff, mean, frac=0.6)
 
     # creating plot
     fig = go.Figure()
 
+    # Add horicontal line at 0
+    fig.add_trace(go.Scatter(x=[min(mean), max(mean)], y=[0, 0], mode='lines', name='Zero Difference', line=dict(color='grey', dash='dash')))
+
     # Scatter -Plot of means against differences
-    fig.add_trace(go.Scatter(x=mean, y=diff, mode='markers', name='Differenzen'))
+    fig.add_trace(go.Scatter(x=mean, y=diff, mode='markers', name='Differences'))
 
     # mean of differences
-    fig.add_trace(go.Scatter(x=mean, y=[mean_diff]*len(mean), mode='lines', name='Mittelwert der Differenzen'))
+    fig.add_trace(go.Scatter(x=mean, y=[mean_diff]*len(mean), mode='lines', name='Mean of Differences'))
 
     # limits of agreement
-    fig.add_trace(go.Scatter(x=mean, y=[upper_limit]*len(mean), mode='lines', name='Oberes Limit (1.96 SD)', line=dict(dash='dash')))
-    fig.add_trace(go.Scatter(x=mean, y=[lower_limit]*len(mean), mode='lines', name='Unteres Limit (1.96 SD)', line=dict(dash='dash')))
+    fig.add_trace(go.Scatter(x=mean, y=[upper_limit]*len(mean), mode='lines', name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
+    fig.add_trace(go.Scatter(x=mean, y=[lower_limit]*len(mean), mode='lines', name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
+
+    # smoother
+    fig.add_trace(
+        go.Scatter(x=lowess[:, 0], y=lowess[:, 1], mode='lines', name='Smoother (LOWESS)', line=dict(color='red')))
 
     # update the layout
     if id_p is not None:
@@ -47,9 +57,21 @@ def plot_blandaltman(dat_ref, dat_measured, measured_value, id_s, id_p=None, pat
         title = f'Bland-Altman Plot for {measured_value} of {id_s}'
 
 
+    range_lim = max(abs(min(diff)), abs(max(diff))) * 1.5
+    y_range = [-range_lim, range_lim]
+
     fig.update_layout(title=title,
-                      xaxis_title=f'{measured_value} of OMC',
-                      yaxis_title=f'Difference of {id_s} from OMC')
+                      xaxis_title=f'mean of {measured_value}',
+                      yaxis_title=f'Difference of MMC from OMC',
+                      yaxis=dict(range=y_range),
+                      legend=dict(
+                          orientation="h",
+                          x=0,
+                          y=-0.2  # Positionierung unterhalb der x-Achse
+                      )
+                      )
+
+
     if verbose>=1 and show_plots:
         fig.show()
 
@@ -65,4 +87,4 @@ if __name__ == "__main__":
     data1 = np.array([1, 2, 3, 4, 5])
     data2 = np.array([1.15554, 2.5, 2.4, 4.8, 8])
     path = r"I:\iDrink\test.png"
-    plot_blandaltman(data1, data2, path=path, show_plot=True)
+    plot_blandaltman(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)
