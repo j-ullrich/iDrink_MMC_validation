@@ -233,11 +233,18 @@ def save_plots_murphy(df_murphy, root_stat_cat, verbose=1):
                 iDrinkVP.plot_blandaltman(dat_ref, dat_meas, measure, id_s,
                                           id_p, path=path, verbose=verbose, show_plots=False)
 
+                path = os.path.join(root_plots, f'residuals_vs_mmc_{id_s}_{id_p}_{measure}.png')
+                iDrinkVP.plot_measured_vs_errors(dat_ref, dat_meas, measure, id_s,
+                                          id_p, path=path, verbose=verbose, show_plots=False)
+
                 if not fullsettingplotted:
                     dat_ref, dat_meas = get_datlists(df_murphy, measure, id_s)
 
                     path = os.path.join(root_plots,  f'bland_altman_all_{id_s}_{measure}.png')
                     iDrinkVP.plot_blandaltman(dat_ref, dat_meas, measure, id_s,
+                                              path=path, verbose=verbose, show_plots=False)
+                    path = os.path.join(root_plots, f'residuals_vs_mmc_all_{id_s}_{measure}.png')
+                    iDrinkVP.plot_measured_vs_errors(dat_ref, dat_meas, measure, id_s,
                                               path=path, verbose=verbose, show_plots=False)
 
             fullsettingplotted = True
@@ -928,4 +935,4 @@ if __name__ == '__main__':
     else:
         csv_murphy = os.path.realpath(os.path.join(root_stat, '02_categorical', 'murphy_measures.csv'))
 
-        runs_statistics_discrete(csv_murphy, root_stat, thresh_PeakVelocity_mms=1000, thresh_elbowVelocity=4)
+        runs_statistics_discrete(csv_murphy, root_stat, thresh_PeakVelocity_mms=2000, thresh_elbowVelocity=None)
