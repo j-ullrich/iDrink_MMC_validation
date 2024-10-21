@@ -648,6 +648,10 @@ def run_mode():
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     if args.mode in ["pose_estimation", "pose2sim"]:
         df_trials = run_calibrations(trial_list)
+        if args.mode == "pose_estimation" and args.poseback != "metrabs_multi":
+            pass
+        else:
+            df_trials = run_calibrations(trial_list)
 
 
     match args.mode:
