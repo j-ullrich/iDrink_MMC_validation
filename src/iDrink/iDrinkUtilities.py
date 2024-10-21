@@ -482,7 +482,7 @@ def copy_files_from_to_dir(dir_src, dir_dst, empty_dst=False, filetype=None, ver
 
 if __name__ == '__main__':
 
-    root = r"I:\iDrink\validation_root\03_data"
+    """root = r"I:\iDrink\validation_root\03_data"
 
     trial_dirs = glob.glob(os.path.join(root, "setting*", "*", "*", "*", "S*P*T*"))
 
@@ -495,7 +495,31 @@ if __name__ == '__main__':
         copy_files_from_to_dir(dir_src, dir_dst, empty_dst=True, verbose=0)
 
         progress.update(1)
-    progress.close()
+    progress.close()"""
+
+    roots = [r"E:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07",
+             r"E:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P08",
+             r"E:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P10",
+             r"E:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P11",
+             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P07",
+             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P08",
+             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P12",
+             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P13",
+             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P14",
+             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P15",
+             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P16",
+             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P18",
+             ]
+
+    for root in roots:
+        directories = glob.glob(os.path.join(root, '*', '*', '*_json'))
+
+        for directory in directories:
+            if glob.glob(os.path.join(directory, '*.json')):
+                zip_file = pack_as_zip(directory)
+                print(f"Zip File created: {zip_file}")
+
+
 
     """directory_unzip = r"I:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07\P07_cam1\metrabs\trial_1_L_unaffected_json - Kopie_unzip"
     unpack_zip_into_directory(zip_file, directory_unzip)"""

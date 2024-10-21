@@ -26,7 +26,6 @@ def check_if_calib_done_for_cam_setting(curr_trial, df_settings, root_data):
 
         if used_cams == tuple([int(cam) for cam in curr_trial.used_cams]):
             idx.append(index)
-            print(index)
 
     # check for each setting with the same cams-setup whether their p_ids calibration has been done
     for id in idx:
