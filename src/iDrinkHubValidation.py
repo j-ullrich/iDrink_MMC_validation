@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[3] + '\\'
+    drive = drives[2] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -608,12 +608,20 @@ def create_trial_objects():
 
 def run_calibrations(trial_list):
 
+    failed_p = []
+    failed_s = []
+    failed_p_full = []
     for trial in trial_list:
 
         try:
             if trial.calib == None:
                 if args.verbose >= 2:
                     print(f"Start calibration for {trial.identifier}")
+
+                if trial.id_p in failed_p and trial.id_s in failed_s:
+                    if args.verbose >= 2:
+                        print(f"Skip calibration for {trial.identifier} as it failed before.")
+                    continue
 
                 delta_calibration_val(trial, log_calib, args.verbose, df_settings, root_data)
 
@@ -622,8 +630,15 @@ def run_calibrations(trial_list):
                 print(f"Error in Calibration for {trial.identifier}")
                 print(e)
             iDrinkLog.log_error(args, trial, e, 'calibration', '', log_val_errors)
+            failed_p.append(trial.id_p)
+            failed_s.append(trial.id_s)
 
         try:
+            if trial.id_p in failed_p_full:
+                if args.verbose >= 2:
+                    print(f"Skip full calibration for {trial.identifier} as it failed before.")
+                continue
+
             # Full Calibration is needed for Pose Estimation. There a calib file containing all cameras is needed.
             delta_full_calibration_val(trial, log_calib_full, args.verbose)
         except Exception as e:
@@ -631,6 +646,8 @@ def run_calibrations(trial_list):
                 print(f"Error in Full Calibration for {trial.identifier}")
                 print(e)
             iDrinkLog.log_error(args, trial, e, 'calibration_full', '', log_val_errors)
+
+            failed_p_full.append(trial.id_p)
 
     return iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
@@ -1054,10 +1071,13 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-    args.mode = 'pose2sim'
-    args.mode = 'opensim'
+    #args.mode = 'pose2sim'
+    #args.mode = 'opensim'
     #args.mode = 'murphy_measures'
-    #args.poseback = ["mmpose", "pose2sim"]
+
+    args.poseback = ["mmpose", "pose2sim"]
+
+    args.poseback = 'metrabs_multi'
     args.verbose = 2
 
 

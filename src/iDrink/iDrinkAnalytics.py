@@ -527,7 +527,7 @@ def get_phases_idrink(curr_trial, output_file=None, plot_plots=False):
             window = np.ones(int(smoothing_factor)) / (int(smoothing_factor))
             dist_hand_face = np.convolve(dist_hand_face, window, "same")"""
             #dist_hand_face = smooth_timeseries(curr_trial, dist_hand_face, factor=curr_trial.smoothing_divisor_vel)
-            dist_hand_face = use_butterworth_filter(curr_trial, dist_hand_face, cutoff=curr_trial.butterworth_cutoff, fs=curr_trial.frame_rate, order=curr_trial.butterworth_order )
+            dist_hand_face = use_butterworth_filter(dist_hand_face, cutoff=curr_trial.butterworth_cutoff, fs=curr_trial.frame_rate, order=curr_trial.butterworth_order )
 
         max_dist = max(dist_hand_face)
         min_dist_ID = dist_hand_face.argmin()

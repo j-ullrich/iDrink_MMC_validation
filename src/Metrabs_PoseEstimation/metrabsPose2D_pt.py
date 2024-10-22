@@ -294,7 +294,7 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
                     arr_data[person_id, :, keypoint_id] = smooth_timeseries(curr_trial, arr_data[person_id, :, keypoint_id])
 
                 case 'butter':
-                    arr_data[person_id, :, keypoint_id] = use_butterworth_filter(curr_trial=curr_trial, data=arr_data[person_id, :, keypoint_id],
+                    arr_data[person_id, :, keypoint_id] = use_butterworth_filter(data=arr_data[person_id, :, keypoint_id],
                                                                          cutoff=curr_trial.butterworth_cutoff,
                                                                          fs=curr_trial.frame_rate,
                                                                          order=curr_trial.butterworth_order)
@@ -444,14 +444,14 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
         buffer = []
         BUFFER_SIZE = 27
 
-        tot_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        n_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         cap.release()
 
         with torch.inference_mode(), torch.device('cuda'):
             frames_in, _, vid_meta = torchvision.io.read_video(video, output_format='TCHW')
 
             if verbose >= 1:
-                progress = tqdm(total=tot_frames, desc=f"Trial: {curr_trial.identifier} - {cam} - Video: {os.path.basename(video)}", position=0, leave=True)
+                progress = tqdm(total=n_frames, desc=f"Trial: {curr_trial.identifier} - {cam} - Video: {os.path.basename(video)}", position=0, leave=True)
 
             for frame_idx, frame in enumerate(frames_in):
                 """pred = multiperson_model_pt.detect_poses(frame, skeleton=skeleton,
@@ -520,7 +520,7 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
                 print(f'Call filtering function')
             df_filt = filter_df(df, fps, verbose)
 
-
+            n_markers = len(joint_names)
 
             df_to_trc(df_filt, trc_file_filt, identifier, fps, n_frames, n_markers)
             df_to_trc(df, trc_file_unfilt, identifier, fps, n_frames, n_markers)
@@ -539,6 +539,8 @@ def metrabs_pose_estimation_2d(dir_video, calib_file, dir_out_video, dir_out_jso
 
     joint_names = multiperson_model_pt.per_skeleton_joint_names[skeleton]
     joint_edges = multiperson_model_pt.per_skeleton_joint_edges[skeleton].cpu().numpy()
+
+    n_markers = len(joint_names)
 
     # Check if the directory exists, if not create it
     if not os.path.exists(dir_out_video):
