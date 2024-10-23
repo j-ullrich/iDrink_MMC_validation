@@ -137,20 +137,21 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
                     continue
 
                 # Check if PeakVelocity_mms is beyond threshold
-                if row_omc[murphy_measures.index("PeakVelocity_mms")] >= thresh_PeakVelocity_mms:
-                    if verbose >= 2:
-                        print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
-                              f"PeakVelocity_mms beyond threshold for trial {id_s_omc}_{id_p}_{id_t}\n"
-                              f"Value: {row_omc[murphy_measures.index('PeakVelocity_mms')]}\n"
-                              f"Threshold: {thresh_PeakVelocity_mms}")
-                    continue
-                elif row_mmc[murphy_measures.index("PeakVelocity_mms")] >= thresh_PeakVelocity_mms:
-                    if verbose >= 2:
-                        print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
-                              f"PeakVelocity_mms beyond threshold for trial {id_s}_{id_p}_{id_t}\n"
-                              f"Value: {row_mmc[murphy_measures.index('PeakVelocity_mms')]}\n"
-                              f"Threshold: {thresh_PeakVelocity_mms}")
-                    continue
+                if thresh_PeakVelocity_mms is not None:
+                    if row_omc[murphy_measures.index("PeakVelocity_mms")] >= thresh_PeakVelocity_mms:
+                        if verbose >= 2:
+                            print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
+                                  f"PeakVelocity_mms beyond threshold for trial {id_s_omc}_{id_p}_{id_t}\n"
+                                  f"Value: {row_omc[murphy_measures.index('PeakVelocity_mms')]}\n"
+                                  f"Threshold: {thresh_PeakVelocity_mms}")
+                        continue
+                    elif row_mmc[murphy_measures.index("PeakVelocity_mms")] >= thresh_PeakVelocity_mms:
+                        if verbose >= 2:
+                            print(f"Error in {os.path.basename(__file__)}.{get_mmc_omc_difference.__name__}\n"
+                                  f"PeakVelocity_mms beyond threshold for trial {id_s}_{id_p}_{id_t}\n"
+                                  f"Value: {row_mmc[murphy_measures.index('PeakVelocity_mms')]}\n"
+                                  f"Threshold: {thresh_PeakVelocity_mms}")
+                        continue
 
                 diff = row_mmc - row_omc
 
@@ -195,7 +196,7 @@ def get_datlists(df_murphy, measure, id_s, id_p=None):
 
     return np.array(dat_ref), np.array(dat_meas)
 
-def save_plots_murphy(df_murphy, root_stat_cat, verbose=1):
+def save_plots_murphy(df_murphy, root_stat_cat, filetype = '.png', verbose=1):
     """
     Creates plots for the Murphy Measures of the MMC and OMC and saves them in the Statistics Folder.
 
@@ -216,7 +217,7 @@ def save_plots_murphy(df_murphy, root_stat_cat, verbose=1):
         os.makedirs(root_plots)
 
     if verbose >= 1:
-        progress = tqdm(total=len(idx_s_mmc) * len(list(df_murphy['id_p'].unique())), desc="Creating Plots")
+        progress = tqdm(total=sum(len(sublist) for sublist in list(df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique() for id_s in idx_s)), desc="Creating Plots")
     for id_s in idx_s_mmc:
         idx_p = sorted(list(df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique()))
         fullsettingplotted = False
@@ -227,25 +228,24 @@ def save_plots_murphy(df_murphy, root_stat_cat, verbose=1):
             idx_t = sorted(list(df_murphy[(df_murphy['id_p'] == id_p) & (df_murphy['id_s'] == id_s)]['id_t'].unique()))
 
             for measure in murphy_measures:
-                dat_ref, dat_meas = get_datlists(df_murphy, measure, id_s, id_p)
+                filename = os.path.join(root_plots,  f'bland_altman_{id_s}_{id_p}_{measure}')
+                iDrinkVP.plot_blandaltman(df_murphy, measure, id_s, id_p, filename=filename,
+                                          filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
 
-                path = os.path.join(root_plots,  f'bland_altman_{id_s}_{id_p}_{measure}.png')
-                iDrinkVP.plot_blandaltman(dat_ref, dat_meas, measure, id_s,
-                                          id_p, path=path, verbose=verbose, show_plots=False)
-
-                path = os.path.join(root_plots, f'residuals_vs_mmc_{id_s}_{id_p}_{measure}.png')
-                iDrinkVP.plot_measured_vs_errors(dat_ref, dat_meas, measure, id_s,
-                                          id_p, path=path, verbose=verbose, show_plots=False)
+                filename = os.path.join(root_plots, f'residuals_vs_mmc_{id_s}_{id_p}_{measure}')
+                iDrinkVP.plot_blandaltman(df_murphy, measure, id_s, id_p,
+                                          plot_to_val=True, filename=filename, show_id_t=False, verbose=verbose,
+                                          filetype=filetype, show_plots=False)
 
                 if not fullsettingplotted:
-                    dat_ref, dat_meas = get_datlists(df_murphy, measure, id_s)
+                    filename = os.path.join(root_plots,  f'bland_altman_all_{id_s}_{measure}')
+                    iDrinkVP.plot_blandaltman(df_murphy, measure, id_s, filename=filename,
+                                              filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
 
-                    path = os.path.join(root_plots,  f'bland_altman_all_{id_s}_{measure}.png')
-                    iDrinkVP.plot_blandaltman(dat_ref, dat_meas, measure, id_s,
-                                              path=path, verbose=verbose, show_plots=False)
-                    path = os.path.join(root_plots, f'residuals_vs_mmc_all_{id_s}_{measure}.png')
-                    iDrinkVP.plot_measured_vs_errors(dat_ref, dat_meas, measure, id_s,
-                                              path=path, verbose=verbose, show_plots=False)
+                    filename = os.path.join(root_plots, f'residuals_vs_mmc_all_{id_s}_{measure}')
+                    iDrinkVP.plot_blandaltman(df_murphy, measure, id_s, filename=filename,
+                                              filetype=filetype, plot_to_val=True, show_id_t=False, verbose=verbose,
+                                              show_plots=False)
 
             fullsettingplotted = True
 
@@ -259,7 +259,7 @@ def save_plots_murphy(df_murphy, root_stat_cat, verbose=1):
 
     pass
 
-def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms = 3000, thresh_elbowVelocity=None, verbose=1):
+def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms = None, thresh_elbowVelocity=None, verbose=1):
     """
     Takes Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
     :param df_mmc:
@@ -275,7 +275,8 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms
     idx_s_mmc = np.delete(idx_s, np.where(idx_s == 'S15133'))
 
     # delete rows in df_murphy if PeakVelocity_mms is beyond threshold and if
-    df_murphy = df_murphy[df_murphy['PeakVelocity_mms'] < thresh_PeakVelocity_mms]
+    if thresh_PeakVelocity_mms is not None:
+        df_murphy = df_murphy[df_murphy['PeakVelocity_mms'] < thresh_PeakVelocity_mms]
     if thresh_elbowVelocity is not None:
         df_murphy = df_murphy[df_murphy['elbowVelocity'] < thresh_elbowVelocity]
 
@@ -338,7 +339,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms
     df_mean.to_csv(path_csv_murphy_mean, sep=';')
     df_rmse.to_csv(path_csv_murphy_rmse, sep=';')
 
-    save_plots_murphy(df_murphy, root_stat_cat, verbose=verbose)
+    save_plots_murphy(df_murphy, root_stat_cat, filetype=['.html', '.png'], verbose=verbose)
 
     # Create DataFrame for each trial
     run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
@@ -935,4 +936,4 @@ if __name__ == '__main__':
     else:
         csv_murphy = os.path.realpath(os.path.join(root_stat, '02_categorical', 'murphy_measures.csv'))
 
-        runs_statistics_discrete(csv_murphy, root_stat, thresh_PeakVelocity_mms=2000, thresh_elbowVelocity=None)
+        runs_statistics_discrete(csv_murphy, root_stat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)
