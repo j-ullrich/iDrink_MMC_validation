@@ -205,6 +205,11 @@ def calibrate_vids_in_directory(directory, verbose=1):
     p_id = re.search("P\d+", directory).group()
     calib_file = os.path.join(directory, f'{p_id}_calibration.toml')
 
+    if os.path.isfile(calib_file):
+        if verbose >= 2:
+            print(f"Calibration file {calib_file} already exists.")
+        return
+
     formats = ['*.mp4', '*.avi', '*.mov', '*.mkv']
     patterns = [os.path.join(directory, f) for f in formats]
     video_files = []
@@ -237,17 +242,10 @@ def calibrate_vids_in_directory(directory, verbose=1):
 if __name__ == '__main__':
 
     #calibrate_vids_in_directory(r"I:\Delta\data_newStruc\P13\01_Measurement\04_Video\05_Calib_before")
-    d = []
-
-    for i in range(7, 253):
-        p_id = f"P{i:02d}"
-        d.append(rf"I:\Delta\data_newStruc\{p_id}\01_Measurement\04_Video\05_Calib_before")
-
-    """d = [r"I:\Delta\data_newStruc\P10\01_Measurement\04_Video\05_Calib_before",
-         r"I:\Delta\data_newStruc\P11\01_Measurement\04_Video\05_Calib_before"]"""
+    root = r"Y:\DELTA\DELTA\DATA\data_newStruc"
+    d = glob.glob(os.path.join(root, "*", "01_Measurement", "04_Video", "05_Calib_before"))
 
     for directory in d:
         if os.path.isdir(directory):
             calibrate_vids_in_directory(directory)
-
     pass
