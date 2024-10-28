@@ -870,7 +870,7 @@ if __name__ == '__main__':
     if os.name == 'posix':  # Running on Linux
         drive = '/media/devteam-dart/Extreme SSD'
     else:
-        drive = drives[5] + '\\'
+        drive = drives[1] + '\\'
 
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")

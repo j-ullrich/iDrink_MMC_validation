@@ -450,6 +450,8 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
         with torch.inference_mode(), torch.device('cuda'):
             frames_in, _, vid_meta = torchvision.io.read_video(video, output_format='TCHW')
 
+            fps = vid_meta['video_fps']
+
             if verbose >= 1:
                 progress = tqdm(total=n_frames, desc=f"Trial: {curr_trial.identifier} - {cam} - Video: {os.path.basename(video)}", position=0, leave=True)
 
@@ -478,7 +480,6 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
 
                     if writer is None:
                         size = (frame_out.shape[1], frame_out.shape[0])
-                        fps = vid_meta['video_fps']
                         vid_out = os.path.join(out_video, f"{os.path.basename(video).split('.mp4')[0]}.avi")
                         writer = cv2.VideoWriter(vid_out, cv2.VideoWriter_fourcc(*'MJPG'), fps, size)
 
@@ -495,6 +496,7 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
                 print(f"Garbage collection for {video}")
             del frames_in
             gc.collect()
+            torch.cuda.empty_cache()
 
             filter_2d_pose_data(curr_trial, json_dir_unfilt, json_dir_filt)
 
@@ -528,11 +530,12 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
             if verbose >= 2:
                 print(f'3D Pose Estimation done and .trc files saved to {dir_out_trc}')
 
-    pack_as_zip(json_dir_unfilt)
-    pack_as_zip(json_dir_filt)
+        pack_as_zip(json_dir_unfilt)
+        pack_as_zip(json_dir_filt)
 
     del multiperson_model_pt
     gc.collect()
+    torch.cuda.empty_cache()
 
 def metrabs_pose_estimation_2d(dir_video, calib_file, dir_out_video, dir_out_json, multiperson_model_pt, identifier,
                                skeleton='bml_movi_87', DEBUG=False):
