@@ -145,12 +145,7 @@ def create_trial_objects():
     """
     global df_trials
 
-    if sys.gettrace() is not None:  # If Debugger is in Use, limit settings to first 10
-        n_settings = min(10,df_settings["setting_id"].max())
-    else:
-        n_settings = df_settings["setting_id"].max()
-
-
+    n_settings = df_settings["setting_id"].max()
 
     def trials_from_video():
         """
@@ -170,7 +165,10 @@ def create_trial_objects():
             id_s = f"S{setting_id:03d}"  # get Setting ID for use as Session ID in the Pipeline
             cam_setting = df_settings.loc[df_settings["setting_id"] == setting_id, "cam_setting"].values[0]
             # Check whether Cam is used for Setting
-            cams_tuple = eval(df_settings.loc[df_settings["setting_id"] == setting_id, "cams"].values[ 0])  # Get the tuple of cams for the setting
+            cams_tuple = eval(df_settings.loc[df_settings["setting_id"] == setting_id, "cams"].values[ 0])  # Get the tuple of cams for the setting¨
+
+            if type(cams_tuple) == int:
+                cams_tuple = [cams_tuple]
 
 
             # Create Setting folder if not yet done
@@ -211,6 +209,11 @@ def create_trial_objects():
                     # Extract trial ID and format it
                     trial_number = int(re.search(r'trial_\d+', video_file).group(0).split('_')[1])
                     id_t = f'T{trial_number:03d}'
+
+                    if args.verbose >=1:
+                        #update name of progressbar
+                        progress_bar.set_description(f"Adding Trials to DataFrame: {id_s}_{id_p}_{id_t}")
+
                     identifier = f"{id_s}_{id_p}_{id_t}"
                     if args.verbose >=2:
                         print("Creating: ", identifier)
@@ -278,6 +281,8 @@ def create_trial_objects():
 
         trial_list = []
         for identifier in trials_df["identifier"]:
+            if args.verbose >= 1:
+                progress_bar.set_description(f"Creating Trial Objects: {identifier}")
 
             if args.verbose >= 2:
                 print(f"Setting and Videos for {identifier} are: ", trials_df.loc[trials_df["identifier"] == identifier, "setting_id"].values[0] , trials_df.loc[trials_df["identifier"] == identifier, "videos_used"].values[0])
@@ -554,7 +559,7 @@ def create_trial_objects():
 
             case "pose2sim":
                 print("creating trial objects for Pose2Sim")
-                trial_list = trials_from_json()
+                trial_list = trials_from_video()
 
             case "opensim":
                 print("creating trial objects for Opensim")
@@ -611,19 +616,49 @@ def run_calibrations(trial_list):
     failed_p = []
     failed_s = []
     failed_p_full = []
+    s_done = []
+    s_skipped_single_cam = []
+    s_skipped = []
+    s_all = []
+    p_done = []
+    p_all = []
     for trial in trial_list:
 
+        # Calibrate for all cameras used in recording
         try:
-            if trial.calib == None:
+            if trial.id_p in failed_p_full:
+                if args.verbose >= 2:
+                    print(f"Skip full calibration for {trial.identifier} as it failed before.")
+            else:
+
+                # Full Calibration is needed for Pose Estimation. There a calib file containing all cameras is needed.
+                delta_full_calibration_val(trial, log_calib_full, args.verbose)
+        except Exception as e:
+            if args.verbose >= 2:
+                print(f"Error in Full Calibration for {trial.identifier}")
+                print(e)
+            iDrinkLog.log_error(args, trial, e, 'calibration_full', '', log_val_errors)
+
+            failed_p_full.append(trial.id_p)
+
+        # Calibrate for cameras used in trial and setting
+        try:
+
+            if trial.id_p in failed_p and trial.id_s in failed_s:
+                if args.verbose >= 2:
+                    print(f"Skip calibration for {trial.identifier} as it failed before.")
+                    s_skipped.append(trial.id_s)
+            else:
                 if args.verbose >= 2:
                     print(f"Start calibration for {trial.identifier}")
-
-                if trial.id_p in failed_p and trial.id_s in failed_s:
+                if len(trial.used_cams) > 1:
+                    delta_calibration_val(trial, log_calib, args.verbose, df_settings, root_data)
+                    s_done.append(trial.id_s)
+                    p_done.append(trial.id_p)
+                else:
                     if args.verbose >= 2:
-                        print(f"Skip calibration for {trial.identifier} as it failed before.")
-                    continue
-
-                delta_calibration_val(trial, log_calib, args.verbose, df_settings, root_data)
+                        print(f"Skip calibration for {trial.identifier} as only one camera is used.")
+                        s_skipped_single_cam.append(trial.id_s)
 
         except Exception as e:
             if args.verbose >= 2:
@@ -633,21 +668,17 @@ def run_calibrations(trial_list):
             failed_p.append(trial.id_p)
             failed_s.append(trial.id_s)
 
-        try:
-            if trial.id_p in failed_p_full:
-                if args.verbose >= 2:
-                    print(f"Skip full calibration for {trial.identifier} as it failed before.")
-                continue
+        s_all.append(trial.id_s)
+        p_all.append(trial.id_p)
 
-            # Full Calibration is needed for Pose Estimation. There a calib file containing all cameras is needed.
-            delta_full_calibration_val(trial, log_calib_full, args.verbose)
-        except Exception as e:
-            if args.verbose >= 2:
-                print(f"Error in Full Calibration for {trial.identifier}")
-                print(e)
-            iDrinkLog.log_error(args, trial, e, 'calibration_full', '', log_val_errors)
 
-            failed_p_full.append(trial.id_p)
+    print(f's_all: \n{list(set(s_all))}\n'
+          f's_done: \n{list(set(s_done))}\n'
+          f's_skipped_single_cam: \n{list(set(s_skipped_single_cam))}\n'
+          f's_skipped: \n{list(set(s_skipped))}\n'
+          f'p_done: \n{list(set(p_done))}\n'
+          f'p_all: \n{list(set(p_all))}\n')
+
 
     return iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
@@ -669,6 +700,9 @@ def run_mode():
             pass
         else:
             df_trials = run_calibrations(trial_list)
+
+    if args.calibonly:
+        sys.exit(0)
 
 
     match args.mode:
@@ -881,52 +915,12 @@ def run_mode():
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
 
-                trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, ["mmpose", "pose2sim"])
-
                 if pose == 'metrabs_single':
-                    from Metrabs_PoseEstimation.metrabsPose3D_pt import metrabs_pose_estimation_3d_val
-                    try:
-                        model_path = os.path.realpath(
-                            os.path.join(metrabs_models_dir, 'pytorch', 'metrabs_eff2l_384px_800k_28ds_pytorch'))
+                    # TODO: Move .trc from pose estimation folder to trial dir
+                    pass
 
-                        if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'Metrabs_single_done'].values[0]:
-                            trial.Metrabs_single_done = True
-                        else:
-                            trial.Metrabs_single_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.trc', args.verbose)
-
-                        trial.Metrabs_single_done=False
-                        if trial.Metrabs_single_done:
-                            if args.verbose >= 2:
-                                print(f"Metrabs Single Cam Pose Estimation for {trial.identifier} already done.")
-                            continue
-                        else:
-                            try:
-                                dir_out_video = os.path.realpath(os.path.join(trial.dir_trial, 'videos', 'pose'))
-                                dir_out_trc = os.path.realpath(os.path.join(trial.dir_trial, 'pose-3d'))
-
-                                metrabs_pose_estimation_3d_val(trial.video_files[0], trial.calib, dir_out_video, dir_out_trc, model_path, trial.identifier,
-                                   skeleton='bml_movi_87', verbose=args.verbose, DEBUG=False)
-                                trial.Metrabs_single_done = False
-
-                            except Exception as e:
-                                if args.verbose >= 2:
-                                    print(f"Error in 3D Pose Estimation\n"
-                                          f"Trial: {trial.identifier}\n"
-                                          f"{e}")
-
-                                iDrinkLog.log_error(args, trial, e, 'metrabs_single_cam', pose, log_val_errors)
-                                trial.Metrabs_single_done = False
-
-                    except Exception as e:
-                        if args.verbose >= 2:
-                            print(f"Error in 3D Pose Estimation\n"
-                                  f"Trial: {trial.identifier}\n"
-                                  f"{e}")
-
-                        iDrinkLog.log_error(args, trial, e, 'metrabs_single_cam', pose, log_val_errors)
-                        trial.Metrabs_single_done = False
-                    os.chdir(os.path.dirname(os.path.realpath(__file__)))
                 else:
+                    trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
                     if trial.HPE_done:
                         if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
                             trial.P2S_done = True
@@ -945,7 +939,7 @@ def run_mode():
                                 if pose == "metrabs_multi":
                                     trial.run_pose2sim(only_triangulation=True)
                                 else:
-                                    trial.run_pose2sim(only_triangulation=True)
+                                    trial.run_pose2sim(only_triangulation=False)
 
                                 trial.P2S_done = True
 
@@ -1071,14 +1065,13 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-    #args.mode = 'pose2sim'
+    args.mode = 'pose2sim'
     #args.mode = 'opensim'
     #args.mode = 'murphy_measures'
-
-    args.poseback = ["mmpose", "pose2sim"]
-
-    args.poseback = 'metrabs_multi'
+    #args.poseback = ["mmpose", "pose2sim"]
+    #args.poseback = ['pose2sim', 'metrabs_multi']
     args.verbose = 2
+    args.calibonly = True
 
 
 

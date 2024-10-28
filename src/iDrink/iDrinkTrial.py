@@ -688,7 +688,7 @@ class Trial:
 
 
 
-    def run_pose2sim(self, only_triangulation=True):
+    def run_pose2sim(self, only_triangulation=True, do_sync=False):
         """Run Pose2Sim Pipeline"""
         from Pose2Sim import Pose2Sim
         # os.chdir(self.dir_trial)
@@ -713,7 +713,9 @@ class Trial:
             
             self.config_dict['pose']['pose_model'] = self.pose_model"""
         if not only_triangulation:
-            Pose2Sim.synchronization(config=self.config_dict)
+            if do_sync:
+                Pose2Sim.synchronization(config=self.config_dict)
+
             Pose2Sim.personAssociation(config=self.config_dict)
 
         Pose2Sim.triangulation(config=self.config_dict)

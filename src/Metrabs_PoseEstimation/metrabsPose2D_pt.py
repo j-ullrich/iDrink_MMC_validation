@@ -449,6 +449,7 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
 
         with torch.inference_mode(), torch.device('cuda'):
             frames_in, _, vid_meta = torchvision.io.read_video(video, output_format='TCHW')
+            fps = vid_meta['video_fps']
 
             fps = vid_meta['video_fps']
 
@@ -473,8 +474,8 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
                 json_out(pose_result_2d, frame_idx, json_dir_unfilt, video)
                 df = add_to_dataframe(df, pose_result_3d)
 
-                # Visualize Pose
 
+                # Visualize Pose
                 if write_video:
                     frame_out = plot_results_2d(frame, pred, joint_names, joint_edges)
 
@@ -482,7 +483,6 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
                         size = (frame_out.shape[1], frame_out.shape[0])
                         vid_out = os.path.join(out_video, f"{os.path.basename(video).split('.mp4')[0]}.avi")
                         writer = cv2.VideoWriter(vid_out, cv2.VideoWriter_fourcc(*'MJPG'), fps, size)
-
                         writer.write(frame_out)
                     else:
                         writer.write(frame_out)
