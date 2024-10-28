@@ -830,20 +830,8 @@ bml_movi_87 = Node("backneck", id=0, children=[
         Node("thor", id=70, children=[
             Node("pelv", id=69, children=[
                 Node("mhip", id=68, children=[
-                    Node("rhip", id=81, children=[
-                        Node("rkne", id=83, children=[
-                            Node("rank", id=79, children=[
-                                Node("rfoo", id=86)
-                            ]),
-                        ])
-                    ]),
-                    Node("lhip", id=73, children=[
-                        Node("lkne", id=75, children=[
-                            Node("lank", id=71, children=[
-                                Node("lfoo", id=78)
-                            ]),
-                        ])
-                    ]),
+                    Node("rhip", id=81),
+                    Node("lhip", id=73),
                 ])
             ]),
             Node("lsho", id=76, children=[
@@ -859,70 +847,11 @@ bml_movi_87 = Node("backneck", id=0, children=[
         ])
     ]),
 
-    Node("upperback", id=1),
     Node("clavicle", id=2),
-    Node("sternum", id=3),
-    Node("umbilicus", id=4),
-    Node("lfronthead", id=5),
-    Node("lbackhead", id=6),
-    Node("lback", id=7),
-    Node("lshom", id=8),
-    Node("lupperarm", id=9),
-    Node("lelbm", id=10),
-    Node("lforearm", id=11),
     Node("lwrithumbside", id=12),
     Node("lwripinkieside", id=13),
-    Node("lfin", id=14),
-    Node("lasis", id=15),
-    Node("lpsis", id=16),
-    Node("lfrontthigh", id=17),
-    Node("lthigh", id=18),
-    Node("lknem", id=19),
-    Node("lankm", id=20),
-    Node("lhee", id=21),
-    Node("lfifthmetatarsal", id=22),
-    Node("ltoe", id=23),
     Node("lcheek", id=24),
-    Node("lbreast", id=25),
-    Node("lelbinner", id=26),
-    Node("lwaist", id=27),
-    Node("lthumb", id=28),
-    Node("lfrontinnerthigh", id=29),
-    Node("linnerknee", id=30),
-    Node("lshin", id=31),
-    Node("lfirstmetatarsal", id=32),
-    Node("lfourthtoe", id=33),
-    Node("lscapula", id=34),
-    Node("lbum", id=35),
-    Node("rfronthead", id=36),
-    Node("rbackhead", id=37),
-    Node("rback", id=38),
-    Node("rshom", id=39),
-    Node("rupperarm", id=40),
-    Node("relbm", id=41),
-    Node("rforearm", id=42),
     Node("rwrithumbside", id=43),
     Node("rwripinkieside", id=44),
-    Node("rfin", id=45),
-    Node("rasis", id=46),
-    Node("rpsis", id=47),
-    Node("rfrontthigh", id=48),
-    Node("rthigh", id=49),
-    Node("rknem", id=50),
-    Node("rankm", id=51),
-    Node("rhee", id=52),
-    Node("rfifthmetatarsal", id=53),
-    Node("rtoe", id=54),
     Node("rcheek", id=55),
-    Node("rbreast", id=56),
-    Node("relbinner", id=57),
-    Node("rwaist", id=58),
-    Node("rthumb", id=59),
-    Node("rfrontinnerthigh", id=60),
-    Node("rinnerknee", id=61),
-    Node("rshin", id=62),
-    Node("rfirstmetatarsal", id=63),
-    Node("rfourthtoe", id=64),
-    Node("rscapula", id=65),
-    Node("rbum", id=66),
 ])
