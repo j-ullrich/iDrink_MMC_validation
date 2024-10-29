@@ -384,7 +384,7 @@ def get_paired_rom(df_stat, roms):
 
     return df_paired_rom_diff
 
-def reduce_to_valid_trials(dirs_trial):
+def reduce_to_valid_trials(dirs_trial, dirs_omc, verbose = 1):
     """
     Iterates over list of directories and checks if the directory contains a valid trial.
 
@@ -394,23 +394,68 @@ def reduce_to_valid_trials(dirs_trial):
     :param dirs_trial:
     :return:
     """
-    valid_dirs = []
+    valid_dirs_trial = []
+    valid_dirs_omc = []
 
-    for dir_trial in dirs_trial:
+    for dir_trial, dir_omc in zip(dirs_trial, dirs_omc):
         dir_analyzetool = os.path.join(dir_trial, 'movement_analysis', 'kin_opensim_analyzetool')
+        dir_analyzetool_omc = os.path.join(dir_omc, 'movement_analysis', 'kin_opensim_analyzetool')
 
         # get list of .sto files in directory
         sto_files = glob.glob(os.path.join(dir_analyzetool, '*.sto'))
 
+        sto_files_omc = glob.glob(os.path.join(dir_analyzetool_omc, '*.sto'))
+
         # No. of files needs to be 4
         # If more than 4, old files left in folder --> no influence on validity.
 
-        if len(sto_files) >= 4:
-            valid_dirs.append(dir_trial)
 
-    return valid_dirs
+        #Check that patient and trial id are the same
+        p_id = os.path.basename(dir_trial).split('_')[1]
+        t_id = os.path.basename(dir_trial).split('_')[2]
 
-def run_statistics_time_series(root_settings, root_stat_ts, df_settings, joints_of_interest, body_parts_of_interest ,verbose=1):
+        p_id_omc = os.path.basename(dir_omc).split('_')[1]
+        t_id_omc = os.path.basename(dir_omc).split('_')[2]
+
+        if p_id != p_id_omc or t_id != t_id_omc:
+            if verbose >= 1:
+                print(f"Error in {os.path.basename(__file__)}.{reduce_to_valid_trials.__name__}\n"
+                      f"Patient or Trial ID do not match for trial {dir_trial} and {dir_omc}")
+            continue
+
+
+        if len(sto_files) >= 4 and len(sto_files_omc) >= 4:
+            valid_dirs_trial.append(dir_trial)
+            valid_dirs_omc.append(dir_omc)
+
+    return valid_dirs_trial, valid_dirs_omc
+
+
+def get_omc_dirs(dirs_trial, root_omc):
+    """
+    iterates over list of trial directories and returns a list of corresponding omc_trial_directories.
+
+    dirs_trial[i] <==> dirs_omc[i]
+
+
+    :param dirs_trial:
+    :return dirs_omc:
+    """
+
+    dirs_omc = []
+    id_s = 'S15133'
+
+    for dir_trial in dirs_trial:
+        pass
+
+        id_p = os.path.basename(dir_trial).split('_')[1]
+        id_t = os.path.basename(dir_trial).split('_')[2]
+
+        dirs_omc.append(os.path.join(root_omc, f'{id_s}_{id_p}', f'{id_s}_{id_p}_{id_t}'))
+
+    return dirs_omc
+
+def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, joints_of_interest, body_parts_of_interest, body_parts_of_interest_no_axes, verbose=1):
     """
     Calculate Statistics for time-series Data.
 
@@ -422,8 +467,8 @@ def run_statistics_time_series(root_settings, root_stat_ts, df_settings, joints_
 
     setting_csv: average over all trials for each setting. no. files generated #S
 
-    :param root_settings:
-    :param root_stat_ts:
+    :param root_data:
+    :param dir_stat_ts:
     :param df_settings:
     :param joints_of_interest:
     :param body_parts_of_interest:
@@ -431,7 +476,7 @@ def run_statistics_time_series(root_settings, root_stat_ts, df_settings, joints_
     :return:
     """
 
-    dirs_setting = glob.glob(os.path.join(root_settings, 'setting*'))
+    dirs_setting = glob.glob(os.path.join(root_data, 'setting*'))
 
     idx_s = ['S' + os.path.basename(d).split('_')[1] for d in dirs_setting]
 
@@ -441,15 +486,95 @@ def run_statistics_time_series(root_settings, root_stat_ts, df_settings, joints_
 
         for j , id_p in enumerate(idx_p):
 
-            dirs_trial = glob.glob(os.path.join(dirs_p[j], id_s, f'{id_s}_{id_p}', f'{id_s}_{id_p}_T*'))
+            dirs_trial_mmc = glob.glob(os.path.join(dirs_p[j], id_s, f'{id_s}_{id_p}', f'{id_s}_{id_p}_T*'))
 
-            dirs_trial = reduce_to_valid_trials(dirs_trial)
+            dirs_omc = get_omc_dirs(dirs_trial_mmc, root_omc)
+
+            dirs_trial_mmc, dirs_omc = reduce_to_valid_trials(dirs_trial_mmc, dirs_omc)
+
+            for dir_trial_mmc, dir_omc in zip(dirs_trial_mmc, dirs_omc):
+
+                # Load Data
+                files_bodyparts_mmc = glob.glob(os.path.join(dir_trial_mmc, 'movement_analysis', 'kin_opensim_analyzetool', '*global.sto'))
+                df_mmc_body_pos, df_mmc_body_vel, df_mmc_body_acc = get_dataframes(files_bodyparts_mmc)
+                files_joints_mmc = glob.glob(os.path.join(dir_trial_mmc, 'movement_analysis', 'ik_tool', '*.csv'))
+                df_mmc_joint_pos, df_mmc_joint_vel, df_mmc_joint_acc = get_dataframes(files_joints_mmc)
+
+                files_bodyparts_omc = glob.glob(os.path.join(dir_omc, 'movement_analysis', 'kin_opensim_analyzetool', '*global.sto'))
+                df_omc_body_pos, df_omc_body_vel, df_omc_body_acc = get_dataframes(files_bodyparts_omc)
+                files_joints_omc = glob.glob(os.path.join(dir_omc, 'movement_analysis', 'ik_tool', '*.csv'))
+                df_omc_joint_pos, df_omc_joint_vel, df_omc_joint_acc = get_dataframes(files_joints_omc)
+
+                pass
+
+                df_stat_body_pos = compare_timeseries_for_trial(df_mmc_body_pos, df_omc_body_pos,
+                                                                body_parts_of_interest, isjoint=False,
+                                                                 verbose=verbose)
+                df_stat_body_vel = compare_timeseries_for_trial(df_mmc_body_vel, df_omc_body_vel,
+                                                                body_parts_of_interest, isjoint=False,
+                                                                 verbose=verbose)
+                df_stat_body_acc = compare_timeseries_for_trial(df_mmc_body_acc, df_omc_body_acc,
+                                                                body_parts_of_interest, isjoint=False,
+                                                                 verbose=verbose)
+
+                df_stat_joint_pos = compare_timeseries_for_trial(df_mmc_joint_pos, df_omc_joint_pos,
+                                                                 joints_of_interest, isjoint=True,
+                                                                  verbose=verbose)
+                df_stat_joint_vel = compare_timeseries_for_trial(df_mmc_joint_vel, df_omc_joint_vel,
+                                                                 joints_of_interest, isjoint=True,
+                                                                  verbose=verbose)
+                df_stat_joint_acc = compare_timeseries_for_trial(df_mmc_joint_acc, df_omc_joint_acc,
+                                                                 joints_of_interest, isjoint=True,
+                                                                  verbose=verbose)
+
+                pass
+                # Write to csv
+                dir_csv = os.path.join(dir_stat_ts, '01_results')
+                os.makedirs(dir_csv, exist_ok=True)
+
+                path_csv_stat_pos = os.path.join(dir_csv, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_pos.csv')
+                path_csv_stat_vel = os.path.join(dir_csv, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_vel.csv')
+                path_csv_stat_acc = os.path.join(dir_csv, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_acc.csv')
+
+                df_stat_body_pos.to_csv(path_csv_stat_pos, sep=';')
+                df_stat_body_vel.to_csv(path_csv_stat_vel, sep=';')
+                df_stat_body_acc.to_csv(path_csv_stat_acc, sep=';')
+
+                df_stat_joint_pos.to_csv(path_csv_stat_pos, sep=';')
+                df_stat_joint_vel.to_csv(path_csv_stat_vel, sep=';')
+                df_stat_joint_acc.to_csv(path_csv_stat_acc, sep=';')
+
+                if verbose >= 1:
+                    print(f"Statistics for {os.path.basename(dir_trial_mmc)} written to {path_csv_stat_pos}")
+                    print(f"Statistics for {os.path.basename(dir_trial_mmc)} written to {path_csv_stat_vel}")
+                    print(f"Statistics for {os.path.basename(dir_trial_mmc)} written to {path_csv_stat_acc}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+            pass
+
+
+    pass
+
+
+
+
 
 
 
     pass
 
-def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, root_stat, verbose=1):
+def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, verbose=1):
     """
     Compares two Dataframes containing positional data, velocity or acceleration data.
 
@@ -476,7 +601,6 @@ def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, root_stat,
     :param df_omc:
     :param df_omc_vel:
     :param isjoint:
-    :param root_stat:
     :return:
     """
 
@@ -538,8 +662,8 @@ def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, root_stat,
 
         df_stat_cont[column] = [std, rmse, pearson, pearson_pval, rom_error, min_error, max_error, median_error, mean_error]
 
-    shapiro_rom = sp.stats.shapiro(df_stat_cont.loc['rom_error'].values)
-    df_paired_rom_diff = get_paired_rom(df_stat_cont, roms)
+    """shapiro_rom = sp.stats.shapiro(df_stat_cont.loc['rom_error'].values)
+    df_paired_rom_diff = get_paired_rom(df_stat_cont, roms)"""
 
     #sp.stats.tukey_hsd(df_stat_cont.loc['rom_error'].values)
 
@@ -773,13 +897,13 @@ def standardize_data(df, metadata=None, verbose=1):
     kinematicState = ""
 
     if metadata is not None:
-        if 'Coordinates' in metadata:
+        if 'Coordinates' in metadata or 'Positions' in metadata:
             if verbose >= 2:
                 print("Data is Position Data")
 
             kinematicState = 'pos'
 
-        if 'Speeds' in metadata:
+        if 'Speeds' in metadata or 'Velocities' in metadata:
             if verbose >= 2:
                 print("Data is Speed Data")
 
@@ -833,7 +957,7 @@ def get_dataframes(files):
     single_file = False
     kinematicState = ""
 
-    if type(files) is not dict:
+    if type(files) is not dict and type(files) is not list:
         single_file = True
         files = [files]
 
@@ -868,7 +992,7 @@ def get_dataframes(files):
                                      "Kinematic State not recognized.")
     return df_pos, df_vel, df_acc
 
-def get_omc_file(trial, root_omc, endeff=None, joint=None):
+def get_omc_file(id_p, id_t, root_omc, endeff=None, joint=None):
     """
     Gets the OMC file for the given trial.
 
@@ -883,8 +1007,6 @@ def get_omc_file(trial, root_omc, endeff=None, joint=None):
                          "Please specify only one.")
 
     id_s = 'S15133'
-    id_p = trial.id_p
-    id_t = trial.id_t
 
     root_mov_ana = os.path.join(root_omc, f'{id_s}_{id_p}', f'{id_s}_{id_p}_{id_t}', 'movement_analysis')
 
@@ -934,28 +1056,67 @@ if __name__ == '__main__':
     if os.name == 'posix':  # Running on Linux
         drive = '/media/devteam-dart/Extreme SSD'
     else:
-        drive = drives[1] + '\\'
+        drive = drives[5] + '\\'
 
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")
     root_stat = os.path.join(root_val, '04_Statistics')
     root_omc = os.path.join(root_val, '03_data', 'OMC', 'S15133')
     root_data = os.path.join(root_val, "03_data")
+    root_logs = os.path.join(root_val, "05_logs")
 
-    test_timeseries = False
+    # Prepare Logging Paths
+    log_val_settings = os.path.join(root_logs, "validation_settings.csv")
+    log_val_trials = os.path.join(root_logs, "validation_trials.csv")
+    log_val_errors = os.path.join(root_logs, "validation_errors.csv")
+
+    # prepare statistic paths
+    path_csv_murphy_timestamps = os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv')
+    path_csv_murphy_measures = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
+
+    df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
+
+    test_timeseries = True
+
+    joints_of_interest = ['hip_flexion_r', 'hip_adduction_r', 'hip_rotation_r',
+                          'hip_flexion_l', 'hip_adduction_l', 'hip_rotation_l',
+                          'neck_flexion', 'neck_bending', 'neck_rotation',
+                          'arm_flex_r', 'arm_add_r', 'arm_rot_r',
+                          'elbow_flex_r', 'pro_sup_r',
+                          'wrist_flex_r', 'wrist_dev_r',
+                          'arm_flex_l', 'arm_add_l', 'arm_rot_l',
+                          'elbow_flex_l', 'pro_sup_l',
+                          'wrist_flex_l', 'wrist_dev_l'
+                          ]
+
+    # Default Body Parts of Interest
+    body_parts_of_interest = ['time','pelvis_x','pelvis_y','pelvis_z',
+                              'femur_r_x','femur_r_y','femur_r_z','patella_r_x','patella_r_y','patella_r_z',
+                              'tibia_r_x','tibia_r_y','tibia_r_z','talus_r_x','talus_r_y','talus_r_z',
+                              'calcn_r_x','calcn_r_y','calcn_r_z','toes_r_x','toes_r_y','toes_r_z',
+                              'femur_l_x','femur_l_y','femur_l_z','patella_l_x','patella_l_y','patella_l_z',
+                              'tibia_l_x','tibia_l_y','tibia_l_z','talus_l_x','talus_l_y','talus_l_z',
+                              'calcn_l_x','calcn_l_y','calcn_l_z','toes_l_x','toes_l_y','toes_l_z',
+                              'lumbar5_x','lumbar5_y','lumbar5_z','lumbar4_x','lumbar4_y','lumbar4_z',
+                              'lumbar3_x','lumbar3_y','lumbar3_z','lumbar2_x','lumbar2_y','lumbar2_z',
+                              'lumbar1_x','lumbar1_y','lumbar1_z','torso_x','torso_y','torso_z',
+                              'head_x','head_y','head_z','abdomen_x','abdomen_y','abdomen_z',
+                              'humerus_r_x','humerus_r_y','humerus_r_z','ulna_r_x','ulna_r_y','ulna_r_z',
+                              'radius_r_x','radius_r_y','radius_r_z','hand_r_x','hand_r_y','hand_r_z',
+                              'humerus_l_x','humerus_l_y','humerus_l_z','ulna_l_x','ulna_l_y','ulna_l_z',
+                              'radius_l_x','radius_l_y','radius_l_z','hand_l_x','hand_l_y','hand_l_z']
+
+    # Default Body Parts of Interest without axes
+    body_parts_of_interest_no_axes = ['pelvis','femur_r','patella_r','tibia_r','talus_r',
+                                      'calcn_r','toes_r','femur_l','patella_l','tibia_l','talus_l',
+                                      'calcn_l','toes_l','lumbar5','lumbar4','lumbar3','lumbar2',
+                                      'lumbar1','torso','head','abdomen','humerus_r','ulna_r','radius_r',
+                                      'hand_r','humerus_l','ulna_l','radius_l','hand_l']
+
+    csv_murphy = os.path.realpath(os.path.join(root_stat, '02_categorical', 'murphy_measures.csv'))
 
     if test_timeseries:
-        joints_of_interest = ['hip_flexion_r','hip_adduction_r','hip_rotation_r',
-                              'hip_flexion_l','hip_adduction_l','hip_rotation_l',
-                              'neck_flexion','neck_bending','neck_rotation',
-                              'arm_flex_r','arm_add_r','arm_rot_r',
-                              'elbow_flex_r','pro_sup_r',
-                              'wrist_flex_r','wrist_dev_r',
-                              'arm_flex_l','arm_add_l','arm_rot_l',
-                              'elbow_flex_l','pro_sup_l',
-                              'wrist_flex_l','wrist_dev_l'
-                              ]
-
+        """
         joint_kin_openism = {
             'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_q.sto"),
             'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_u.sto"),
@@ -994,9 +1155,12 @@ if __name__ == '__main__':
         df_omc_pos, df_omc_vel, df_omc_acc = get_dataframes(files_omc)
 
         if continuous:
-            df_stat_cont = compare_timeseries_for_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)
+            df_stat_cont = compare_timeseries_for_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)"""
+
+        dir_stat_ts = os.path.join(root_stat, '01_continuous')
+        run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, joints_of_interest, body_parts_of_interest, body_parts_of_interest_no_axes)
 
     else:
-        csv_murphy = os.path.realpath(os.path.join(root_stat, '02_categorical', 'murphy_measures.csv'))
+
 
         runs_statistics_discrete(csv_murphy, root_stat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)
