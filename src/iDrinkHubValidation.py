@@ -909,9 +909,6 @@ def run_mode():
                     pass
 
                 else:
-                    if trial.id_s != 'S002':
-                        continue
-
                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
                     if trial.HPE_done:
                         if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
