@@ -236,15 +236,9 @@ def calibrate_vids_in_directory(directory, verbose=1):
 
 if __name__ == '__main__':
 
-    #calibrate_vids_in_directory(r"I:\Delta\data_newStruc\P13\01_Measurement\04_Video\05_Calib_before")
-    d = []
-
-    for i in range(7, 253):
-        p_id = f"P{i:02d}"
-        d.append(rf"I:\Delta\data_newStruc\{p_id}\01_Measurement\04_Video\05_Calib_before")
-
-    """d = [r"I:\Delta\data_newStruc\P10\01_Measurement\04_Video\05_Calib_before",
-         r"I:\Delta\data_newStruc\P11\01_Measurement\04_Video\05_Calib_before"]"""
+    root = r"Y:\DELTA\DELTA\DATA\data_newStruc"
+    d = glob.glob(os.path.join(root, "*", "01_Measurement", "04_Video", "05_Calib_before"))
+    d = [r"Y:\DELTA\DELTA\DATA\data_newStruc\P15\01_Measurement\04_Video\05_Calib_before"]
 
     for directory in d:
         if os.path.isdir(directory):
