@@ -672,14 +672,6 @@ def run_calibrations(trial_list):
         p_all.append(trial.id_p)
 
 
-    print(f's_all: \n{list(set(s_all))}\n'
-          f's_done: \n{list(set(s_done))}\n'
-          f's_skipped_single_cam: \n{list(set(s_skipped_single_cam))}\n'
-          f's_skipped: \n{list(set(s_skipped))}\n'
-          f'p_done: \n{list(set(p_done))}\n'
-          f'p_all: \n{list(set(p_all))}\n')
-
-
     return iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
 def run_mode():
@@ -917,6 +909,9 @@ def run_mode():
                     pass
 
                 else:
+                    if trial.id_s != 'S002':
+                        continue
+
                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
                     if trial.HPE_done:
                         if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
@@ -933,8 +928,9 @@ def run_mode():
                                 print(f"Trial: {trial.identifier} \t Posemode: {pose}")
                             iDrinkUtilities.unpack_zip_to_trial(trial, pose, filt, root_val)
                             try:
-                                if pose == "metrabs_multi":
-                                    trial.run_pose2sim(only_triangulation=True)
+                                if 'metrabs' in pose:
+                                    trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
+                                    trial.run_pose2sim(only_triangulation=False)
                                 else:
                                     trial.run_pose2sim(only_triangulation=False)
 
