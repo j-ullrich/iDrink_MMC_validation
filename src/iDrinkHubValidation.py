@@ -215,8 +215,6 @@ def create_trial_objects():
                         progress_bar.set_description(f"Adding Trials to DataFrame: {id_s}_{id_p}_{id_t}")
 
                     identifier = f"{id_s}_{id_p}_{id_t}"
-                    if args.verbose >=2:
-                        print("Creating: ", identifier)
 
                     trial_dir = os.path.join(part_dir, identifier)
                     if not os.path.exists(trial_dir):
@@ -933,6 +931,9 @@ def run_mode():
 
                                 trial.P2S_done = True
 
+                                if i % 5 == 0:  # Update after every 5 trials
+                                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
                             except Exception as e:
                                 if args.verbose >= 2:
                                     print(f"Pose2Sim for {trial.identifier} failed with error: {e}")
@@ -941,15 +942,18 @@ def run_mode():
 
                                 trial.P2S_done = False
 
+
+
                         iDrinkUtilities.del_json_from_trial(trial, False)
+
+
 
                     else:
                         print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
                 if args.verbose >= 1:
                     p2s_progress.update(1)
 
-                if i % 5 == 0:  # Update after every 5 trials
-                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
 
             if args.verbose >= 1:
                 p2s_progress.close()
