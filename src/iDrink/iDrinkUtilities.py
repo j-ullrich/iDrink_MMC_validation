@@ -497,25 +497,17 @@ if __name__ == '__main__':
         progress.update(1)
     progress.close()"""
 
-    roots = [r"E:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07",
-             r"E:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P08",
-             r"E:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P10",
-             r"E:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P11",
-             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P07",
-             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P08",
-             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P12",
-             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P13",
-             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P14",
-             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P15",
-             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P16",
-             r"E:\iDrink\validation_root\02_pose_estimation\02_filtered\P18",
-             ]
+    roots = [
+r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07",
+r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P08",
+r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P10",
+r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P11",
+r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P16",]
 
     for root in roots:
-        directories = glob.glob(os.path.join(root, '*', '*', '*_json'))
+        directories = glob.glob(os.path.join(root, '*', '*', '*', '*_json'))
 
         for directory in directories:
-            if glob.glob(os.path.join(directory, '*.json')):
                 zip_file = pack_as_zip(directory)
                 print(f"Zip File created: {zip_file}")
 

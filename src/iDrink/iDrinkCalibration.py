@@ -197,13 +197,28 @@ def delta_full_calibration_val(curr_trial, path_error_csv, verbose=1):
 
 
 
-def calibrate_vids_in_directory(directory, verbose=1):
+def calibrate_vids_in_directory(directory, path_error_csv, overwrite=False, verbose=1):
 
 
     """Calibrates videos in given directory."""
 
     p_id = re.search("P\d+", directory).group()
     calib_file = os.path.join(directory, f'{p_id}_calibration.toml')
+
+    # prepare Log of Calibration errors
+    if os.path.isfile(path_error_csv):
+        df_error = pd.read_csv(path_error_csv, sep=';')
+    else:
+        df_error = pd.DataFrame(columns=["id_p",  "cam_used", "error"])
+
+    if os.path.isfile(calib_file):
+        if verbose >= 2:
+            print(f"Calibration file {calib_file} already exists.")
+
+            if overwrite:
+                os.remove(calib_file)
+            else:
+                return
 
     formats = ['*.mp4', '*.avi', '*.mov', '*.mkv']
     patterns = [os.path.join(directory, f) for f in formats]
@@ -233,15 +248,21 @@ def calibrate_vids_in_directory(directory, verbose=1):
     # Save the camera group configuration to a TOML file named after the configuration
     cgroup.dump(calib_file)
 
+    new_row = pd.Series({"id_p": p_id, "cam_used": cam_names, "error": error})
+    df_error = pd.concat([df_error, new_row.to_frame().T], ignore_index=True)
+    df_error.to_csv(path_error_csv, sep=';', index=False)
+
 
 if __name__ == '__main__':
+    import time
 
-    root = r"Y:\DELTA\DELTA\DATA\data_newStruc"
+    #calibrate_vids_in_directory(r"I:\Delta\data_newStruc\P13\01_Measurement\04_Video\05_Calib_before")
+    root = r"D:\iDrink\Delta\data_newStruc_full"
     d = glob.glob(os.path.join(root, "*", "01_Measurement", "04_Video", "05_Calib_before"))
-    d = [r"Y:\DELTA\DELTA\DATA\data_newStruc\P15\01_Measurement\04_Video\05_Calib_before"]
 
     for directory in d:
         if os.path.isdir(directory):
-            calibrate_vids_in_directory(directory)
+            calibrate_vids_in_directory(directory, verbose = 2)
+
 
     pass
