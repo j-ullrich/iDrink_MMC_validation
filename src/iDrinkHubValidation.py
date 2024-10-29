@@ -701,9 +701,6 @@ def run_mode():
         else:
             df_trials = run_calibrations(trial_list)
 
-    if args.calibonly:
-        sys.exit(0)
-
 
     match args.mode:
         case "pose_estimation":  # Runs only the Pose Estimation
@@ -1071,7 +1068,6 @@ if __name__ == '__main__':
     #args.poseback = ["mmpose", "pose2sim"]
     #args.poseback = ['pose2sim', 'metrabs_multi']
     args.verbose = 2
-    args.calibonly = True
 
 
 
