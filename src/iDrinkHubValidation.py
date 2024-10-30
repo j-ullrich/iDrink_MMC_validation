@@ -685,7 +685,6 @@ def run_mode():
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     if args.mode in ["pose_estimation", "pose2sim"]:
-        df_trials = run_calibrations(trial_list)
         if args.mode == "pose_estimation" and args.poseback != "metrabs_multi":
             pass
         else:
@@ -1072,11 +1071,11 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-    args.mode = 'pose2sim'
+    #args.mode = 'pose2sim'
     #args.mode = 'opensim'
     #args.mode = 'murphy_measures'
     #args.poseback = ["mmpose", "pose2sim"]
-    #args.poseback = ['pose2sim', 'metrabs_multi']
+    args.poseback = ["pose2sim", 'metrabs_multi']
     args.verbose = 2
 
 

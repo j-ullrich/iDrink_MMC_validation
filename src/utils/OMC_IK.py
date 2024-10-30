@@ -87,6 +87,13 @@ def run_opensim_OMC(stabilize_hip=True):
         "P252",
     ]
 
+    p_new_struc = [
+        "P241",
+        "P242",
+        "P251",
+        "P252",
+    ]
+
     id_s = "S15133"  # O:15 M:13 C:3
     trial_list = []
     if os.path.isfile(csv_path):

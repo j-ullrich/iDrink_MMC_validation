@@ -392,21 +392,10 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
 
 
 if __name__ == '__main__':
+    paths = glob.glob(os.path.join(r"I:\iDrink\validation_root\03_data\OMC_new\S15133", '*', '*', 'movement_analysis', 'ik_tool', '*_Kinematics_pos.csv'))
 
-    mot_omc = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\pose-3d\S15133_P07_T043_R_affected.mot"
-    omc_dir_dst = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\ik_tool"
-    path_omc_pos = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\ik_tool\S15133_P07_T043_Kinematics_pos.csv"
-    path_omc_vel = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\ik_tool\S15133_P07_T043_Kinematics_vel.csv"
-    path_omc_acc = r"I:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\ik_tool\S15133_P07_T043_Kinematics_acc.csv"
-
-    mot_mmc = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\pose-3d\S003_P07_T043_0-928_filt_butterworth.mot"
-    mmc_dir_dst = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\ik_tool"
-    path_mmc_pos = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\ik_tool\S003_P07_T043_Kinematics_pos.csv"
-    path_mmc_vel = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\ik_tool\S003_P07_T043_Kinematics_vel.csv"
-    path_mmc_acc = r"I:\iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\ik_tool\S003_P07_T043_Kinematics_acc.csv"
-
-    mot_to_csv(path_mot=mot_omc, path_dst=path_omc_pos)
-    get_joint_velocity_acceleration(csv_pos=path_omc_pos, dir_out=omc_dir_dst)
-
-    mot_to_csv(path_mot=mot_mmc, path_dst=path_mmc_pos)
-    get_joint_velocity_acceleration(csv_pos=path_mmc_pos, dir_out=mmc_dir_dst)
+    progress = tqdm(total=len(paths), desc="Calculating Joint Velocity and Acceleration", unit="Trial")
+    for path in paths:
+        progress.set_description(f"Processing {os.path.basename(path)}")
+        get_joint_velocity_acceleration(csv_pos=path, dir_out=os.path.dirname(path), filter_pos=False, verbose=0)
+        progress.update(1)

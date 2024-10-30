@@ -455,6 +455,88 @@ def get_omc_dirs(dirs_trial, root_omc):
 
     return dirs_omc
 
+
+def calc_mean_stat_p(dir_csv_p, dir_csv_t, id_s, id_p, verbose=1):
+    """
+    Iterate over .csv files containing statistical measures for each trial and calculate mean for each patient.
+
+    Add standard deviation for each measure
+
+
+    :param dir_csv_p:
+    :param dir_csv_t:
+    :param id_s:
+    :param id_p:
+    :param verbose:
+    :return:
+    """
+    pass
+
+    list_csv_t = glob.glob(os.path.join(dir_csv_t, f'{id_s}_{id_p}_*'))
+    df_sum = None
+    all_dfs = []
+
+    for csv_t in list_csv_t:
+        df_t = pd.read_csv(csv_t, sep=';', index_col=0)
+
+        if df_sum is None:
+            df_sum = df_t
+        else:
+            df_sum = df_sum + df_t
+
+        all_dfs.append(df_t)
+
+    df_mean = df_sum / len(list_csv_t)
+    df_std = pd.concat(all_dfs).groupby(level=0).std()
+
+    path_csv_mean = os.path.join(dir_csv_p, f'{id_s}_{id_p}_mean.csv')
+    df_mean.to_csv(path_csv_mean, sep=';')
+
+    path_csv_std = os.path.join(dir_csv_p, f'{id_s}_{id_p}_std.csv')
+    df_std.to_csv(path_csv_std, sep=';')
+
+
+
+
+
+def calc_mean_stat_s(dir_csv_s, dir_csv_t, id_s, verbose=1):
+    """
+    Iterate over .csv files containing statistical measures for each trial and calculate mean for each setting.
+
+    Add standard deviation for each measure
+
+
+    :param dir_csv_s:
+    :param dir_csv_p:
+    :param id_s:
+    :param verbose:
+    :return:
+    """
+    pass
+
+    list_csv_t = glob.glob(os.path.join(dir_csv_t, f'{id_s}_*'))
+    df_sum = None
+    all_dfs = []
+
+    for csv_t in list_csv_t:
+        df_t = pd.read_csv(csv_t, sep=';', index_col=0)
+
+        if df_sum is None:
+            df_sum = df_t
+        else:
+            df_sum = df_sum + df_t
+
+        all_dfs.append(df_t)
+
+    df_mean = df_sum / len(list_csv_t)
+    df_std = pd.concat(all_dfs).groupby(level=0).std()
+
+    path_csv_mean = os.path.join(dir_csv_s, f'{id_s}_mean.csv')
+    df_mean.to_csv(path_csv_mean, sep=';')
+
+    path_csv_std = os.path.join(dir_csv_s, f'{id_s}_std.csv')
+    df_std.to_csv(path_csv_std, sep=';')
+
 def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, joints_of_interest, body_parts_of_interest, body_parts_of_interest_no_axes, verbose=1):
     """
     Calculate Statistics for time-series Data.
@@ -478,6 +560,13 @@ def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, jo
 
     dirs_setting = glob.glob(os.path.join(root_data, 'setting*'))
 
+    dir_csv_t = os.path.join(dir_stat_ts, '01_results', '01_trial')
+    dir_csv_p = os.path.join(dir_stat_ts, '01_results', '02_patient')
+    dir_csv_s = os.path.join(dir_stat_ts, '01_results', '03_setting')
+
+    for dir in [dir_csv_t, dir_csv_p, dir_csv_s]:
+        os.makedirs(dir, exist_ok=True)
+
     idx_s = ['S' + os.path.basename(d).split('_')[1] for d in dirs_setting]
 
     for i, id_s in enumerate(idx_s):
@@ -491,8 +580,11 @@ def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, jo
             dirs_omc = get_omc_dirs(dirs_trial_mmc, root_omc)
 
             dirs_trial_mmc, dirs_omc = reduce_to_valid_trials(dirs_trial_mmc, dirs_omc)
-
+            if verbose >=1:
+                progress = tqdm(total=len(dirs_trial_mmc), desc=f"Calculating Statistics for {id_s}_{id_p}")
             for dir_trial_mmc, dir_omc in zip(dirs_trial_mmc, dirs_omc):
+                if verbose >= 1:
+                    progress.set_description(f"Calculating Statistics for {os.path.basename(dir_trial_mmc)}")
 
                 # Load Data
                 files_bodyparts_mmc = glob.glob(os.path.join(dir_trial_mmc, 'movement_analysis', 'kin_opensim_analyzetool', '*global.sto'))
@@ -504,6 +596,28 @@ def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, jo
                 df_omc_body_pos, df_omc_body_vel, df_omc_body_acc = get_dataframes(files_bodyparts_omc)
                 files_joints_omc = glob.glob(os.path.join(dir_omc, 'movement_analysis', 'ik_tool', '*.csv'))
                 df_omc_joint_pos, df_omc_joint_vel, df_omc_joint_acc = get_dataframes(files_joints_omc)
+
+                if any([df_mmc_body_pos is None, df_mmc_body_vel is None, df_mmc_body_acc is None,
+                        df_mmc_joint_pos is None, df_mmc_joint_vel is None, df_mmc_joint_acc is None,
+                        df_omc_body_pos is None, df_omc_body_vel is None, df_omc_body_acc is None,
+                        df_omc_joint_pos is None, df_omc_joint_vel is None, df_omc_joint_acc is None]):
+                    if verbose >= 1:
+                        print(f"Error in {os.path.basename(__file__)}.{run_statistics_time_series.__name__}\n"
+                              f"DataFrames could not be loaded for {os.path.basename(dir_trial_mmc)}"
+                              f"df_mmc_body_pos: \t{df_mmc_body_pos is None}\n"
+                              f"df_mmc_body_vel: \t{df_mmc_body_vel is None}\n"
+                              f"df_mmc_body_acc: \t{df_mmc_body_acc is None}\n"
+                              f"df_mmc_joint_pos: \t{df_mmc_joint_pos is None}\n"
+                              f"df_mmc_joint_vel: \t{df_mmc_joint_vel is None}\n"
+                              f"df_mmc_joint_acc: \t{df_mmc_joint_acc is None}\n"
+                              f"df_omc_body_pos: \t{df_omc_body_pos is None}\n"
+                              f"df_omc_body_vel: \t{df_omc_body_vel is None}\n"
+                              f"df_omc_body_acc: \t{df_omc_body_acc is None}\n"
+                              f"df_omc_joint_pos: \t{df_omc_joint_pos is None}\n"
+                              f"df_omc_joint_vel: \t{df_omc_joint_vel is None}\n"
+                              f"df_omc_joint_acc: \t{df_omc_joint_acc is None}\n")
+                    continue
+
 
                 pass
 
@@ -529,12 +643,9 @@ def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, jo
 
                 pass
                 # Write to csv
-                dir_csv = os.path.join(dir_stat_ts, '01_results')
-                os.makedirs(dir_csv, exist_ok=True)
-
-                path_csv_stat_pos = os.path.join(dir_csv, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_pos.csv')
-                path_csv_stat_vel = os.path.join(dir_csv, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_vel.csv')
-                path_csv_stat_acc = os.path.join(dir_csv, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_acc.csv')
+                path_csv_stat_pos = os.path.join(dir_csv_t, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_pos.csv')
+                path_csv_stat_vel = os.path.join(dir_csv_t, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_vel.csv')
+                path_csv_stat_acc = os.path.join(dir_csv_t, f'{id_s}_{id_p}_{os.path.basename(dir_trial_mmc)}_acc.csv')
 
                 df_stat_body_pos.to_csv(path_csv_stat_pos, sep=';')
                 df_stat_body_vel.to_csv(path_csv_stat_vel, sep=';')
@@ -544,27 +655,21 @@ def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, jo
                 df_stat_joint_vel.to_csv(path_csv_stat_vel, sep=';')
                 df_stat_joint_acc.to_csv(path_csv_stat_acc, sep=';')
 
-                if verbose >= 1:
+                if verbose >= 2:
                     print(f"Statistics for {os.path.basename(dir_trial_mmc)} written to {path_csv_stat_pos}")
                     print(f"Statistics for {os.path.basename(dir_trial_mmc)} written to {path_csv_stat_vel}")
                     print(f"Statistics for {os.path.basename(dir_trial_mmc)} written to {path_csv_stat_acc}")
-
-
-
-
-
-
-
-
-
-
-
-
+                if verbose >= 1:
+                    progress.update(1)
 
             pass
+            if verbose >= 1:
+                progress.close()
 
+            # Calculate mean for each participant
+            calc_mean_stat_p(dir_csv_p, dir_csv_t, id_s, id_p, verbose=verbose)
 
-    pass
+        calc_mean_stat_s(dir_csv_s, dir_csv_p, id_s, verbose=verbose)
 
 
 
@@ -607,7 +712,7 @@ def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, verbose=1)
     # Make sure DataFrames contain same amount of frames. (Rows)
 
     if df_mmc.shape[0] != df_omc.shape[0]:
-        if verbose>=1:
+        if verbose>=2:
             print("DataFrames for Position do not contain the same amount of frames.\n"
                   "Resampling DataFrames to the same amount of frames.")
         df_mmc, df_omc = resample_dataframes(df_mmc, df_omc)
@@ -921,7 +1026,7 @@ def standardize_data(df, metadata=None, verbose=1):
     dat_type = ""
     if 'elbow_flex_l' in df.columns:
 
-        if verbose >=1:
+        if verbose >=2:
             print("Standardizing: \tJoint Data.")
 
         """Change columns to standardized names"""
@@ -930,9 +1035,9 @@ def standardize_data(df, metadata=None, verbose=1):
 
 
     elif any( i in df.columns for i in [' hand_l_x', 'hand_l_x', 'hand_l_X']):
-        if verbose >=1:
+        if verbose >=2:
             print("Standardizing:\tEndeffector Data")
-            df.columns = standardize_columns(df.columns, stand_bodypart, verbose)
+        df.columns = standardize_columns(df.columns, stand_bodypart, verbose)
 
     else:
         raise ValueError("Error in iDrinkStatisticalAnalysis.standardize_data\n"
@@ -1061,7 +1166,7 @@ if __name__ == '__main__':
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")
     root_stat = os.path.join(root_val, '04_Statistics')
-    root_omc = os.path.join(root_val, '03_data', 'OMC', 'S15133')
+    root_omc = os.path.join(root_val, '03_data', 'OMC_new', 'S15133')
     root_data = os.path.join(root_val, "03_data")
     root_logs = os.path.join(root_val, "05_logs")
 
