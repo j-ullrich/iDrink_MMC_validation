@@ -87,12 +87,6 @@ def run_opensim_OMC(stabilize_hip=True):
         "P252",
     ]
 
-    p_new_struc = [
-        "P241",
-        "P242",
-        "P251",
-        "P252",
-    ]
 
     id_s = "S15133"  # O:15 M:13 C:3
     trial_list = []
@@ -107,10 +101,11 @@ def run_opensim_OMC(stabilize_hip=True):
     if verbose >=2:
         print(f"p_list: \n"
                 f"{p_list}")
-    """p_list = ["P01", "P02", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17",
-              "P19", "P23", "P24", "P25", "P27", "P28", "P30", "P31", "P34"]"""
+    p_list = ["P01", "P02", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17",
+              "P19", "P23", "P24", "P25", "P27", "P28", "P30", "P31", "P34"]
+    p_list = ['P08', 'P10', 'P12', 'P13', 'P14', 'P15', 'P17', 'P19', 'P24', 'P25', 'P27', 'P28', 'P30', 'P31', 'P34']
 
-    p_list = p_new_struc
+    #p_list = p_new_struc
 
     for p_id in p_list:
 

@@ -2,6 +2,7 @@ import glob
 import os
 import shutil
 from tqdm import tqdm
+import pandas as pd
 
 import toml
 
@@ -479,41 +480,31 @@ def copy_files_from_to_dir(dir_src, dir_dst, empty_dst=False, filetype=None, ver
     if verbose >= 1:
         prog.close()
 
+def get_valid_trials(csv_murphy):
+    """
+    returns list of valid trials in form of 'P*T*'
+    :param csv_murphy:
+    :return valid_trials:
+    """
+    df = pd.read_csv(csv_murphy, sep=';')
+    df = df[df['valid'] == 1]
+    valid_trials = []
+    # get list of if_p and id_t
+    list_id_p = df['id_p'].values.tolist()
+    list_id_t = df['id_t'].values.tolist()
+
+
+    for id_p, id_t in zip(list_id_p, list_id_t):
+
+        valid_trials.append(f"{id_p}*T{id_t}")
+
+    return valid_trials
+
 
 if __name__ == '__main__':
+    csv = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_measures.csv"
 
-    """root = r"I:\iDrink\validation_root\03_data"
+    get_valid_trials(csv)
 
-    trial_dirs = glob.glob(os.path.join(root, "setting*", "*", "*", "*", "S*P*T*"))
-
-    progress = tqdm(trial_dirs, desc="Moving Files", unit="Trial", position=0, leave=True)
-
-    for trial_d in trial_dirs:
-        dir_src = os.path.join(trial_d, 'dir_trial not in path')
-        dir_dst = os.path.join(trial_d, 'movement_analysis', 'kin_opensim_analyzetool')
-
-        copy_files_from_to_dir(dir_src, dir_dst, empty_dst=True, verbose=0)
-
-        progress.update(1)
-    progress.close()"""
-
-    roots = [
-r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07",
-r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P08",
-r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P10",
-r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P11",
-r"D:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P16",]
-
-    for root in roots:
-        directories = glob.glob(os.path.join(root, '*', '*', '*', '*_json'))
-
-        for directory in directories:
-                zip_file = pack_as_zip(directory)
-                print(f"Zip File created: {zip_file}")
-
-
-
-    """directory_unzip = r"I:\iDrink\validation_root\02_pose_estimation\01_unfiltered\P07\P07_cam1\metrabs\trial_1_L_unaffected_json - Kopie_unzip"
-    unpack_zip_into_directory(zip_file, directory_unzip)"""
 
 

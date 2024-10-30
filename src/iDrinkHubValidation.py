@@ -1051,6 +1051,15 @@ def run_mode():
 
         case "statistics":  # runs only the statistic script
             print("Johann, take this out")
+            joints_of_interest = ['arm_flex_r', 'arm_add_r', 'arm_rot_r',
+                                  'elbow_flex_r', 'pro_sup_r',
+                                  'arm_flex_l', 'arm_add_l', 'arm_rot_l',
+                                  'elbow_flex_l', 'pro_sup_l', ]
+
+            body_parts_of_interest = ['time', 'hand_r_x', 'hand_r_y', 'hand_r_z', 'hand_l_x', 'hand_l_y',
+                                      'hand_l_z']
+
+            body_parts_of_interest_no_axes = ['hand_r', 'hand_l']
 
         case "full":  # runs the full pipeline
             print("Johann, take this out")

@@ -2,8 +2,16 @@ import numpy as np
 import pandas
 import pandas as pd
 
+import os
+import ast
+
 import plotly as py
 from PIL.ImageOps import scale
+
+import plotly.graph_objects as go
+import statsmodels.api as sm
+import plotly.express as px
+from matplotlib.pyplot import legend
 
 
 def plot_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.png', use_smoother=True,
@@ -29,9 +37,7 @@ def plot_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=Fal
     :param show_plot:
     :return:
     """
-    import plotly.express as px
-    import statsmodels.api as sm
-    import plotly.graph_objects as go
+
     plot_id_p = False
     if id_p is None:
         idx_p = df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique()
@@ -172,139 +178,6 @@ def plot_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=Fal
                     print(f'Filetype {extension} not supported. Please use .html, .png, .jpg or .jpeg')
 
 
-def plot_blandaltman_old(df_murphy, measured_value, id_s, id_p=None, path=None, use_smoother=True, show_id_t=False, verbose=1, show_plots=True):
-    """
-    create bland altman plot.
-
-    OMC Setting is Reference for Plots.
-
-    if filename is given, the plot is saved to the given filename.
-
-    If id_s is given, use only the data of the given id_s.
-
-    If id_p is given, use only the data of the given id_p.
-    The individual patients/participants are colour-coded in the plot
-
-    if path is given, the plot is saved to the given path.
-
-    :param dat_ref:
-    :param dat_measured:
-    :param show_plot:
-    :return:
-    """
-    import plotly.graph_objects as go
-    import statsmodels.api as sm
-
-
-    if id_p is None:
-        idx_p = df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique()
-    else:
-        idx_p = [id_p]
-
-    # Create DataFrame with all data of reference an measured data for all participants and trials that are in both datasets
-    dat_ref_all = pd.DataFrame(columns=df_murphy.columns)
-    dat_measured_all = pd.DataFrame(columns=df_murphy.columns)
-
-    for id_p in idx_p:
-        dat_ref = df_murphy[(df_murphy['id_s'] == 'S15133') & (df_murphy['id_p'] == id_p)].sort_values(by='id_t')
-        dat_measured = df_murphy[(df_murphy['id_s'] == id_s) & (df_murphy['id_p'] == id_p)].sort_values(by='id_t')
-
-        # Delete all Trials that are not in both datasets
-        dat_ref = dat_ref[dat_ref['id_t'].isin(dat_measured['id_t'])]
-        dat_measured = dat_measured[dat_measured['id_t'].isin(dat_ref['id_t'])]
-
-        dat_ref_all = pd.concat([dat_ref_all, dat_ref])
-        dat_measured_all = pd.concat([dat_measured_all, dat_measured])
-
-    idx_p = dat_ref_all['id_p'].unique()
-    #create List with al id_t (index is the same as in the list of values)
-    idx_t_all = dat_measured_all['id_t'].to_list()
-
-    mean_all = np.mean([dat_ref_all[measured_value].values, dat_measured_all[measured_value].values], axis=0)
-    diff_all = dat_measured_all[measured_value].values - dat_ref_all[measured_value].values
-
-    std_diff = np.std(diff_all)
-    sd = 1.96
-    upper_limit = mean_all + sd * std_diff
-    lower_limit = mean_all - sd * std_diff
-
-    n_colours = len(idx_p)
-    colours = py.colors.qualitative.Plotly[:n_colours]
-
-    # creating plot
-    fig = go.Figure()
-
-    for id_p, colour in zip(idx_p, colours):
-        # calculate mean, difference, mean of differences, standard deviation of differences, upper and lower limits, smoother
-        dat_ref = df_murphy[(df_murphy['id_s'] == 'S15133') & (df_murphy['id_p'] == id_p)].sort_values(by='id_t')
-        dat_measured = df_murphy[(df_murphy['id_s'] == id_s) & (df_murphy['id_p'] == id_p)].sort_values(by='id_t')
-
-        # Delete all Trials that are not in both datasets
-        dat_ref = dat_ref[dat_ref['id_t'].isin(dat_measured['id_t'])]
-        dat_measured = dat_measured[dat_measured['id_t'].isin(dat_ref['id_t'])]
-        idx_t = dat_measured['id_t'].to_list()
-        diff = dat_measured[measured_value].values - dat_ref[measured_value].values
-        mean_diff = np.mean(diff)
-        mean = np.mean([dat_ref[measured_value].values, dat_measured[measured_value].values], axis=0)
-
-        # Scatter -Plot of means against differences
-        fig.add_trace(go.Scatter(x=mean, y=diff, mode='markers', name=f'Differences: {id_p}', marker=dict(color=colour, symbol='circle')))
-
-        if use_smoother:
-            lowess = sm.nonparametric.lowess(diff, mean, frac=0.6)
-            # smoother
-            fig.add_trace(
-                go.Scatter(x=lowess[:, 0], y=lowess[:, 1], mode='lines', name=f'Smoother (LOWESS): {id_p}',
-                           line=dict(color='red')))
-        else:
-            # mean of differences
-            fig.add_trace(go.Scatter(x=mean, y=[mean_diff]*len(mean), mode='lines', name=f'Mean of Differences: {id_p}', marker=dict(color=colour)))
-
-
-    # limits of agreement
-    fig.add_trace(go.Scatter(x=mean_all, y=[upper_limit]*len(mean_all), mode='lines', name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
-    fig.add_trace(go.Scatter(x=mean_all, y=[lower_limit]*len(mean_all), mode='lines', name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
-
-    lowess = sm.nonparametric.lowess(diff_all, mean_all, frac=0.6)
-    # smoother
-    fig.add_trace(
-        go.Scatter(x=lowess[:, 0], y=lowess[:, 1], mode='lines', name='Smoother (LOWESS): all', line=dict(color='red')))
-
-    # Add horicontal line at 0
-    fig.add_trace(go.Scatter(x=[min(mean_all), max(mean_all)], y=[0, 0], mode='lines', name='Zero Difference', line=dict(color='grey', dash='dash')))
-
-    # update the layout
-    if id_p is not None:
-        title = f'Bland-Altman Plot for {measured_value} of {id_p}'
-    else:
-        title = f'Bland-Altman Plot for {measured_value} of {id_s}'
-
-
-    range_lim = max(abs(min(diff)), abs(max(diff))) * 1.5
-    y_range = [-range_lim, range_lim]
-
-    fig.update_layout(title=title,
-                      xaxis_title=f'mean of {measured_value}',
-                      yaxis_title=f'Difference of MMC from OMC',
-                      yaxis=dict(range=y_range),
-                      legend=dict(
-                          orientation="h",
-                          x=0,
-                          y=-0.2  # Positionierung unterhalb der x-Achse
-                      )
-                      )
-
-
-    if verbose>=1 and show_plots:
-        fig.show()
-
-    if path is not None:
-        if path.endswith('.html'):
-            py.offline.plot(fig, filename=path)
-        elif path.endswith('.png') or path.endswith('.jpg') or path.endswith('.jpeg'):
-            fig.write_image(path)
-
-
 def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=None, path=None, verbose=1, show_plots=True):
     """
     create bland altman plot.
@@ -318,8 +191,7 @@ def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=No
     :param show_plot:
     :return:
     """
-    import plotly.graph_objects as go
-    import statsmodels.api as sm
+
 
     # calculate mean, difference, mean of differences, standard deviation of differences, upper and lower limits, smoother
     diff = dat_ref - dat_measured
@@ -334,7 +206,8 @@ def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=No
     fig = go.Figure()
 
     # Add horicontal line at 0
-    fig.add_trace(go.Scatter(x=[min(dat_measured), max(dat_measured)], y=[0, 0], mode='lines', name='Zero Difference', line=dict(color='grey', dash='dash')))
+    fig.add_trace(go.Scatter(x=[min(dat_measured), max(dat_measured)], y=[0, 0], mode='lines', name='Zero Difference',
+                             line=dict(color='grey', dash='dash')))
 
     # Scatter-Plot of dat_measured against differences
     fig.add_trace(go.Scatter(x=dat_measured, y=diff, mode='markers', name='Differences'))
@@ -343,8 +216,10 @@ def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=No
     fig.add_trace(go.Scatter(x=dat_measured, y=[mean_diff]*len(dat_measured), mode='lines', name='Mean of Differences'))
 
     # limits of agreement
-    fig.add_trace(go.Scatter(x=dat_measured, y=[upper_limit]*len(dat_measured), mode='lines', name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
-    fig.add_trace(go.Scatter(x=dat_measured, y=[lower_limit]*len(dat_measured), mode='lines', name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
+    fig.add_trace(go.Scatter(x=dat_measured, y=[upper_limit]*len(dat_measured), mode='lines',
+                             name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
+    fig.add_trace(go.Scatter(x=dat_measured, y=[lower_limit]*len(dat_measured), mode='lines',
+                             name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
 
     # smoother
     fig.add_trace(
@@ -382,9 +257,88 @@ def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=No
             fig.write_image(path)
 
 
+def plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data, side, id_p=None,  verbose=1):
+    """
+    plot RMSE over time for all trials of a setting.
+
+    If id_p is given, it only look at the data of the given id_p.
+
+    Create one plot per participant and setting per value of interest.
+
+    If joint_data is True:
+        - plot position and velocity of elbow_flex, pro_sup, shoulderflexion, shoulderabduction
+    if joint_data is False:
+        - plot velocity of hand, trunk_displacement
+    """
+
+    if joint_data:
+        cols_of_interest = [f'elbow_flex_{side.lower()}', f'pro_sup_{side.lower()}', f'arm_flex_{side.lower()}', f'arm_add_{side.lower()}']
+    else:
+
+
+
+
+
+
+
+
+
+
+
+
+    pass
+
+
+def plot_mmc_to_omc_waveform(df_omc, df_mmc, cols_of_interest, id_s, id_p, id_t, path_dst, verbose=1):
+    """
+    Plot Waveform of OMC with MMC of same recording for each column of interest.
+
+    Create one plot per column of interest.
+    """
+
+    pass
+
+
+def calibration_boxplot(csv_calib_errors, dir_dst, verbose=1, show_fig=False):
+    """
+    Create a barplot of the calibration errors for each participant and camera setting.
+
+    :param csv_calib_errors:
+    :param dir_dst:
+    :param verbose:
+    :return:
+    """
+    df_calib_error = pd.read_csv(csv_calib_errors, sep=';')
+
+
+    cam_settings = df_calib_error['cam_used'].unique()
+
+    fig = px.box(df_calib_error, x='cam_used', y='error', color='cam_used',
+                 title=f'Calibration Errors for camera setups',
+                 hover_name='id_p')
+
+    fig.update_layout(xaxis_title = 'Camera Setup',
+                      yaxis_title = 'Reprojection Error')
+    fig.update(layout_showlegend=False)
+
+    if show_fig:
+        fig.show()
+    # save plot
+
+    os.makedirs(dir_dst, exist_ok=True)
+    path = os.path.join(dir_dst, f'CalibrationErrors.png')
+    fig.write_image(path, scale=5)
+
 if __name__ == "__main__":
-    # Beispiel-Daten (ersetze dies mit deinen eigenen Datensätzen)
-    data1 = np.array([1, 2, 3, 4, 5])
-    data2 = np.array([1.15554, 2.5, 2.4, 4.8, 8])
-    path = r"I:\iDrink\test.png"
+    dir_data = r"I:\iDrink\validation_root\03_data"
+    dir_dst = r"I:\iDrink\validation_root\04_statistics\01_continuous\02_plots"
+
+    cols_of_interest = ['']
+
+    id_s = 'S001'
+    plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True,
+                         id_p=None,  verbose=1)
+
+
+
     plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)
