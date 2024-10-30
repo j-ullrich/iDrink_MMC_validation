@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[2] + '\\'
+    drive = drives[1] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -685,6 +685,7 @@ def run_mode():
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     if args.mode in ["pose_estimation", "pose2sim"]:
+        df_trials = run_calibrations(trial_list)
         if args.mode == "pose_estimation" and args.poseback != "metrabs_multi":
             pass
         else:
@@ -901,10 +902,22 @@ def run_mode():
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
 
-                if pose == 'metrabs_single':
-                    # TODO: Move .trc from pose estimation folder to trial dir
-                    pass
+                if len(trial.used_cams) == 1:
+                    if filt == 'filtered':
+                        filt = '02_filtered'
+                        buttered = 'iDrinkbutter'
+                    else:
+                        filt = '01_unfiltered'
+                        buttered = 'iDrink'
 
+                    cam = trial.used_cams[0]
+
+                    paths_found = glob.glob(os.path.join(root_HPE, filt, trial.id_p, f'{trial.id_p}_cam{cam}', 'metrabs', 'single-cam', f'*{trial.id_t}*.trc'))
+
+                    if len(paths_found) > 0:
+                        path_src = paths_found[0]
+                        path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{os.path.basename(path_src)}')
+                        shutil.copy2(path_src, path_dst)
                 else:
                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
                     if trial.HPE_done:
@@ -920,8 +933,9 @@ def run_mode():
                         else:
                             if args.verbose >= 1:
                                 print(f"Trial: {trial.identifier} \t Posemode: {pose}")
-                            iDrinkUtilities.unpack_zip_to_trial(trial, pose, filt, root_val)
                             try:
+                                iDrinkUtilities.unpack_zip_to_trial(trial, pose, filt, root_val)
+
                                 if 'metrabs' in pose:
                                     trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
                                     trial.run_pose2sim(only_triangulation=False)
@@ -930,7 +944,7 @@ def run_mode():
 
                                 trial.P2S_done = True
 
-                                if i % 50 == 0:  # Update after every 5 trials
+                                if i % 20 == 0:  # Update after every 5 trials
                                     df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
                             except Exception as e:
