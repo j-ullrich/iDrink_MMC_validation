@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[1] + '\\'
+    drive = drives[2] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -685,7 +685,6 @@ def run_mode():
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     if args.mode in ["pose_estimation", "pose2sim"]:
-        df_trials = run_calibrations(trial_list)
         if args.mode == "pose_estimation" and args.poseback != "metrabs_multi":
             pass
         else:
@@ -931,7 +930,7 @@ def run_mode():
 
                                 trial.P2S_done = True
 
-                                if i % 5 == 0:  # Update after every 5 trials
+                                if i % 50 == 0:  # Update after every 5 trials
                                     df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
                             except Exception as e:
