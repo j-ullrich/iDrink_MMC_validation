@@ -277,26 +277,43 @@ def plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data, side, id_p=None,  
 
 
 
+        pass
 
 
-
-
-
-
-
-
-
-    pass
-
-
-def plot_mmc_to_omc_waveform(df_omc, df_mmc, cols_of_interest, id_s, id_p, id_t, path_dst, verbose=1):
+def plot_two_timeseries(df_omc, df_mmc, xaxis_label, yaxis_label, title, path_dst, showfig=False, verbose=1):
     """
-    Plot Waveform of OMC with MMC of same recording for each column of interest.
+    Plot Waveform of OMC with MMC of same recording for given id_s, id_p, id_t.
+
+    df_omc and df_mmc are DataFrames containing columns: time, value.
 
     Create one plot per column of interest.
     """
 
-    pass
+    value = df_omc.columns[1]
+
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=df_omc['time'], y=df_omc[value], mode='lines', name='OMC'))
+    fig.add_trace(go.Scatter(x=df_mmc['time'], y=df_mmc[value], mode='lines', name='MMC'))
+
+
+    """if title is None:
+        fig = px.line(df, x='time', y=['omc', 'mmc'])
+    else:
+        fig = px.line(df, x='time', y=['omc', 'mmc'], title=title)"""
+    fig.update_layout(xaxis_title=xaxis_label,
+                      yaxis_title=yaxis_label,
+                      title=title)
+
+    if showfig:
+        fig.show()
+
+    if not os.path.isdir(os.path.dirname(path_dst)):
+        os.makedirs(os.path.dirname(path_dst), exist_ok=True)
+
+    if path_dst is not None:
+        fig.write_image(path_dst, scale=5)
 
 
 def calibration_boxplot(csv_calib_errors, dir_dst, verbose=1, show_fig=False):

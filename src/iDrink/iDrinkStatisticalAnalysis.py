@@ -19,6 +19,7 @@ import scipy as sp
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from iDrinkOpenSim import read_opensim_file
+import iDrinkValPlots as iDrinkVP
 
 murphy_measures = ["PeakVelocity_mms",
                    "elbowVelocity",
@@ -205,7 +206,7 @@ def save_plots_murphy(df_murphy, root_stat_cat, filetype = '.png', verbose=1):
     :param verbose:
     :return:
     """
-    import iDrinkValPlots as iDrinkVP
+
     global murphy_measures
 
     idx_s = df_murphy['id_s'].unique()
@@ -565,7 +566,7 @@ def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, pa
                               'elbow_flex_l','pro_sup_l',]
 
     if body_parts_of_interest is None: # Default Body Parts of Interest
-        body_parts_of_interest = ['time', 'hand_r_x','hand_r_y','hand_r_z', 'hand_l_x','hand_l_y','hand_l_z']
+        body_parts_of_interest = ['hand_r_x','hand_r_y','hand_r_z', 'hand_l_x','hand_l_y','hand_l_z']
 
     if body_parts_of_interest_no_axes is None: # Default Body Parts of Interest without axes
         body_parts_of_interest_no_axes = ['hand_r', 'hand_l']
@@ -636,15 +637,15 @@ def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, pa
                 pass
 
                 df_stat_body_vel = compare_timeseries_for_trial(df_mmc_body_vel, df_omc_body_vel,
-                                                                body_parts_of_interest, isjoint=False,
-                                                                 verbose=verbose)
+                                                                body_parts_of_interest, isjoint=True,
+                                                                 id_s=id_s, id_p=id_p, verbose=verbose)
 
                 df_stat_joint_pos = compare_timeseries_for_trial(df_mmc_joint_pos, df_omc_joint_pos,
                                                                  joints_of_interest, isjoint=True,
                                                                   verbose=verbose)
                 df_stat_joint_vel = compare_timeseries_for_trial(df_mmc_joint_vel, df_omc_joint_vel,
                                                                  joints_of_interest, isjoint=True,
-                                                                  verbose=verbose)
+                                                                 id_s=id_s, id_p=id_p, verbose=verbose)
 
                 pass
                 # Write to csv
@@ -677,7 +678,7 @@ def run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings, pa
 
     pass
 
-def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, verbose=1):
+def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, id_s=None, id_p=None, verbose=1):
     """
     Compares two Dataframes containing positional data, velocity or acceleration data.
 
@@ -713,7 +714,31 @@ def compare_timeseries_for_trial(df_mmc, df_omc, to_compare, isjoint, verbose=1)
         if verbose>=2:
             print("DataFrames for Position do not contain the same amount of frames.\n"
                   "Resampling DataFrames to the same amount of frames.")
+
+        y_label = 'Joint Velocity [deg/s]' if isjoint else 'Endeffector Velocity [mm/s]'
+        plot_condition = id_s is not None and id_p is not None
+        if plot_condition:
+            for y in to_compare:
+                # Use longer time for plot
+                time = df_mmc['time'] if df_mmc.shape[0] > df_omc.shape[0] else df_omc['time']
+                plot_dir = os.path.join(root_stat, '01_continuous', '02_plots')
+
+                iDrinkVP.plot_two_timeseries(df_omc[['time', y]], df_mmc[['time', y]], xaxis_label='Time (s)', yaxis_label = y_label,
+                                             title = f'{y} of {id_s}_{id_p} before resampling',
+                                             path_dst=os.path.join(plot_dir, f'{id_s}_{id_p}_{y}_before_resampling.png'))
+
         df_mmc, df_omc = resample_dataframes(df_mmc, df_omc)
+
+        if plot_condition:
+            for y in to_compare:
+                # Use longer time for plot
+                time = df_mmc['time'] if df_mmc.shape[0] > df_omc.shape[0] else df_omc['time']
+
+                iDrinkVP.plot_two_timeseries(df_omc[['time', y]], df_mmc[['time', y]], xaxis_label='Time (s)', yaxis_label = y_label,
+                                             title=f'{y} of {id_s}_{id_p} after resampling',
+                                             path_dst=os.path.join(plot_dir,
+                                                                   f'{id_s}_{id_p}_{y}_after_resampling.png'))
+
 
 
     time_mmc = df_mmc['time']
@@ -855,6 +880,7 @@ def run_comparison_trial_OMC(trial_list, root_stat, root_omc, joints_of_interest
         """endeffector statistics vel & acc magnitude"""
         df_stat_endeff_vel_magnitude = reduce_axes(df_stat_endeff_vel)
         df_stat_endeff_acc_magnitude = reduce_axes(df_stat_endeff_acc)
+
         csv_stat_endeff_vel_magnitude = os.path.join(dir_destination, f'{trial.identifier}_stat_end_vel_magnitude.csv')
         csv_stat_endeff_acc_magnitude = os.path.join(dir_destination, f'{trial.identifier}_stat_end_acc_magnitude.csv')
         df_stat_endeff_vel_magnitude.to_csv(csv_stat_endeff_vel_magnitude, sep=';')
@@ -1156,40 +1182,17 @@ if __name__ == '__main__':
 
     test_timeseries = True
 
-    joints_of_interest = ['hip_flexion_r', 'hip_adduction_r', 'hip_rotation_r',
-                          'hip_flexion_l', 'hip_adduction_l', 'hip_rotation_l',
-                          'neck_flexion', 'neck_bending', 'neck_rotation',
-                          'arm_flex_r', 'arm_add_r', 'arm_rot_r',
+    joints_of_interest = ['arm_flex_r', 'arm_add_r', 'arm_rot_r',
                           'elbow_flex_r', 'pro_sup_r',
-                          'wrist_flex_r', 'wrist_dev_r',
                           'arm_flex_l', 'arm_add_l', 'arm_rot_l',
                           'elbow_flex_l', 'pro_sup_l',
-                          'wrist_flex_l', 'wrist_dev_l'
                           ]
 
     # Default Body Parts of Interest
-    body_parts_of_interest = ['time','pelvis_x','pelvis_y','pelvis_z',
-                              'femur_r_x','femur_r_y','femur_r_z','patella_r_x','patella_r_y','patella_r_z',
-                              'tibia_r_x','tibia_r_y','tibia_r_z','talus_r_x','talus_r_y','talus_r_z',
-                              'calcn_r_x','calcn_r_y','calcn_r_z','toes_r_x','toes_r_y','toes_r_z',
-                              'femur_l_x','femur_l_y','femur_l_z','patella_l_x','patella_l_y','patella_l_z',
-                              'tibia_l_x','tibia_l_y','tibia_l_z','talus_l_x','talus_l_y','talus_l_z',
-                              'calcn_l_x','calcn_l_y','calcn_l_z','toes_l_x','toes_l_y','toes_l_z',
-                              'lumbar5_x','lumbar5_y','lumbar5_z','lumbar4_x','lumbar4_y','lumbar4_z',
-                              'lumbar3_x','lumbar3_y','lumbar3_z','lumbar2_x','lumbar2_y','lumbar2_z',
-                              'lumbar1_x','lumbar1_y','lumbar1_z','torso_x','torso_y','torso_z',
-                              'head_x','head_y','head_z','abdomen_x','abdomen_y','abdomen_z',
-                              'humerus_r_x','humerus_r_y','humerus_r_z','ulna_r_x','ulna_r_y','ulna_r_z',
-                              'radius_r_x','radius_r_y','radius_r_z','hand_r_x','hand_r_y','hand_r_z',
-                              'humerus_l_x','humerus_l_y','humerus_l_z','ulna_l_x','ulna_l_y','ulna_l_z',
-                              'radius_l_x','radius_l_y','radius_l_z','hand_l_x','hand_l_y','hand_l_z']
+    body_parts_of_interest = ['hand_r_x','hand_r_y','hand_r_z','hand_l_x','hand_l_y','hand_l_z']
 
     # Default Body Parts of Interest without axes
-    body_parts_of_interest_no_axes = ['pelvis','femur_r','patella_r','tibia_r','talus_r',
-                                      'calcn_r','toes_r','femur_l','patella_l','tibia_l','talus_l',
-                                      'calcn_l','toes_l','lumbar5','lumbar4','lumbar3','lumbar2',
-                                      'lumbar1','torso','head','abdomen','humerus_r','ulna_r','radius_r',
-                                      'hand_r','humerus_l','ulna_l','radius_l','hand_l']
+    body_parts_of_interest_no_axes = ['hand_r','hand_l']
 
     csv_murphy = os.path.realpath(os.path.join(root_stat, '02_categorical', 'murphy_measures.csv'))
 
