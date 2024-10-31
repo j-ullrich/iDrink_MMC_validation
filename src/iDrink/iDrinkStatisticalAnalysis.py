@@ -1214,10 +1214,10 @@ def get_omc_mmc_error(dir_root, df_timestamps, id_s, verbose=1):
         omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
         t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
 
-        error_p_mean_aff = {}
-        error_p_mean_unaff = {}
-        rmse_p_mean_aff = {}
-        rmse_p_mean_unaff = {}
+        error_p_mean_aff = None
+        error_p_mean_unaff = None
+        rmse_p_mean_aff = None
+        rmse_p_mean_unaff = None
 
         for id_t in t_ids:
             mmc_csv = os.path.join(dir_dat_in, '01_murphy_out', f'{id_s}_{id_p}_{id_t}_*.csv')
@@ -1244,6 +1244,19 @@ def get_omc_mmc_error(dir_root, df_timestamps, id_s, verbose=1):
             columns_new = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns if col != 'time']
             columns_new_full = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns]
 
+
+            if error_p_mean_aff is None:
+                # Create dictionaries with columns_old as keys containing empty lists
+                error_p_mean_aff = {col: [] for col in columns_old}
+                error_p_mean_unaff = {col: [] for col in columns_old}
+                rmse_p_mean_aff = {col: [] for col in columns_old}
+                rmse_p_mean_unaff = {col: [] for col in columns_old}
+
+                error_p_std_aff = {col: [] for col in columns_old}
+                error_p_std_unaff = {col: [] for col in columns_old}
+                rmse_p_std_aff = {col: [] for col in columns_old}
+                rmse_p_std_unaff = {col: [] for col in columns_old}
+
             # Iterate over all columns and calculate error of all timepoints
             df_error = pd.DataFrame(columns=columns_new_full)
             df_rmse = pd.DataFrame(columns=columns_new_full)
@@ -1258,15 +1271,12 @@ def get_omc_mmc_error(dir_root, df_timestamps, id_s, verbose=1):
                 df_error[column_new] = error
                 df_rmse[column_new] = rmse
 
-                # TODO: Need to be dictionaries containing lists because multiple columns are calculated
                 if condition == 'affected':
-                    error_p_mean_aff.append(error)
-                    rmse_p_mean_aff.append(rmse)
+                    error_p_mean_aff[column].append(error)
+                    rmse_p_mean_aff[column].append(rmse)
                 else:
-                    error_p_mean_unaff.append(error)
-                    rmse_p_mean_unaff.append(rmse)
-
-
+                    error_p_mean_unaff[column].append(error)
+                    rmse_p_mean_unaff[column].append(rmse)
 
             if df_s_error is None:
                 df_s_error = df_error
@@ -1275,10 +1285,19 @@ def get_omc_mmc_error(dir_root, df_timestamps, id_s, verbose=1):
                 df_s_error.join(df_error)
                 df_s_rmse.join(df_rmse)
 
-        error_p_mean_aff = np.mean(error_p_mean_aff, axis=0)
-        error_p_mean_unaff = np.mean(error_p_mean_unaff, axis=0)
-        rmse_p_mean_aff = np.mean(rmse_p_mean_aff, axis=0)
-        rmse_p_mean_unaff = np.mean(rmse_p_mean_unaff, axis=0)
+        # iterate over keys in dictionary and calculate std and then mean
+        for key in error_p_mean_aff.keys():
+            error_p_std_aff[key] = np.std(error_p_mean_aff[key], axis=0)
+            error_p_std_unaff[key] = np.std(error_p_mean_unaff[key], axis=0)
+            rmse_p_std_aff[key] = np.std(rmse_p_mean_aff[key], axis=0)
+            rmse_p_std_unaff[key] = np.std(rmse_p_mean_unaff[key], axis=0)
+
+            error_p_mean_aff[key] = np.mean(error_p_mean_aff[key], axis=0)
+            error_p_mean_unaff[key] = np.mean(error_p_mean_unaff[key], axis=0)
+            rmse_p_mean_aff[key] = np.mean(rmse_p_mean_aff[key], axis=0)
+            rmse_p_mean_unaff[key] = np.mean(rmse_p_mean_unaff[key], axis=0)
+
+
 
         error_p_std_aff = np.std(error_p_mean_aff, axis=0)
         error_p_std_unaff = np.std(error_p_mean_unaff, axis=0)
