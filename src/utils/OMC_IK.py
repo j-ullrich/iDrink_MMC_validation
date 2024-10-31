@@ -50,7 +50,7 @@ if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
     root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 else:
-    drive = drives[3]
+    drive = drives[1]
     root_iDrink = os.path.join(drive, '\iDrink')  # Root directory of all iDrink Data
 
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.
@@ -104,6 +104,10 @@ def run_opensim_OMC(stabilize_hip=True):
     p_list = ["P01", "P02", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17",
               "P19", "P23", "P24", "P25", "P27", "P28", "P30", "P31", "P34"]
     p_list = ['P08', 'P10', 'P12', 'P13', 'P14', 'P15', 'P17', 'P19', 'P24', 'P25', 'P27', 'P28', 'P30', 'P31', 'P34']
+    p_list = ["P241",
+        "P242",
+        "P251",
+        "P252",]
 
     #p_list = p_new_struc
 

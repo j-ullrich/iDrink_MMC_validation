@@ -768,7 +768,7 @@ class MurphyMeasures:
         return meta_dat, df
 
 
-    def read_files(self, write_to_csv=False):
+    def read_files(self):
         """
         Reads all files and creates numpy arrays for calculation of murphy measures.
 
@@ -892,7 +892,9 @@ class MurphyMeasures:
             csv containts only trials of single Participant and the trial number is in the form of TXXX.
             """
 
-            if self.id_p not in df['id_p'].values:
+            if self.id_p not in df['id_p'].values: # If Murphy Measures cannot be calculated, calculate velocities of recording and save them into .csv-file
+                self.read_files()
+
                 raise ValueError(f"\n"
                                  f"Error in iDrinkMurphyMeasures.get_data: Participant {self.id_p} not in DataFrame.\n")
 

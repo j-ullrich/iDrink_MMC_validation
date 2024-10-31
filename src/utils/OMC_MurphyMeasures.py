@@ -23,13 +23,13 @@ drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'I:']
 if os.name == 'posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[5]
+    drive = drives[1]
 
 root_iDrink = os.path.join(drive, 'iDrink')
 root_val = os.path.join(root_iDrink, "validation_root")
 root_stat = os.path.join(root_val, '04_Statistics')
 root_data = os.path.join(root_val, "03_data")
-root_omc = os.path.join(root_val, '03_data', 'OMC_new', 'S15133')
+root_omc = os.path.join(root_val, '03_data', 'OMC', 'S15133')
 
 csv_timestamps = os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv')
 csv_measures =os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')

@@ -1148,6 +1148,167 @@ def get_omc_file(id_p, id_t, root_omc, endeff=None, joint=None):
     return df_omc
 
 
+def get_omc_mmc_error(dir_root, df_timestamps, id_s, verbose=1):
+    """
+    Writes csv file containing error for all trials and participants of a setting.
+    S*_omc_mmc_error.csv
+
+    Write second csv file containing RSME instead of error
+    S*_omc_mmc_error_rmse.csv
+
+    Write third csv file containing mean and std of error for each participant and trial
+
+    Write fourth
+
+    Columns contain:
+        - time
+        - affected
+        - time_P*_T*
+        - P*_T*
+        - P*_mean_affected
+        - P*_std_affected
+        - P*_mean_unaffected
+        - P*_std_unaffected
+
+    Rows are Frame
+
+    The resulting DataFrames are used for the respecting plots
+
+    :param dir_dat_filt:
+    :param id_s:
+    :param verbose:
+    :return:
+    """
+
+    # TODO: Make changes after preprocessed data exists
+    # Check if timestamps is Dataframe
+    if type(df_timestamps) is not pd.DataFrame:
+        df_timestamps = pd.read_csv(df_timestamps, sep=';')
+
+    dir_dst = os.path.join(dir_root, '04_statistics', '01_results', '01_omc_to_mmc_error_per_s', 'S15133_P*_T*_.csv')
+
+    dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+
+    # get all omc_trials
+    omc_csvs = glob.glob(os.path.join(dir_dat_in, '01_murphy_out', 'S15133_P*_T*_.csv'))
+
+    # retrieve all p_ids and t_ids present in omc data.
+    p_ids = [os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]
+
+    csv_s_error = os.path.join(dir_dst, f'{id_s}_omc_mmc_error.csv')
+    csv_s_rmse = os.path.join(dir_dst, f'{id_s}_omc_mmc_error_rmse.csv')
+
+    csv_s_error_mean = os.path.join(dir_dst, f'{id_s}_omc_mmc_error_mean_std.csv')
+    csv_s_rmse_mean = os.path.join(dir_dst, f'{id_s}_omc_mmc_rmse_mean_std.csv')
+
+    df_s_error = None
+    df_s_rmse  = None
+    df_s_error_mean = None
+    df_s_rmse_mean = None
+
+    df_s_error_mean = None
+    df_s_rmse_mean = None
+
+
+    for id_p in p_ids:
+        omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
+        t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
+
+        error_p_mean_aff = {}
+        error_p_mean_unaff = {}
+        rmse_p_mean_aff = {}
+        rmse_p_mean_unaff = {}
+
+        for id_t in t_ids:
+            mmc_csv = os.path.join(dir_dat_in, '01_murphy_out', f'{id_s}_{id_p}_{id_t}_*.csv')
+            omc_csv = os.path.join(dir_dat_in, '01_murphy_out', f'S15133_{id_p}_{id_t}*.csv')
+
+            try:
+                df_omc = pd.read_csv(omc_csv, sep=';')
+                df_mmc = pd.read_csv(mmc_csv, sep=';')
+            except Exception as e:
+                print(f"Error in iDrinkStatisticalAnalysis.get_omc_mmc_error while reading csv file:\n"
+                      f"OMC-File:\t{omc_csv} \n"
+                      f"MMC-File:\t{mmc_csv}\n"
+                      f"\n"
+                      f"Error:\t{e}")
+                continue
+
+            time_t = df_omc['time']
+
+            #check if affected in timestamps
+            condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
+
+            # get columns without 'time'
+            columns_old = [f'{col}' for col in df_omc.columns if col != 'time']
+            columns_new = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns if col != 'time']
+            columns_new_full = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns]
+
+            # Iterate over all columns and calculate error of all timepoints
+            df_error = pd.DataFrame(columns=columns_new_full)
+            df_rmse = pd.DataFrame(columns=columns_new_full)
+
+            df_error['{id_p}_{id_t}_time'] = time_t
+            df_rmse['{id_p}_{id_t}_time'] = time_t
+
+            for column, column_new in zip(columns_old, columns_new):
+                error = df_mmc[column] - df_omc[column]
+                rmse = np.sqrt(np.mean(error**2))
+
+                df_error[column_new] = error
+                df_rmse[column_new] = rmse
+
+                # TODO: Need to be dictionaries containing lists because multiple columns are calculated
+                if condition == 'affected':
+                    error_p_mean_aff.append(error)
+                    rmse_p_mean_aff.append(rmse)
+                else:
+                    error_p_mean_unaff.append(error)
+                    rmse_p_mean_unaff.append(rmse)
+
+
+
+            if df_s_error is None:
+                df_s_error = df_error
+                df_s_rmse = df_rmse
+            else:
+                df_s_error.join(df_error)
+                df_s_rmse.join(df_rmse)
+
+        error_p_mean_aff = np.mean(error_p_mean_aff, axis=0)
+        error_p_mean_unaff = np.mean(error_p_mean_unaff, axis=0)
+        rmse_p_mean_aff = np.mean(rmse_p_mean_aff, axis=0)
+        rmse_p_mean_unaff = np.mean(rmse_p_mean_unaff, axis=0)
+
+        error_p_std_aff = np.std(error_p_mean_aff, axis=0)
+        error_p_std_unaff = np.std(error_p_mean_unaff, axis=0)
+        rmse_p_std_aff = np.std(rmse_p_mean_aff, axis=0)
+        rmse_p_std_unaff = np.std(rmse_p_mean_unaff, axis=0)
+
+        columns = [f'{col}' for col in df_omc.columns if col != 'time']
+        df_error_mean = pd.DataFrame(columns=columns)
+
+        if df_s_error_mean is None:
+
+
+
+    pass
+
+def preprocess_timeseries(dir_root, detect_outliers = False, verbose=1):
+    """
+    Preprocess timeseries data for statistical analysis.
+
+    - Downsample OMC to 60Hz
+    - Detect outliers based on endeffector and elbow velocity.
+
+    Write Log-csv for outlier detection with reason for taking a trial out.
+
+    :param dir_root:
+    :param verbose:
+    :return:
+    """
+
+
 if __name__ == '__main__':
     # this part is for Development and Debugging
 
