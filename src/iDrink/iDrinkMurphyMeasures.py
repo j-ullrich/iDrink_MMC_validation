@@ -46,6 +46,7 @@ import scipy
 from fuzzywuzzy import process
 
 from importlib_metadata import metadata
+from keras.src.utils.file_utils import exists
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial
@@ -67,7 +68,8 @@ class MurphyMeasures:
     3. We give the object a trial_object
 
     """
-    def __init__(self,trial_id = None, csv_timestamps=None, csv_measures=None, verbose=0,
+    def __init__(self,trial_id = None, csv_timestamps=None, csv_measures=None, verbose=0, write_mov_data=False,
+                 path_mov_data=None,
                  # For mode 1
                  trial = None, root_data = None,
                  # For mode 3
@@ -83,6 +85,8 @@ class MurphyMeasures:
 
 
         """Settings"""
+        self.write_mov_data = write_mov_data
+        self.path_mov_data = path_mov_data
 
         self.path_bodyparts_pos = path_bodyparts_pos
         self.path_bodyparts_vel = path_bodyparts_vel
@@ -109,7 +113,7 @@ class MurphyMeasures:
         self.shoulder_flex_pos = None
         self.shoulder_abduction_pos = None
 
-        self.trunk_pos = None
+        self.trunk_displacement = None
         self.trunk_ang = None
 
         """Contents of the .csv file"""
@@ -179,12 +183,13 @@ class MurphyMeasures:
 
             self.get_paths()
 
-        self.read_files()
+
 
         if self.valid:
+            self.read_files()
             self.get_measures()
             self.write_measures()
-        else:
+        elif self.verbose >= 2:
             print(f"Skipping {self.identifier} due to invalid data.")
 
     def use_butterworth_filter(self, data, cutoff, fs, order=4, normcutoff=False):
@@ -205,8 +210,9 @@ class MurphyMeasures:
         nyquist = 0.5 * fs
 
         if cutoff >= nyquist:
-            print(f"Warning: Cutoff frequency {cutoff} is higher than Nyquist frequency {nyquist}.")
-            print("Filtering with Nyquist frequency.")
+            if self.verbose >=2:
+                print(f"Warning: Cutoff frequency {cutoff} is higher than Nyquist frequency {nyquist}.")
+                print("Filtering with Nyquist frequency.")
             cutoff = nyquist - 1
 
         if normcutoff:
@@ -285,8 +291,8 @@ class MurphyMeasures:
             return
 
         if self.root_data is None:
-            print("No root_data given.")
-            return
+            raise ValueError("No root_data given.")
+
         elif all([self.trial_id, self.root_data]):
             self.get_paths_from_root()
 
@@ -404,7 +410,7 @@ class MurphyMeasures:
         """
 
         id_start, _ = self.get_phase_ids("reaching")
-        displacement = np.linalg.norm(self.trunk_pos[id_start] - self.trunk_pos, axis=1)
+        displacement = self.trunk_displacement[id_start:]
         max_displacement_mm = np.max(displacement)*1000
 
         return round(max_displacement_mm, 4)
@@ -661,13 +667,13 @@ class MurphyMeasures:
 
         if 'elbow_flex_l' in df.columns:
 
-            if verbose >= 1:
+            if verbose >= 2:
                 print("Standardizing: \tJoint Data.")
 
             df.columns = standardize_columns(df.columns, stand_joints, verbose)
 
         elif any(i in df.columns for i in [' hand_l_x', 'hand_l_x', 'hand_l_X']):
-            if verbose >= 1:
+            if verbose >= 2:
                 print("Standardizing:\tEndeffector Data")
 
             df.columns = standardize_columns(df.columns, stand_bodypart, verbose)
@@ -771,6 +777,9 @@ class MurphyMeasures:
         - elbow_vel
         - trunk_pos
 
+        if write_to_csv is True:
+            Data is put into Dataframe and written to csv.
+
         :return:
         """
 
@@ -794,7 +803,8 @@ class MurphyMeasures:
         _, df = self.read_file(self.path_trunk_pos, standardize=False)
         # TODO: Decide what to use for trunk displacement
         trunk_pos = [df[f'chest_{axis}'].values for axis in ['x', 'y', 'z']] # For now, we use head position
-        self.trunk_pos = self.use_butterworth_filter(trunk_pos, cutoff=10, fs=100, order=4, normcutoff=False).transpose()
+        trunk_pos = self.use_butterworth_filter(trunk_pos, cutoff=10, fs=100, order=4, normcutoff=False).transpose()
+        self.trunk_displacement = np.linalg.norm(trunk_pos[0] - trunk_pos, axis=1)
 
         _, df = self.read_file(self.path_bodyparts_pos)
         trunk_ang =[df[f'torso_{axis}'].values for axis in ['ox', 'oy', 'oz']]
@@ -819,6 +829,49 @@ class MurphyMeasures:
         shoulder_abduction = -df[f'arm_add_{self.side.lower()}'].values  # Abduction is the negativ of adduction
         self.shoulder_abduction_pos = self.use_butterworth_filter(shoulder_abduction, cutoff=10, fs=100, order=4, normcutoff=False)
 
+        if self.write_mov_data:
+
+            os.makedirs(os.path.dirname(self.path_mov_data), exist_ok=True)
+            # make sure all arrays have the same length
+
+            if not all(len(arr) == len(self.time) for arr in [self.hand_vel, self.elbow_vel, self.trunk_displacement,
+                                                              self.trunk_ang, self.elbow_flex_pos,
+                                                              self.shoulder_flex_pos, self.shoulder_abduction_pos]):
+
+                min_len = min(len(arr) for arr in [self.hand_vel, self.elbow_vel, self.trunk_displacement,
+                                                   self.trunk_ang, self.elbow_flex_pos,
+                                                   self.shoulder_flex_pos, self.shoulder_abduction_pos])
+                max_len = max(len(arr) for arr in [self.hand_vel, self.elbow_vel, self.trunk_displacement,
+                                                    self.trunk_ang, self.elbow_flex_pos,
+                                                    self.shoulder_flex_pos, self.shoulder_abduction_pos])
+
+                if max_len-min_len < 5: # Taking out 5 frames is acceptable. If it is more, the corresponding data is not used.
+                    self.time = self.time[:min_len]
+                    self.hand_vel = self.hand_vel[:min_len]
+                    self.elbow_vel = self.elbow_vel[:min_len]
+                    self.trunk_displacement = self.trunk_displacement[:min_len]
+                    self.trunk_ang = self.trunk_ang[:min_len]
+                    self.elbow_flex_pos = self.elbow_flex_pos[:min_len]
+                    self.shoulder_flex_pos = self.shoulder_flex_pos[:min_len]
+                    self.shoulder_abduction_pos = self.shoulder_abduction_pos[:min_len]
+            try:
+                df = pd.DataFrame({'time': self.time,
+                                   'hand_vel': self.hand_vel,
+                                   'elbow_vel': self.elbow_vel,
+                                   'trunk_disp': self.trunk_displacement,
+                                   'trunk_ang': self.trunk_ang,
+                                   'elbow_flex_pos': self.elbow_flex_pos,
+                                   'shoulder_flex_pos': self.shoulder_flex_pos,
+                                   'shoulder_abduction_pos': self.shoulder_abduction_pos})
+                if self.path_mov_data is None:
+                    self.path_mov_data = os.path.join(self.dir_trial, f'{self.identifier}_preprocessed_mov_data.csv')
+
+                df.to_csv(self.path_mov_data, sep=';', index=False)
+            except Exception as e:
+                print(f"Error in iDrinkMurphyMeasures.read_files: \n"
+                      f"Error: {e}\n"
+                      f"Could not write to {self.path_mov_data}")
+
     def get_data(self, df):
         """
         Sync the attributes with the DataFrame.
@@ -827,9 +880,8 @@ class MurphyMeasures:
                                "ReturningStart", "RestStart", "TotalMovementTime"]
 
         if self.trial_id is None:
-            print("No trial_id given.\n"
-                  "Murphy object needs a trial_id to retrieve data from DataFrame.")
-            return
+            raise ValueError("No trial_id given.\n"
+                                "Murphy object needs a trial_id to retrieve data from DataFrame.")
 
         try:
             for column in columns_of_interest:
@@ -840,7 +892,9 @@ class MurphyMeasures:
             csv containts only trials of single Participant and the trial number is in the form of TXXX.
             """
 
-            if self.id_p not in df['id_p'].values:
+            if self.id_p not in df['id_p'].values: # If Murphy Measures cannot be calculated, calculate velocities of recording and save them into .csv-file
+                self.read_files()
+
                 raise ValueError(f"\n"
                                  f"Error in iDrinkMurphyMeasures.get_data: Participant {self.id_p} not in DataFrame.\n")
 
@@ -918,10 +972,10 @@ if __name__ == '__main__':
         root_data_omc = r"I:\iDrink\validation_root\03_data\OMC"
         dir_trials = r"I:\iDrink\validation_root\03_data\OMC_old\S15133\S15133_P01" # Directory containing folders of P01
 
-
-
-
-    measures = MurphyMeasures(csv_timestamps=path_timestamps, trial_id='S15133_P01_T001', root_data=root_data_omc)
+    path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
+                                     f'S15133_P01_T001_filtered.csv')
+    measures = MurphyMeasures(csv_timestamps=path_timestamps, trial_id='S15133_P01_T001', root_data=root_data_omc,
+                              write_mov_data=True, path_mov_data=path_preprocessed)
     measures.get_paths()
     measures.read_files()
     measures.get_measures()

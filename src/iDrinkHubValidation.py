@@ -938,12 +938,7 @@ def run_mode():
 
                                 if 'metrabs' in pose:
                                     trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
-
-                                    try:
-                                        trial.run_pose2sim(only_triangulation=False)
-                                    except:
-                                        trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
-                                        trial.run_pose2sim(only_triangulation=False)
+                                    trial.run_pose2sim(only_triangulation=False)
                                 else:
                                     trial.run_pose2sim(only_triangulation=False)
 
@@ -1084,12 +1079,12 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     #args.mode = "pose_estimation"
-    args.mode = 'pose2sim'
+    #args.mode = 'pose2sim'
     args.mode = 'opensim'
     #args.mode = 'murphy_measures'
     #args.poseback = ["mmpose", "pose2sim"]
     #args.poseback = ["pose2sim", 'metrabs_multi']
-    args.verbose = 2
+    #args.verbose = 2
 
 
 

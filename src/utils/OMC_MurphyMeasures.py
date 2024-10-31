@@ -23,7 +23,7 @@ drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'I:']
 if os.name == 'posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[5]
+    drive = drives[1]
 
 root_iDrink = os.path.join(drive, 'iDrink')
 root_val = os.path.join(root_iDrink, "validation_root")
@@ -81,7 +81,13 @@ def run(verbose=1):
             path_joint_acc = os.path.join(dir_jointkin, f'{identifier}_Kinematics_acc.csv')
 
             try:
-                iDrinkMurphyMeasures.MurphyMeasures(trial_id=identifier, csv_timestamps=csv_timestamps, csv_measures=csv_measures, verbose=0,
+                path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
+                                                 f'{identifier}_filtered.csv')
+
+
+                iDrinkMurphyMeasures.MurphyMeasures(trial_id=identifier, csv_timestamps=csv_timestamps,
+                                                    csv_measures=csv_measures, write_mov_data=True,
+                                                    path_mov_data=path_preprocessed, verbose=0,
                                                     path_bodyparts_pos=path_bodyparts_pos,
                                                     path_bodyparts_vel=path_bodyparts_vel,
                                                     path_bodyparts_acc=path_bodyparts_acc,
@@ -91,7 +97,8 @@ def run(verbose=1):
                                                     path_joint_acc=path_joint_acc
                                                     )
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error: {e}\n"
+                      f"Error occured in trial: {identifier}")
 
             if verbose >= 1:
                 progress.update(1)
