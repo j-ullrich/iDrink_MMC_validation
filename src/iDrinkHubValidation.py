@@ -561,6 +561,7 @@ def create_trial_objects():
 
             case "opensim":
                 print("creating trial objects for Opensim")
+                trial_list = trials_from_video()
 
             case "murphy_measures":
                 print("creating trial objects for Murphy Measures")
@@ -978,14 +979,12 @@ def run_mode():
         case "opensim":  # Runs only Opensim
             if args.verbose >= 1:
                 opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
-            for trial in trial_list:
+            for i, trial in enumerate(trial_list):
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
 
-                if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'OS_done'].values[0]:
-                    trial.OS_done = True
-                else:
-                    trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), 'Vec3.csv')
+
+                trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
 
                 if trial.OS_done:
                     if args.verbose >= 2:
@@ -1017,8 +1016,8 @@ def run_mode():
                 if args.verbose >= 1:
                     opensim_progress.update(1)
 
-
-                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+                if i % 50 == 0:
+                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
             if args.verbose >= 1:
                 opensim_progress.close()
@@ -1079,13 +1078,13 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
 
-    args.mode = "pose_estimation"
+    #args.mode = "pose_estimation"
     #args.mode = 'pose2sim'
-    #args.mode = 'opensim'
+    args.mode = 'opensim'
     #args.mode = 'murphy_measures'
     #args.poseback = ["mmpose", "pose2sim"]
-    args.poseback = ["pose2sim", 'metrabs_multi']
-    args.verbose = 2
+    #args.poseback = ["pose2sim", 'metrabs_multi']
+    #args.verbose = 2
 
 
 
