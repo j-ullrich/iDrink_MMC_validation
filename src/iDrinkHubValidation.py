@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[1] + '\\'
+    drive = drives[2] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -938,7 +938,12 @@ def run_mode():
 
                                 if 'metrabs' in pose:
                                     trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
-                                    trial.run_pose2sim(only_triangulation=False)
+
+                                    try:
+                                        trial.run_pose2sim(only_triangulation=False)
+                                    except:
+                                        trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
+                                        trial.run_pose2sim(only_triangulation=False)
                                 else:
                                     trial.run_pose2sim(only_triangulation=False)
 
@@ -1079,12 +1084,12 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     #args.mode = "pose_estimation"
-    #args.mode = 'pose2sim'
+    args.mode = 'pose2sim'
     args.mode = 'opensim'
     #args.mode = 'murphy_measures'
     #args.poseback = ["mmpose", "pose2sim"]
     #args.poseback = ["pose2sim", 'metrabs_multi']
-    #args.verbose = 2
+    args.verbose = 2
 
 
 
