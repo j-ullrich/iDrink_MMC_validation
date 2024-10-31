@@ -29,7 +29,7 @@ root_iDrink = os.path.join(drive, 'iDrink')
 root_val = os.path.join(root_iDrink, "validation_root")
 root_stat = os.path.join(root_val, '04_Statistics')
 root_data = os.path.join(root_val, "03_data")
-root_omc = os.path.join(root_val, '03_data', 'OMC', 'S15133')
+root_omc = os.path.join(root_val, '03_data', 'OMC_new', 'S15133')
 
 csv_timestamps = os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv')
 csv_measures =os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
@@ -81,7 +81,11 @@ def run(verbose=1):
             path_joint_acc = os.path.join(dir_jointkin, f'{identifier}_Kinematics_acc.csv')
 
             try:
-                iDrinkMurphyMeasures.MurphyMeasures(trial_id=identifier, csv_timestamps=csv_timestamps, csv_measures=csv_measures, verbose=0,
+                path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
+                                                 f'{identifier}_filtered.csv')
+                iDrinkMurphyMeasures.MurphyMeasures(trial_id=identifier, csv_timestamps=csv_timestamps,
+                                                    csv_measures=csv_measures, write_mov_data=True,
+                                                    path_mov_data=path_preprocessed, verbose=0,
                                                     path_bodyparts_pos=path_bodyparts_pos,
                                                     path_bodyparts_vel=path_bodyparts_vel,
                                                     path_bodyparts_acc=path_bodyparts_acc,
