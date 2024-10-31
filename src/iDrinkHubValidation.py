@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[1] + '\\'
+    drive = drives[2] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -894,14 +894,10 @@ def run_mode():
             if args.verbose >= 1:
                 p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
 
-            valid_p =['P241', 'P242', 'P251', 'P252']
-
             for i, trial in enumerate(trial_list):
                 # Get Pose method from settings dataframe
                 """i=78 # Trial that leads to exception in P2S
                 trial = trial_list[i]"""
-                if trial.id_p not in valid_p:
-                    continue
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
@@ -1032,18 +1028,10 @@ def run_mode():
 
             for trial in trial_list:
 
-                if trial.id_s != 'S001':
-                    continue
-
                 try:
-                    path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out', f'{trial.identifier}_filtered.csv')
-
                     iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
                                                         csv_timestamps=path_csv_murphy_timestamps,
-                                                        csv_measures=path_csv_murphy_measures,
-                                                        write_mov_data=True,
-                                                        path_mov_data=path_preprocessed
-                                                        )
+                                                        csv_measures=path_csv_murphy_measures)
                 except Exception as e:
                     if args.verbose >= 2:
                         print(f"Error in murphy_measures\n"
@@ -1075,6 +1063,8 @@ def run_mode():
         case "full":  # runs the full pipeline
             print("Johann, take this out")
 
+
+
         case _:  # If no mode is given
             raise ValueError("Invalid Mode was given. Please specify a valid mode.")
             sys.exit(1)
@@ -1088,12 +1078,17 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
 
-    args.mode = "pose_estimation"
-    args.mode = 'pose2sim'
-    #args.mode = 'opensim'
+    #args.mode = "pose_estimation"
+    #args.mode = 'pose2sim'
+    args.mode = 'opensim'
     #args.mode = 'murphy_measures'
+    #args.poseback = ["mmpose", "pose2sim"]
     #args.poseback = ["pose2sim", 'metrabs_multi']
     #args.verbose = 2
+
+
+
+
 
     if args.mode is not None:
         print("Starting with Mode: ", args.mode)
