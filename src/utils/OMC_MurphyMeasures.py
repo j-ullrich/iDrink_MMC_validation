@@ -83,6 +83,8 @@ def run(verbose=1):
             try:
                 path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
                                                  f'{identifier}_filtered.csv')
+
+
                 iDrinkMurphyMeasures.MurphyMeasures(trial_id=identifier, csv_timestamps=csv_timestamps,
                                                     csv_measures=csv_measures, write_mov_data=True,
                                                     path_mov_data=path_preprocessed, verbose=0,
@@ -95,7 +97,8 @@ def run(verbose=1):
                                                     path_joint_acc=path_joint_acc
                                                     )
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error: {e}\n"
+                      f"Error occured in trial: {identifier}")
 
             if verbose >= 1:
                 progress.update(1)

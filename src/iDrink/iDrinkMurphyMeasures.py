@@ -832,18 +832,45 @@ class MurphyMeasures:
         if self.write_mov_data:
 
             os.makedirs(os.path.dirname(self.path_mov_data), exist_ok=True)
-            df = pd.DataFrame({'time': self.time,
-                               'hand_vel': self.hand_vel,
-                               'elbow_vel': self.elbow_vel,
-                               'trunk_disp': self.trunk_displacement,
-                               'trunk_ang': self.trunk_ang,
-                               'elbow_flex_pos': self.elbow_flex_pos,
-                               'shoulder_flex_pos': self.shoulder_flex_pos,
-                               'shoulder_abduction_pos': self.shoulder_abduction_pos})
-            if self.path_mov_data is None:
-                self.path_mov_data = os.path.join(self.dir_trial, f'{self.identifier}_preprocessed_mov_data.csv')
+            # make sure all arrays have the same length
 
-            df.to_csv(self.path_mov_data, sep=';', index=False)
+            if not all(len(arr) == len(self.time) for arr in [self.hand_vel, self.elbow_vel, self.trunk_displacement,
+                                                              self.trunk_ang, self.elbow_flex_pos,
+                                                              self.shoulder_flex_pos, self.shoulder_abduction_pos]):
+
+                min_len = min(len(arr) for arr in [self.hand_vel, self.elbow_vel, self.trunk_displacement,
+                                                   self.trunk_ang, self.elbow_flex_pos,
+                                                   self.shoulder_flex_pos, self.shoulder_abduction_pos])
+                max_len = max(len(arr) for arr in [self.hand_vel, self.elbow_vel, self.trunk_displacement,
+                                                    self.trunk_ang, self.elbow_flex_pos,
+                                                    self.shoulder_flex_pos, self.shoulder_abduction_pos])
+
+                if max_len-min_len < 5: # Taking out 5 frames is acceptable. If it is more, the corresponding data is not used.
+                    self.time = self.time[:min_len]
+                    self.hand_vel = self.hand_vel[:min_len]
+                    self.elbow_vel = self.elbow_vel[:min_len]
+                    self.trunk_displacement = self.trunk_displacement[:min_len]
+                    self.trunk_ang = self.trunk_ang[:min_len]
+                    self.elbow_flex_pos = self.elbow_flex_pos[:min_len]
+                    self.shoulder_flex_pos = self.shoulder_flex_pos[:min_len]
+                    self.shoulder_abduction_pos = self.shoulder_abduction_pos[:min_len]
+            try:
+                df = pd.DataFrame({'time': self.time,
+                                   'hand_vel': self.hand_vel,
+                                   'elbow_vel': self.elbow_vel,
+                                   'trunk_disp': self.trunk_displacement,
+                                   'trunk_ang': self.trunk_ang,
+                                   'elbow_flex_pos': self.elbow_flex_pos,
+                                   'shoulder_flex_pos': self.shoulder_flex_pos,
+                                   'shoulder_abduction_pos': self.shoulder_abduction_pos})
+                if self.path_mov_data is None:
+                    self.path_mov_data = os.path.join(self.dir_trial, f'{self.identifier}_preprocessed_mov_data.csv')
+
+                df.to_csv(self.path_mov_data, sep=';', index=False)
+            except Exception as e:
+                print(f"Error in iDrinkMurphyMeasures.read_files: \n"
+                      f"Error: {e}\n"
+                      f"Could not write to {self.path_mov_data}")
 
     def get_data(self, df):
         """
