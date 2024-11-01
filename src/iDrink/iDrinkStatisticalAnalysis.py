@@ -50,7 +50,7 @@ def resample_dataframes(df1, df2, max_time=None):
         df1 = df1[df1['time'] <= max_time]
         df2 = df2[df2['time'] <= max_time]
 
-    if df1['time'].iloc[-1] > df2['time'].iloc[-1]:
+    if df1.shape[0] > df2.shape[0]:
         # make sure, df1 is always the shorter DataFrame when working on it. --> lower frequency
         df2, df1 = resample_dataframes(df2, df1, max_time)
 
@@ -1148,7 +1148,7 @@ def get_omc_file(id_p, id_t, root_omc, endeff=None, joint=None):
     return df_omc
 
 
-def get_omc_mmc_error(dir_root, df_timestamps, id_s, verbose=1):
+def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
     """
     Writes csv file containing error for all trials and participants of a setting.
     S*_omc_mmc_error.csv
@@ -1185,175 +1185,198 @@ def get_omc_mmc_error(dir_root, df_timestamps, id_s, verbose=1):
     if type(df_timestamps) is not pd.DataFrame:
         df_timestamps = pd.read_csv(df_timestamps, sep=';')
 
-    dir_dst = os.path.join(dir_root, '04_statistics', '01_results', '01_omc_to_mmc_error_per_s', 'S15133_P*_T*_.csv')
+    dir_dat_out = os.path.join(dir_root, '04_statistics', '01_continuous', '01_results', '01_omc_to_mmc_error_per_s')
 
     dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
 
     # get all omc_trials
-    omc_csvs = glob.glob(os.path.join(dir_dat_in, '01_murphy_out', 'S15133_P*_T*_.csv'))
+    omc_csvs = glob.glob(os.path.join(dir_dat_in, 'S15133_P*_T*.csv'))
+
+    # get all s_ids except 'S15133'
+    s_ids = sorted(list(set([os.path.basename(file).split('_')[0] for file in os.listdir(dir_dat_in)])))
+    s_ids.remove('S15133')
 
     # retrieve all p_ids and t_ids present in omc data.
-    p_ids = [os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]
+    p_ids = sorted(list(set([os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs])))
 
-    csv_s_error = os.path.join(dir_dst, f'{id_s}_omc_mmc_error.csv')
-    csv_s_rse = os.path.join(dir_dst, f'{id_s}_omc_mmc_error_rse.csv')
+    for id_s in s_ids:
 
-    csv_s_error_mean = os.path.join(dir_dst, f'{id_s}_omc_mmc_error_mean_std.csv')
-    csv_s_rmse_mean = os.path.join(dir_dst, f'{id_s}_omc_mmc_rmse_mean_std.csv')
+        csv_s_error = os.path.join(dir_dat_out, f'{id_s}_omc_mmc_error.csv')
+        csv_s_rse = os.path.join(dir_dat_out, f'{id_s}_omc_mmc_error_rse.csv')
 
-    df_s_error = None
-    df_s_rse  = None
-    df_s_error_mean = None
-    df_s_rmse_mean = None
+        csv_s_error_mean = os.path.join(dir_dat_out, f'{id_s}_omc_mmc_error_mean_std.csv')
+        csv_s_rmse_mean = os.path.join(dir_dat_out, f'{id_s}_omc_mmc_rmse_mean_std.csv')
+
+        df_s_error = None
+        df_s_rse  = None
+        df_s_error_mean = None
+        df_s_rmse_mean = None
 
 
-    for id_p in p_ids:
-        omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
-        t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
+        for id_p in p_ids:
+            omc_csvs_p = sorted([omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)])
 
-        dict_error_p_mean_aff = None
-        dict_error_p_mean_unaff = None
-        dict_rmse_p_mean_aff = None
-        dict_rmse_p_mean_unaff = None
+            dict_error_p_mean_aff = None
+            dict_error_p_mean_unaff = None
+            dict_rmse_p_mean_aff = None
+            dict_rmse_p_mean_unaff = None
 
-        for id_t in t_ids:
-            mmc_csv = os.path.join(dir_dat_in, '01_murphy_out', f'{id_s}_{id_p}_{id_t}_*.csv')
-            omc_csv = os.path.join(dir_dat_in, '01_murphy_out', f'S15133_{id_p}_{id_t}*.csv')
+            found_files = []
+            t_ids = []
+            for id_t in sorted(list(set([os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]))):
+                found_files.extend(glob.glob(os.path.join(dir_dat_in, f'{id_s}*{id_p}*{id_t}*.csv')))
+                if len(found_files) > 0:
+                    t_ids.append(id_t)
 
-            try:
-                df_omc = pd.read_csv(omc_csv, sep=';')
-                df_mmc = pd.read_csv(mmc_csv, sep=';')
-            except Exception as e:
-                print(f"Error in iDrinkStatisticalAnalysis.get_omc_mmc_error while reading csv file:\n"
-                      f"OMC-File:\t{omc_csv} \n"
-                      f"MMC-File:\t{mmc_csv}\n"
-                      f"\n"
-                      f"Error:\t{e}")
+            if not t_ids:
                 continue
 
-            time_t = df_omc['time']
+            for id_t in t_ids:
+                mmc_csv = os.path.join(dir_dat_in, f'{id_s}_{id_p}_{id_t}_preprocessed.csv')
+                omc_csv = os.path.join(dir_dat_in, f'S15133_{id_p}_{id_t}_preprocessed.csv')
 
-            #check if affected in timestamps
-            condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
+                try:
+                    df_omc = pd.read_csv(omc_csv, sep=';')
+                    df_mmc = pd.read_csv(mmc_csv, sep=';')
+                except Exception as e:
+                    print(f"Error in iDrinkStatisticalAnalysis.get_omc_mmc_error while reading csv file:\n"
+                          f"OMC-File:\t{omc_csv} \n"
+                          f"MMC-File:\t{mmc_csv}\n"
+                          f"\n"
+                          f"Error:\t{e}")
+                    continue
 
-            # get columns without 'time'
-            columns_old = [f'{col}' for col in df_omc.columns if col != 'time']
-            columns_new = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns if col != 'time']
-            columns_new_full = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns]
+                time_t = df_omc['time']
+
+                #check if affected in timestamps
+                condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
+
+                # get columns without 'time'
+                columns_old = [f'{col}' for col in df_omc.columns if col not in ['time', 'Unnamed: 0']]
+                columns_new = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns if col not in ['time', 'Unnamed: 0']]
+                columns_new_full = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns]
 
 
-            if dict_error_p_mean_aff is None:
-                # Create dictionaries with columns_old as keys containing empty lists
-                dict_error_p_mean_aff = {col: [] for col in columns_old}
-                dict_error_p_mean_unaff = {col: [] for col in columns_old}
-                dict_rmse_p_mean_aff = {col: [] for col in columns_old}
-                dict_rmse_p_mean_unaff = {col: [] for col in columns_old}
+                if dict_error_p_mean_aff is None:
+                    # Create dictionaries with columns_old as keys containing empty lists
+                    dict_error_p_mean_aff = {col: [] for col in columns_old}
+                    dict_error_p_mean_unaff = {col: [] for col in columns_old}
+                    dict_rmse_p_mean_aff = {col: [] for col in columns_old}
+                    dict_rmse_p_mean_unaff = {col: [] for col in columns_old}
 
-                dict_error_p_std_aff = {col: [] for col in columns_old}
-                dict_error_p_std_unaff = {col: [] for col in columns_old}
-                dict_rmse_p_std_aff = {col: [] for col in columns_old}
-                dict_rmse_p_std_unaff = {col: [] for col in columns_old}
+                    dict_error_p_std_aff = {col: [] for col in columns_old}
+                    dict_error_p_std_unaff = {col: [] for col in columns_old}
+                    dict_rmse_p_std_aff = {col: [] for col in columns_old}
+                    dict_rmse_p_std_unaff = {col: [] for col in columns_old}
 
-            # Iterate over all columns and calculate error of all timepoints
-            df_error = pd.DataFrame(columns=columns_new_full)
-            df_rse = pd.DataFrame(columns=columns_new_full)
+                # Iterate over all columns and calculate error of all timepoints
+                df_error = pd.DataFrame(columns=columns_new_full)
+                df_rse = pd.DataFrame(columns=columns_new_full)
 
-            df_error['{id_p}_{id_t}_time'] = time_t
-            df_rse['{id_p}_{id_t}_time'] = time_t
+                df_error[f'{id_p}_{id_t}_time'] = time_t
+                df_rse[f'{id_p}_{id_t}_time'] = time_t
 
-            dict_error_t_mean = {col: [] for col in columns_old}
-            dict_rmse_t_mean = {col: [] for col in columns_old}
-            dict_error_t_std = {col: [] for col in columns_old}
-            dict_rmse_t_std = {col: [] for col in columns_old}
+                dict_error_t_mean = {col: [] for col in columns_old}
+                dict_rmse_t_mean = {col: [] for col in columns_old}
+                dict_error_t_std = {col: [] for col in columns_old}
+                dict_rmse_t_std = {col: [] for col in columns_old}
 
-            for column, column_new in zip(columns_old, columns_new):
-                error = df_mmc[column] - df_omc[column]
-                rse = np.sqrt(error**2)
+                for column, column_new in zip(columns_old, columns_new):
+                    error = df_mmc[column] - df_omc[column]
+                    rse = np.sqrt(error**2)
 
-                dict_error_t_mean[column].append(np.mean(error))
-                dict_rmse_t_mean[column].append(np.sqrt(np.mean(error**2)))
-                dict_error_t_std[column].append(np.std(error))
-                dict_rmse_t_std[column].append(np.std(rse))
+                    dict_error_t_mean[column].append(np.mean(error))
+                    dict_rmse_t_mean[column].append(np.sqrt(np.mean(error**2)))
+                    dict_error_t_std[column].append(np.std(error))
+                    dict_rmse_t_std[column].append(np.std(rse))
 
-                df_error[column_new] = error
-                df_rse[column_new] = rse
+                    df_error[column_new] = error
+                    df_rse[column_new] = rse
 
-                # Add to dicts for mean over id_p
-                if condition == 'affected':
-                    dict_error_p_mean_aff[column].append(error)
-                    dict_rmse_p_mean_aff[column].append(rse)
+                    # Add to dicts for mean over id_p
+                    if condition == 'affected':
+                        dict_error_p_mean_aff[column].extend(error)
+                        dict_rmse_p_mean_aff[column].extend(rse)
+                    else:
+                        dict_error_p_mean_unaff[column].extend(error)
+                        dict_rmse_p_mean_unaff[column].extend(rse)
+
+                if df_s_error is None:
+                    df_s_error = df_error
+                    df_s_rse = df_rse
                 else:
-                    dict_error_p_mean_unaff[column].append(error)
-                    dict_rmse_p_mean_unaff[column].append(rse)
+                    df_s_error.join(df_error)
+                    df_s_rse.join(df_rse)
 
-            if df_s_error is None:
-                df_s_error = df_error
-                df_s_rse = df_rse
-            else:
-                df_s_error.join(df_error)
-                df_s_rse.join(df_rse)
+                if condition == 'affected':
+                    idx = [f'{id_p}_{id_t}_aff', f'{id_p}_{id_t}_aff_std']
+                else:
+                    idx = [f'{id_p}_{id_t}_unaff', f'{id_p}_{id_t}_unaff_std']
+                if df_s_error_mean is None:
+                    # Create with dicts
+                    df_s_error_mean = pd.DataFrame([dict_error_t_mean, dict_error_t_std],
+                                                   index=idx)
+                    df_s_rmse_mean = pd.DataFrame([dict_rmse_t_mean, dict_rmse_t_std],
+                                                  index=idx)
 
-            if condition == 'affected':
-                idx = [f'{id_p}_{id_t}_aff', f'{id_p}_{id_t}_aff_std']
-            else:
-                idx = [f'{id_p}_{id_t}_unaff', f'{id_p}_{id_t}_unaff_std']
+                else:  # Add dicts to existing DataFrames as Rows
+                    pd.concat([df_s_error_mean, pd.DataFrame([dict_error_t_mean, dict_error_t_std],
+                                                             index=idx)])
+                    pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_t_mean, dict_rmse_t_std],
+                                                            index=idx)])
+
+            # iterate over keys in dictionary and calculate std and then mean
+            try:
+                for key in dict_error_p_mean_aff.keys():
+
+                    dict_error_p_std_aff[key] = np.nanstd(dict_error_p_mean_aff[key], axis=0)
+                    dict_error_p_std_unaff[key] = np.nanstd(dict_error_p_mean_unaff[key], axis=0)
+                    dict_rmse_p_std_aff[key] = np.nanstd(dict_rmse_p_mean_aff[key], axis=0)
+                    dict_rmse_p_std_unaff[key] = np.nanstd(dict_rmse_p_mean_unaff[key], axis=0)
+
+                    dict_error_p_mean_aff[key] = np.nanmean(dict_error_p_mean_aff[key], axis=0)
+                    dict_error_p_mean_unaff[key] = np.nanmean(dict_error_p_mean_unaff[key], axis=0)
+                    dict_rmse_p_mean_aff[key] = np.nanmean(dict_rmse_p_mean_aff[key], axis=0)
+                    dict_rmse_p_mean_unaff[key] = np.nanmean(dict_rmse_p_mean_unaff[key], axis=0)
+            except Exception as e:
+                pass
+
+
+
+
+            columns = [f'{col}' for col in df_omc.columns if col != 'time']
+            df_error_mean = pd.DataFrame(columns=columns)
+            idx = [f'{id_p}_aff', f'{id_p}_aff_std',
+                   f'{id_p}_unaff', f'{id_p}_unaff_std']
             if df_s_error_mean is None:
                 # Create with dicts
-                df_s_error_mean = pd.DataFrame([dict_error_t_mean, dict_error_t_std],
+                df_s_error_mean = pd.DataFrame([dict_error_p_mean_aff, dict_error_p_std_aff,
+                                                dict_error_p_mean_unaff, dict_error_p_std_unaff],
                                                index=idx)
-                df_s_rmse_mean = pd.DataFrame([dict_rmse_t_mean, dict_rmse_t_std],
+                df_s_rmse_mean = pd.DataFrame([dict_rmse_p_mean_aff, dict_rmse_p_std_aff,
+                                               dict_rmse_p_mean_unaff, dict_rmse_p_std_unaff],
                                               index=idx)
 
-            else:  # Add dicts to existing DataFrames as Rows
+            else: # Add dicts to existing DataFrames as Rows
                 pd.concat([df_s_error_mean, pd.DataFrame([dict_error_p_mean_aff, dict_error_p_std_aff,
                                                           dict_error_p_mean_unaff, dict_error_p_std_unaff],
                                                          index=idx)])
                 pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_p_mean_aff, dict_rmse_p_std_aff,
-                                                         dict_rmse_p_mean_unaff, dict_rmse_p_std_unaff],
+                                               dict_rmse_p_mean_unaff, dict_rmse_p_std_unaff],
                                                         index=idx)])
 
-        # iterate over keys in dictionary and calculate std and then mean
-        for key in dict_error_p_mean_aff.keys():
-            dict_error_p_std_aff[key] = np.std(dict_error_p_mean_aff[key], axis=0)
-            dict_error_p_std_unaff[key] = np.std(dict_error_p_mean_unaff[key], axis=0)
-            dict_rmse_p_std_aff[key] = np.std(dict_rmse_p_mean_aff[key], axis=0)
-            dict_rmse_p_std_unaff[key] = np.std(dict_rmse_p_mean_unaff[key], axis=0)
+        pass
 
-            dict_error_p_mean_aff[key] = np.mean(dict_error_p_mean_aff[key], axis=0)
-            dict_error_p_mean_unaff[key] = np.mean(dict_error_p_mean_unaff[key], axis=0)
-            dict_rmse_p_mean_aff[key] = np.mean(dict_rmse_p_mean_aff[key], axis=0)
-            dict_rmse_p_mean_unaff[key] = np.mean(dict_rmse_p_mean_unaff[key], axis=0)
+        os.makedirs(dir_dat_out, exist_ok=True)
 
-        columns = [f'{col}' for col in df_omc.columns if col != 'time']
-        df_error_mean = pd.DataFrame(columns=columns)
-        idx = [f'{id_p}_aff', f'{id_p}_aff_std',
-               f'{id_p}_unaff', f'{id_p}_unaff_std']
-        if df_s_error_mean is None:
-            # Create with dicts
-            df_s_error_mean = pd.DataFrame([dict_error_p_mean_aff, dict_error_p_std_aff,
-                                            dict_error_p_mean_unaff, dict_error_p_std_unaff],
-                                           index=idx)
-            df_s_rmse_mean = pd.DataFrame([dict_rmse_p_mean_aff, dict_rmse_p_std_aff,
-                                           dict_rmse_p_mean_unaff, dict_rmse_p_std_unaff],
-                                          index=idx)
+        df_s_error_mean.to_csv(csv_s_error_mean, sep=';')
+        df_s_rmse_mean.to_csv(csv_s_rmse_mean, sep=';')
 
-        else: # Add dicts to existing DataFrames as Rows
-            pd.concat([df_s_error_mean, pd.DataFrame([dict_error_p_mean_aff, dict_error_p_std_aff,
-                                                      dict_error_p_mean_unaff, dict_error_p_std_unaff],
-                                                     index=idx)])
-            pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_p_mean_aff, dict_rmse_p_std_aff,
-                                           dict_rmse_p_mean_unaff, dict_rmse_p_std_unaff],
-                                                    index=idx)])
+        df_s_error.to_csv(csv_s_error, sep=';')
+        df_s_rse.to_csv(csv_s_rse, sep=';')
 
-    pass
-
-    df_s_error_mean.to_csv(csv_s_error_mean, sep=';')
-    df_s_rmse_mean.to_csv(csv_s_rmse_mean, sep=';')
-
-    df_s_error.to_csv(csv_s_error, sep=';')
-    df_s_rse.to_csv(csv_s_rse, sep=';')
-
-def preprocess_timeseries(dir_root, detect_outliers = False, joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1):
+def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, detect_outliers = False,
+                          joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1):
     """
     Preprocess timeseries data for statistical analysis.
 
@@ -1368,6 +1391,72 @@ def preprocess_timeseries(dir_root, detect_outliers = False, joint_vel_thresh = 
     """
     pass
 
+    def downsample_dataframe(df_, fps=60):
+        """
+        Taken from Marwens Masterthesis
+
+        https://github.com/cf-project-delta/Delta_3D_reconstruction/blob/d73315f5cac31be1c1fe621fdfa7cdce24a2cc2a/processing/reading_storing_processed_data.py#L410
+
+        :param df_:
+        :param fps:
+        :return:
+        """
+
+        # Convert the Timestamp column to a datetime format and set it as the index
+        df = df_.copy()
+        try:
+            df['time'] = pd.to_timedelta(df['time'], unit='s')
+        except:
+            df['time'] = pd.to_timedelta(df['time'], unit='s')
+        df = df.set_index('time')
+        # Get the numerical and non-numerical columns
+        num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        non_num_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
+        # Resample the numerical columns to the desired fps and compute the mean for each interval
+        # num_df = df[num_cols].resample(f'{1000/fps:.6f}ms').mean()
+        num_df = df[num_cols].resample(f'{1000 / fps:.6f}ms').mean().interpolate()  # Interpolate missing values
+        # Resample the non-numerical columns to the desired fps and compute the mode for each interval
+        non_num_df = df[non_num_cols].resample(f'{1000 / fps:.6f}ms').agg(lambda x: x.mode()[0])
+        # Merge the numerical and non-numerical dataframes
+        df_downsampled = pd.concat([num_df, non_num_df], axis=1)
+        # Reset the index to make the Timestamp column a regular column again
+        df_downsampled.reset_index(inplace=True)
+        return df_downsampled
+
+    def drop_last_rows_if_needed(df1, df2):
+        """
+        Taken from Marwens Masterthesis
+
+        https://github.com/cf-project-delta/Delta_3D_reconstruction/blob/d73315f5cac31be1c1fe621fdfa7cdce24a2cc2a/processing/reading_storing_processed_data.py#L410
+
+        :param df1:
+        :param df2:
+        :return:
+        """
+        len_diff = len(df1) - len(df2)
+        # Drop the last row from the dataframe with more rows
+        if len_diff > 0:
+            df1 = df1[:-len_diff]
+        elif len_diff < 0:
+            df2 = df2[:len(df1)]
+
+        return df1.copy(), df2.copy()
+
+    def drop_nan(df1, df2):
+        """Iterate over rows and drop rows where either df1 or df2 contains NaN"""
+
+        for idx, row in df1.iterrows():
+            if row.isnull().values.any():
+                df1.drop(idx, inplace=True)
+                df2.drop(idx, inplace=True)
+
+        for idx, row in df2.iterrows():
+            if row.isnull().values.any():
+                df1.drop(idx, inplace=True)
+                df2.drop(idx, inplace=True)
+
+        return df1, df2
+
     dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '01_murphy_out')
     dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
 
@@ -1378,28 +1467,44 @@ def preprocess_timeseries(dir_root, detect_outliers = False, joint_vel_thresh = 
         df_outliers = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'reason'])
 
     # get all omc_trials
-    omc_csvs = glob.glob(os.path.join(dir_dat_in, '01_murphy_out', 'S15133_P*_T*_.csv'))
+    omc_csvs = glob.glob(os.path.join(dir_dat_in, 'S15133_P*_T*.csv'))
     # retrieve all p_ids and t_ids present in omc data.
-    p_ids = [os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]
+    p_ids = list(set([os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]))
+
+    # get all s_ids except 'S15133'
+    s_ids = list(set([os.path.basename(file).split('_')[0] for file in os.listdir(dir_dat_in)]))
+    s_ids.remove('S15133')
+    if verbose >=1:
+        process = tqdm(p_ids, desc='Preprocessing', leave=True)
 
     for id_p in p_ids:
+        if verbose >= 1:
+            process.set_description(f'Preprocessing {id_p}')
         omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
 
         t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
 
+        # check if MMC recording exists for id_p
+        found_files = []
+        for id_s in s_ids:
+            found_files.extend(glob.glob(os.path.join(dir_dat_in, f'{id_s}*{id_p}_*.csv')))
+
+        if len(found_files) == 0:
+            continue
+
+
         for id_t in t_ids:
 
-            omc_csv = os.path.join(dir_dat_in, '01_murphy_out', f'S15133_{id_p}_{id_t}*.csv')
+            omc_csv = glob.glob(os.path.join(dir_dat_in, f'S15133_{id_p}_{id_t}*.csv'))[0]
 
-            mmc_files = glob.glob(os.path.join(dir_dat_in, '01_murphy_out', f'*{id_p}_{id_t}*.csv'))
+            mmc_files = []
+            for id_s in s_ids:
+                found_file = glob.glob(os.path.join(dir_dat_in, f'{id_s}*{id_p}_{id_t}*.csv'))
+                if len(found_file) > 0:
+                    mmc_files.append(found_file[0])
 
             for mmc_csv in mmc_files:
                 id_s = os.path.basename(mmc_csv).split('_')[0]
-
-                df_omc = pd.read_csv(omc_csv, sep=';')
-                df_mmc = pd.read_csv(mmc_csv, sep=';')
-
-
 
                 try:
                     df_omc = pd.read_csv(omc_csv, sep=';')
@@ -1412,8 +1517,20 @@ def preprocess_timeseries(dir_root, detect_outliers = False, joint_vel_thresh = 
                           f"Error:\t{e}")
                     continue
 
-                # Downsample to mmc
-                resample_dataframes(df_omc, df_mmc)
+                omc_nframes_before = len(df_omc)
+                mmc_nframes_before = len(df_mmc)
+
+                if downsample:
+                    # Resample both DataFrames to 60Hz
+                    df_omc = downsample_dataframe(df_omc)
+                    df_mmc = downsample_dataframe(df_mmc)
+
+
+                    #df_omc, df_mmc = drop_nan(df_omc, df_mmc)
+
+                if drop_last_frame:
+                    # Drop last rows if needed
+                    df_omc, df_mmc = drop_last_rows_if_needed(df_omc, df_mmc)
 
                 # Detect Outliers
                 if detect_outliers:
@@ -1445,15 +1562,38 @@ def preprocess_timeseries(dir_root, detect_outliers = False, joint_vel_thresh = 
                     if max_val > hand_vel_thresh:
                         print(f"Trial {id_p}_{id_t} is an outlier due to high endeffector velocity.")
                         df = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': f'hand_vel {reason} {max_val} > {hand_vel_thresh}'})
+                        pd.concat([df_outliers, df])
                         continue
 
+
+                omc_nframes_after = len(df_omc)
+                mmc_nframes_after = len(df_mmc)
+
                 # Write to new csv
-                df_omc.to_csv(os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}*.csv'), sep=';')
-                df_mmc.to_csv(os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_*.csv'), sep=';')
+                os.makedirs(dir_dat_out, exist_ok=True)
+
+                path_omc_out = os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}_preprocessed.csv')
+                path_mmc_out = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_preprocessed.csv')
+
+                df_omc.to_csv(path_omc_out, sep=';')
+                df_mmc.to_csv(path_mmc_out, sep=';')
 
                 if verbose >= 1:
-                    print(f"Preprocessed:\t{os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}*.csv')}")
-                    print(f"Preprocessed:\t{os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_*.csv')}")
+                    print(f"Preprocessed:\t{path_omc_out}\n"
+                          f"Preprocessed:\t{path_mmc_out}\n"
+                          f"Dropped Frames:\n"
+                          f"OMC: {omc_nframes_before - omc_nframes_after}\n"
+                          f"MMC: {mmc_nframes_before - mmc_nframes_after}")
+
+
+
+        if verbose >= 1:
+            process.update(1)
+
+    df_outliers.to_csv(csv_outliers, sep=';')
+
+    if verbose >= 1:
+        process.close()
 
 
 if __name__ == '__main__':
@@ -1468,7 +1608,7 @@ if __name__ == '__main__':
     if os.name == 'posix':  # Running on Linux
         drive = '/media/devteam-dart/Extreme SSD'
     else:
-        drive = drives[5] + '\\'
+        drive = drives[1] + '\\'
 
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")
@@ -1490,67 +1630,16 @@ if __name__ == '__main__':
 
     test_timeseries = True
 
-    joints_of_interest = ['arm_flex_r', 'arm_add_r', 'arm_rot_r',
-                          'elbow_flex_r', 'pro_sup_r',
-                          'arm_flex_l', 'arm_add_l', 'arm_rot_l',
-                          'elbow_flex_l', 'pro_sup_l',
-                          ]
 
-    # Default Body Parts of Interest
-    body_parts_of_interest = ['hand_r_x','hand_r_y','hand_r_z','hand_l_x','hand_l_y','hand_l_z']
-
-    # Default Body Parts of Interest without axes
-    body_parts_of_interest_no_axes = ['hand_r','hand_l']
-
-    csv_murphy = os.path.realpath(os.path.join(root_stat, '02_categorical', 'murphy_measures.csv'))
 
     if test_timeseries:
-        """
-        joint_kin_openism = {
-            'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_q.sto"),
-            'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_u.sto"),
-            'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_Kinematics_dudt.sto")}
-        body_kin_opensim = {
-            'pos': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_pos_global.sto"),
-            'vel': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_vel_global.sto"),
-            'acc': os.path.join(drive, r"iDrink\validation_root\03_data\setting_003\P07\S003\S003_P07\S003_P07_T043\movement_analysis\kin_opensim_analyzetool\S003_P07_T043_BodyKinematics_acc_global.sto")}
 
-        joint_kin_OMC = {
-            'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_q.sto"),
-            'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_u.sto"),
-            'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_Kinematics_dudt.sto")}
-        body_kin_OMC = {
-            'pos': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_pos_global.sto"),
-            'vel': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_vel_global.sto"),
-            'acc': os.path.join(drive, r"iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_opensim_analyzetool\S15133_P07_T043_BodyKinematics_acc_global.sto")}
+        preprocess_timeseries(root_val,
+                              downsample=True, drop_last_frame=False, detect_outliers=False,
+                              joint_vel_thresh=5, hand_vel_thresh=3000,
+                              verbose=1)
+        get_omc_mmc_error(root_val, path_csv_murphy_timestamps, verbose=1)
 
-        body_kin_p2s_OMC = {
-            'pos': os.path.join(drive, r"D:\iDrink\validation_root\03_data\OMC\S15133\S15133_P07\S15133_P07_T043\movement_analysis\kin_p2s\S15133_P07_T043_Body_kin_p2s_pos.csv")
-        }
-
-        files_mmc = [joint_kin_openism.get('pos'), joint_kin_openism.get('vel'), joint_kin_openism.get('acc')]
-        continuous = True
-        isjoint = True
-
-        df_mmc_pos, df_mmc_vel, df_mmc_acc = get_dataframes(files_mmc)
-
-        files = {
-            'joint_kin_OMC' : joint_kin_OMC,
-            'body_kin_OMC' : body_kin_OMC,
-        }
-
-        files_omc = [joint_kin_OMC.get('pos'), joint_kin_OMC.get('vel'), joint_kin_OMC.get('acc')]
-
-        df_omc_pos, df_omc_vel, df_omc_acc = get_dataframes(files_omc)
-
-        if continuous:
-            df_stat_cont = compare_timeseries_for_trial(df_mmc_pos, df_omc_pos, joints_of_interest, isjoint, root_stat)"""
-
-        dir_stat_ts = os.path.join(root_stat, '01_continuous')
-        run_statistics_time_series(root_data, root_omc, dir_stat_ts, df_settings,
-                                   path_csv_murphy_timestamps,
-                                   joints_of_interest, body_parts_of_interest,
-                                   body_parts_of_interest_no_axes)
 
     else:
 
