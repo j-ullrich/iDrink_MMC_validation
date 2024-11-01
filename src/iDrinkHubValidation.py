@@ -752,7 +752,6 @@ def run_mode():
                                     trial.MMPose_done = True
                                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
 
-                                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
                                 except Exception as e:
                                     if args.verbose>=2:
                                         print(f"Error in Pose Estimation\n"
@@ -761,9 +760,6 @@ def run_mode():
 
                                     iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'mmpose', log_val_errors)
                                     trial.MMPose_done = False
-
-                            if i % 10 == 0:  # Update after every 10 trials
-                                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
                         df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
@@ -820,7 +816,6 @@ def run_mode():
                                     trial.P2SPose_done = True
                                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
 
-                                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
                                 except Exception as e:
                                     if args.verbose >= 2:
                                         print(f"Error in Pose Estimation\n"
@@ -829,9 +824,6 @@ def run_mode():
 
                                     iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'pose2sim', log_val_errors)
                                     trial.P2SPose_done = False
-
-                            if i % 10 == 0:
-                                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
                         df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
@@ -868,7 +860,6 @@ def run_mode():
                                     trial.Metrabs_multi_done = True
 
                                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
-                                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
                                 except Exception as e:
                                     if args.verbose >= 2:
                                         print(f"Error in Pose Estimation\n"
@@ -877,9 +868,6 @@ def run_mode():
 
                                     iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'metrabs_multi', log_val_errors)
                                     trial.Metrabs_multi_done = False
-
-                            if i % 10 == 0:  # Update after every 10 trials
-                                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
                     case _:  # If no valid mode is given
                         print(f"Invalid HPE-Mode: {poseback}\n"
@@ -922,7 +910,7 @@ def run_mode():
                         path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{trial.identifier}_cam{cam}_{buttered}.trc')
                         shutil.copy2(path_src, path_dst)
                 else:
-                    if args.only_single_camp2s:
+                    if args.only_single_cam_trials:
                         p2s_progress.update(1)
                         continue
 
@@ -995,6 +983,11 @@ def run_mode():
                 if int(trial.id_s.split('S')[1]) < 13:
                     opensim_progress.update(1)
                     continue
+
+                if args.only_single_cam_trials:
+                    if trial.used_cams > 1:
+                        opensim_progress.update(1)
+                        continue
 
                 if trial.OS_done:
                     if args.verbose >= 2:
@@ -1099,15 +1092,17 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
 
-    args.mode = "pose_estimation"
-    args.mode = 'pose2sim'
-    args.mode = 'opensim'
-    #args.mode = 'murphy_measures'
-    #args.mode = 'statistics'
-    #args.poseback = ["mmpose", "pose2sim"]
+    modes = {1: "pose_estimation",
+             2: "pose2sim",
+             3: "opensim",
+             4: "murphy_measures",
+             5: "statistics",
+             6: "full"}
+    args.mode = modes[2]
+
     args.poseback = ["pose2sim", 'metrabs_multi']
     #args.verbose = 2
-    args.only_single_camp2s = False
+    args.only_single_cam_trials = False
 
 
 
