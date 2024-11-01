@@ -63,7 +63,7 @@ drives=['C:', 'D:', 'E:', 'I:']
 if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
 else:
-    drive = drives[2] + '\\'
+    drive = drives[1] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -895,6 +895,7 @@ def run_mode():
                 p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
 
             for i, trial in enumerate(trial_list):
+                p2s_progress.set_description(f"Running Pose2Sim for: {trial.identifier}")
                 # Get Pose method from settings dataframe
                 """i=78 # Trial that leads to exception in P2S
                 trial = trial_list[i]"""
@@ -942,6 +943,7 @@ def run_mode():
                                         trial.run_pose2sim(only_triangulation=False)
                                     except:
                                         trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
+                                        trial.save_configuration()
                                         trial.run_pose2sim(only_triangulation=False)
                                 else:
                                     trial.run_pose2sim(only_triangulation=False)
@@ -1084,15 +1086,13 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
 
-    #args.mode = "pose_estimation"
+    args.mode = "pose_estimation"
     #args.mode = 'pose2sim'
-    args.mode = 'opensim'
+    #args.mode = 'opensim'
     #args.mode = 'murphy_measures'
     #args.poseback = ["mmpose", "pose2sim"]
-    #args.poseback = ["pose2sim", 'metrabs_multi']
+    args.poseback = ["pose2sim", 'metrabs_multi']
     #args.verbose = 2
-
-
 
 
 
