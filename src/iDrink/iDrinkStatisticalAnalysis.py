@@ -1254,7 +1254,7 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                 # get columns without 'time'
                 columns_old = [f'{col}' for col in df_omc.columns if col not in ['time', 'Unnamed: 0']]
                 columns_new = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns if col not in ['time', 'Unnamed: 0']]
-                columns_new_full = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns]
+                columns_new_full = [f'{id_p}_{id_t}_{col}' for col in df_omc.columns if col not in['Unnamed: 0']]
 
 
                 if dict_error_p_mean_aff is None:
@@ -1308,6 +1308,11 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                     df_s_error = pd.concat([df_s_error, df_error], axis=1)
                     df_s_rse = pd.concat([df_s_rse, df_rse], axis=1)
 
+                csv_t_error = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_error.csv')
+                csv_t_rse = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_rse.csv')
+                df_error.to_csv(csv_t_error, sep=';')
+                df_rse.to_csv(csv_t_rse, sep=';')
+
                 if condition == 'affected':
                     idx = [f'{id_p}_{id_t}_aff', f'{id_p}_{id_t}_aff_std']
                 else:
@@ -1321,9 +1326,9 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
 
                 else:  # Add dicts to existing DataFrames as Rows
                     df_s_error_mean = pd.concat([df_s_error_mean, pd.DataFrame([dict_error_t_mean, dict_error_t_std],
-                                                             index=idx)], ignore_index=True)
+                                                             index=idx)])
                     df_s_rmse_mean = pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_t_mean, dict_rmse_t_std],
-                                                            index=idx)], ignore_index=True)
+                                                            index=idx)])
 
             # iterate over keys in dictionary and calculate std and then mean
             try:
