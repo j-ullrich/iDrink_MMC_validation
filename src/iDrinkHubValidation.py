@@ -11,7 +11,7 @@ from tqdm import tqdm
 import argparse
 import pandas as pd
 
-from iDrink import iDrinkTrial, iDrinkPoseEstimation, iDrinkLog, iDrinkOpenSim, iDrinkUtilities, iDrinkMurphyMeasures
+from iDrink import iDrinkTrial, iDrinkPoseEstimation, iDrinkLog, iDrinkOpenSim, iDrinkUtilities, iDrinkMurphyMeasures, iDrinkStatisticalAnalysis
 from iDrink.iDrinkCalibration import delta_calibration_val, delta_full_calibration_val
 
 
@@ -682,7 +682,8 @@ def run_mode():
     """
     global df_trials
     # First create list of trials to iterate through
-    trial_list = create_trial_objects()
+    if args.mode != 'statistics':
+        trial_list = create_trial_objects()
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     if args.mode in ["pose_estimation", "pose2sim"]:
@@ -903,13 +904,18 @@ def run_mode():
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
 
+                if int(trial.id_s.split('S')[1]) < 13:
+                    p2s_progress.update(1)
+                    continue
+
+
                 if len(trial.used_cams) == 1:
                     if filt == 'filtered':
                         filt = '02_filtered'
-                        buttered = 'iDrinkbutter'
+                        buttered = 'iDrinkbutterfilt'
                     else:
                         filt = '01_unfiltered'
-                        buttered = 'iDrink'
+                        buttered = 'iDrink_unfilt'
 
                     cam = trial.used_cams[0]
 
@@ -917,7 +923,7 @@ def run_mode():
 
                     if len(paths_found) > 0:
                         path_src = paths_found[0]
-                        path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{os.path.basename(path_src)}')
+                        path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{trial.identifier}_cam{cam}_{buttered}.trc')
                         shutil.copy2(path_src, path_dst)
                 else:
                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
@@ -950,9 +956,6 @@ def run_mode():
 
                                 trial.P2S_done = True
 
-                                if i % 20 == 0:  # Update after every 5 trials
-                                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
-
                             except Exception as e:
                                 if args.verbose >= 2:
                                     print(f"Pose2Sim for {trial.identifier} failed with error: {e}")
@@ -983,11 +986,15 @@ def run_mode():
             if args.verbose >= 1:
                 opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
             for i, trial in enumerate(trial_list):
+                opensim_progress.set_description(f"Running Opensim for: {trial.identifier}")
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
 
-
                 trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
+
+                if int(trial.id_s.split('S')[1]) < 13:
+                    opensim_progress.update(1)
+                    continue
 
                 if trial.OS_done:
                     if args.verbose >= 2:
@@ -1019,8 +1026,7 @@ def run_mode():
                 if args.verbose >= 1:
                     opensim_progress.update(1)
 
-                if i % 50 == 0:
-                    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+            df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
             if args.verbose >= 1:
                 opensim_progress.close()
@@ -1068,6 +1074,13 @@ def run_mode():
 
             body_parts_of_interest_no_axes = ['hand_r', 'hand_l']
 
+            df_timestamps = pd.read_csv(os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv'), sep=';')
+
+            #iDrinkStatisticalAnalysis.preprocess_timeseries(dir_root=root_val, detect_outliers=False, verbose=args.verbose)
+            iDrinkStatisticalAnalysis.get_omc_mmc_error(dir_root=root_val, df_timestamps=df_timestamps, verbose=args.verbose)
+
+
+
         case "full":  # runs the full pipeline
             print("Johann, take this out")
 
@@ -1087,9 +1100,10 @@ if __name__ == '__main__':
               "Starting debugging script.")
 
     args.mode = "pose_estimation"
-    #args.mode = 'pose2sim'
-    #args.mode = 'opensim'
+    args.mode = 'pose2sim'
+    args.mode = 'opensim'
     #args.mode = 'murphy_measures'
+    #args.mode = 'statistics'
     #args.poseback = ["mmpose", "pose2sim"]
     args.poseback = ["pose2sim", 'metrabs_multi']
     #args.verbose = 2
