@@ -959,17 +959,14 @@ def run_mode():
 
                         iDrinkUtilities.del_json_from_trial(trial, False)
 
-
-
                     else:
                         print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
                 if args.verbose >= 1:
                     p2s_progress.update(1)
 
-
-
             if args.verbose >= 1:
                 p2s_progress.close()
+
             if all([trial.P2SPose_done for trial in trial_list]) is False:
                 print("Pose2Sim could not be completed for all Trials. Please Check whether Pose Estimaiton is fully done.\n"
                       "If not, please run Pose Estimation first. And then repeat Pose2Sim Mode.")

@@ -1293,7 +1293,6 @@ def get_omc_mmc_error(dir_root, df_timestamps, id_s, verbose=1):
                 df_s_error.join(df_error)
                 df_s_rse.join(df_rse)
 
-            # TODO: Add mean and std to dicts for mean and std over id_t
             if condition == 'affected':
                 idx = [f'{id_p}_{id_t}_aff', f'{id_p}_{id_t}_aff_std']
             else:
@@ -1367,6 +1366,62 @@ def preprocess_timeseries(dir_root, detect_outliers = False, verbose=1):
     :param verbose:
     :return:
     """
+    pass
+
+    dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '01_murphy_out')
+    dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+
+    # get all omc_trials
+    omc_csvs = glob.glob(os.path.join(dir_dat_in, '01_murphy_out', 'S15133_P*_T*_.csv'))
+    # retrieve all p_ids and t_ids present in omc data.
+    p_ids = [os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]
+
+    for id_p in p_ids:
+        omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
+
+        t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
+
+        for id_t in t_ids:
+
+            omc_csv = os.path.join(dir_dat_in, '01_murphy_out', f'S15133_{id_p}_{id_t}*.csv')
+
+            mmc_files = glob.glob(os.path.join(dir_dat_in, '01_murphy_out', f'*{id_p}_{id_t}*.csv'))
+
+            for mmc_csv in mmc_files:
+                id_s = os.path.basename(mmc_csv).split('_')[0]
+
+                df_omc = pd.read_csv(omc_csv, sep=';')
+                df_mmc = pd.read_csv(mmc_csv, sep=';')
+
+
+
+                try:
+                    df_omc = pd.read_csv(omc_csv, sep=';')
+                    df_mmc = pd.read_csv(mmc_csv, sep=';')
+                except Exception as e:
+                    print(f"Error in iDrinkStatisticalAnalysis.get_omc_mmc_error while reading csv file:\n"
+                          f"OMC-File:\t{omc_csv} \n"
+                          f"MMC-File:\t{mmc_csv}\n"
+                          f"\n"
+                          f"Error:\t{e}")
+                    continue
+
+                # Downsample to 60Hz
+
+
+                # Detect Outliers
+                if detect_outliers:
+                    pass
+                else:
+                    pass
+
+                # Write to new csv
+                df_omc.to_csv(os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}*.csv'), sep=';')
+                df_mmc.to_csv(os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_*.csv'), sep=';')
+
+                if verbose >= 1:
+                    print(f"Preprocessed:\t{os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}*.csv')}")
+                    print(f"Preprocessed:\t{os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_*.csv')}")
 
 
 if __name__ == '__main__':
