@@ -1179,6 +1179,8 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
     :param verbose:
     :return:
     """
+    if verbose >=1:
+        print(f"Running iDrinkStatisticalAnalysis.get_omc_mmc_error")
 
     # TODO: Make changes after preprocessed data exists
     # Check if timestamps is Dataframe
@@ -1199,6 +1201,8 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
     # retrieve all p_ids and t_ids present in omc data.
     p_ids = sorted(list(set([os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs])))
 
+    if verbose >= 1:
+        progress = tqdm(total=len(s_ids)*len(p_ids), desc='Calculating OMC-MMC Error')
     for id_s in s_ids:
 
         csv_s_error = os.path.join(dir_dat_out, f'{id_s}_omc_mmc_error.csv')
@@ -1214,6 +1218,9 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
 
 
         for id_p in p_ids:
+            if verbose >= 1:
+                progress.set_description(f'Calculating OMC-MMC Error for {id_s}_{id_p}')
+
             omc_csvs_p = sorted([omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)])
 
             dict_error_p_mean_aff = None
@@ -1229,6 +1236,11 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                     t_ids.append(id_t)
 
             if not t_ids:
+                if verbose >= 2:
+                    print(f"No files found for {id_s}_{id_p}")
+                if verbose >= 1:
+                    progress.update(1)
+
                 continue
 
             for id_t in t_ids:
@@ -1330,6 +1342,7 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                     df_s_rmse_mean = pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_t_mean, dict_rmse_t_std],
                                                             index=idx)])
 
+
             # iterate over keys in dictionary and calculate std and then mean
             try:
                 for key in dict_error_p_mean_aff.keys():
@@ -1344,7 +1357,12 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                     dict_rmse_p_mean_aff[key] = np.nanmean(dict_rmse_p_mean_aff[key], axis=0)
                     dict_rmse_p_mean_unaff[key] = np.nanmean(dict_rmse_p_mean_unaff[key], axis=0)
             except Exception as e:
-                pass
+                if verbose >= 1:
+                    print(f"Error in iDrinkStatisticalAnalysis.get_omc_mmc_error while calculating mean and std:\n"
+                          f"{e}")
+
+            if verbose >= 1:
+                progress.update(1)
 
 
 
@@ -1462,6 +1480,23 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, 
 
         return df1, df2
 
+    def cut_to_same_timeframe(df_1, df_2):
+        """
+        Cut Dataframes so that start und endtime are the same.
+
+        :param df_1:
+        :param df_2:
+        :return:
+        """
+
+        max_time = min(max(df_1['time']), max(df_2['time']))
+        min_time = max(min(df_1['time']), min(df_2['time']))
+
+        df_1_out = df_1[(df_1['time'] <= max_time) & (df_1['time'] >= min_time)]
+        df_2_out = df_2[(df_2['time'] <= max_time) & (df_2['time'] >= min_time)]
+
+        return df_1_out, df_2_out
+
     dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '01_murphy_out')
     dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
 
@@ -1536,6 +1571,9 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, 
                 if drop_last_frame:
                     # Drop last rows if needed
                     df_omc, df_mmc = drop_last_rows_if_needed(df_omc, df_mmc)
+
+                # Cut DataFrames to same timeframe
+                df_omc, df_mmc = cut_to_same_timeframe(df_omc, df_mmc)
 
                 # Detect Outliers
                 if detect_outliers:
@@ -1639,10 +1677,10 @@ if __name__ == '__main__':
 
     if test_timeseries:
 
-        """preprocess_timeseries(root_val,
+        preprocess_timeseries(root_val,
                               downsample=True, drop_last_frame=False, detect_outliers=False,
                               joint_vel_thresh=5, hand_vel_thresh=3000,
-                              verbose=1)"""
+                              verbose=1)
         get_omc_mmc_error(root_val, path_csv_murphy_timestamps, verbose=1)
 
 

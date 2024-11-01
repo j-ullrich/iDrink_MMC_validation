@@ -904,10 +904,6 @@ def run_mode():
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
                 filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
 
-                if int(trial.id_s.split('S')[1]) < 13:
-                    p2s_progress.update(1)
-                    continue
-
 
                 if len(trial.used_cams) == 1:
                     if filt == 'filtered':
@@ -926,6 +922,10 @@ def run_mode():
                         path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{trial.identifier}_cam{cam}_{buttered}.trc')
                         shutil.copy2(path_src, path_dst)
                 else:
+                    if args.only_single_camp2s:
+                        p2s_progress.update(1)
+                        continue
+
                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
                     if trial.HPE_done:
                         if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
@@ -1107,6 +1107,7 @@ if __name__ == '__main__':
     #args.poseback = ["mmpose", "pose2sim"]
     args.poseback = ["pose2sim", 'metrabs_multi']
     #args.verbose = 2
+    args.only_single_camp2s = False
 
 
 
