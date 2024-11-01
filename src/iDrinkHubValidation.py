@@ -938,7 +938,11 @@ def run_mode():
 
                                 if 'metrabs' in pose:
                                     trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
-                                    trial.run_pose2sim(only_triangulation=False)
+                                    try:
+                                        trial.run_pose2sim(only_triangulation=False)
+                                    except:
+                                        trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
+                                        trial.run_pose2sim(only_triangulation=False)
                                 else:
                                     trial.run_pose2sim(only_triangulation=False)
 
@@ -1026,9 +1030,14 @@ def run_mode():
             for trial in trial_list:
 
                 try:
+                    path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out', f'{trial.identifier}_filtered.csv')
+
                     iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
                                                         csv_timestamps=path_csv_murphy_timestamps,
-                                                        csv_measures=path_csv_murphy_measures)
+                                                        csv_measures=path_csv_murphy_measures,
+                                                        write_mov_data=True,
+                                                        path_mov_data=path_preprocessed
+                                                        )
                 except Exception as e:
                     if args.verbose >= 2:
                         print(f"Error in murphy_measures\n"
