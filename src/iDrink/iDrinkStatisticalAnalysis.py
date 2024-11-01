@@ -1276,19 +1276,19 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                 df_error[f'{id_p}_{id_t}_time'] = time_t
                 df_rse[f'{id_p}_{id_t}_time'] = time_t
 
-                dict_error_t_mean = {col: [] for col in columns_old}
-                dict_rmse_t_mean = {col: [] for col in columns_old}
-                dict_error_t_std = {col: [] for col in columns_old}
-                dict_rmse_t_std = {col: [] for col in columns_old}
+                dict_error_t_mean = {col: 0 for col in columns_old}
+                dict_rmse_t_mean = {col: 0 for col in columns_old}
+                dict_error_t_std = {col: 0 for col in columns_old}
+                dict_rmse_t_std = {col: 0 for col in columns_old}
 
                 for column, column_new in zip(columns_old, columns_new):
                     error = df_mmc[column] - df_omc[column]
                     rse = np.sqrt(error**2)
 
-                    dict_error_t_mean[column].append(np.mean(error))
-                    dict_rmse_t_mean[column].append(np.sqrt(np.mean(error**2)))
-                    dict_error_t_std[column].append(np.std(error))
-                    dict_rmse_t_std[column].append(np.std(rse))
+                    dict_error_t_mean[column] = np.mean(error)
+                    dict_rmse_t_mean[column] = np.sqrt(np.mean(error**2))
+                    dict_error_t_std[column] = np.std(error)
+                    dict_rmse_t_std[column] = np.std(rse)
 
                     df_error[column_new] = error
                     df_rse[column_new] = rse
@@ -1305,8 +1305,8 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                     df_s_error = df_error
                     df_s_rse = df_rse
                 else:
-                    df_s_error.join(df_error)
-                    df_s_rse.join(df_rse)
+                    df_s_error = pd.concat([df_s_error, df_error], axis=1)
+                    df_s_rse = pd.concat([df_s_rse, df_rse], axis=1)
 
                 if condition == 'affected':
                     idx = [f'{id_p}_{id_t}_aff', f'{id_p}_{id_t}_aff_std']
@@ -1320,10 +1320,10 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                                                   index=idx)
 
                 else:  # Add dicts to existing DataFrames as Rows
-                    pd.concat([df_s_error_mean, pd.DataFrame([dict_error_t_mean, dict_error_t_std],
-                                                             index=idx)])
-                    pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_t_mean, dict_rmse_t_std],
-                                                            index=idx)])
+                    df_s_error_mean = pd.concat([df_s_error_mean, pd.DataFrame([dict_error_t_mean, dict_error_t_std],
+                                                             index=idx)], ignore_index=True)
+                    df_s_rmse_mean = pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_t_mean, dict_rmse_t_std],
+                                                            index=idx)], ignore_index=True)
 
             # iterate over keys in dictionary and calculate std and then mean
             try:
@@ -1358,10 +1358,10 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                                               index=idx)
 
             else: # Add dicts to existing DataFrames as Rows
-                pd.concat([df_s_error_mean, pd.DataFrame([dict_error_p_mean_aff, dict_error_p_std_aff,
+                df_s_error_mean = pd.concat([df_s_error_mean, pd.DataFrame([dict_error_p_mean_aff, dict_error_p_std_aff,
                                                           dict_error_p_mean_unaff, dict_error_p_std_unaff],
                                                          index=idx)])
-                pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_p_mean_aff, dict_rmse_p_std_aff,
+                df_s_rmse_mean = pd.concat([df_s_rmse_mean, pd.DataFrame([dict_rmse_p_mean_aff, dict_rmse_p_std_aff,
                                                dict_rmse_p_mean_unaff, dict_rmse_p_std_unaff],
                                                         index=idx)])
 
@@ -1634,10 +1634,10 @@ if __name__ == '__main__':
 
     if test_timeseries:
 
-        preprocess_timeseries(root_val,
+        """preprocess_timeseries(root_val,
                               downsample=True, drop_last_frame=False, detect_outliers=False,
                               joint_vel_thresh=5, hand_vel_thresh=3000,
-                              verbose=1)
+                              verbose=1)"""
         get_omc_mmc_error(root_val, path_csv_murphy_timestamps, verbose=1)
 
 
