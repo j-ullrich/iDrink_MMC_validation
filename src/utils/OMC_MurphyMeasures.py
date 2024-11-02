@@ -11,6 +11,8 @@ from tqdm import tqdm
 import argparse
 import pandas as pd
 
+from src.iDrink.iDrinkPoseEstimation import filt_p2s_pose
+
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial, iDrinkOpenSim, iDrinkUtilities, iDrinkLog, iDrinkMurphyMeasures
 
@@ -88,6 +90,7 @@ def run(verbose=1):
                 iDrinkMurphyMeasures.MurphyMeasures(trial_id=identifier, csv_timestamps=csv_timestamps,
                                                     csv_measures=csv_measures, write_mov_data=True,
                                                     path_mov_data=path_preprocessed, verbose=0,
+                                                    filt_fps=100,
                                                     path_bodyparts_pos=path_bodyparts_pos,
                                                     path_bodyparts_vel=path_bodyparts_vel,
                                                     path_bodyparts_acc=path_bodyparts_acc,

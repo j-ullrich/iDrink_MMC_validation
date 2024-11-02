@@ -1680,7 +1680,7 @@ if __name__ == '__main__':
         preprocess_timeseries(root_val,
                               downsample=True, drop_last_frame=False, detect_outliers=False,
                               joint_vel_thresh=5, hand_vel_thresh=3000,
-                              verbose=1)
+                              verbose=0)
         get_omc_mmc_error(root_val, path_csv_murphy_timestamps, verbose=1)
 
 

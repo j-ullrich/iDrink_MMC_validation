@@ -47,6 +47,7 @@ from fuzzywuzzy import process
 
 from importlib_metadata import metadata
 from keras.src.utils.file_utils import exists
+from sympy.logic.algorithms.dpll import find_pure_symbol
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial
@@ -68,7 +69,9 @@ class MurphyMeasures:
     3. We give the object a trial_object
 
     """
-    def __init__(self,trial_id = None, csv_timestamps=None, csv_measures=None, verbose=0, write_mov_data=False,
+    def __init__(self, trial_id = None, csv_timestamps=None, csv_measures=None,
+                 filt_fps=None, filt_cutoff_vel=None, filt_cutoff_pos=None, filt_order_pos=None, filt_order_vel=None,
+                 verbose=0, write_mov_data=False,
                  path_mov_data=None,
                  # For mode 1
                  trial = None, root_data = None,
@@ -82,6 +85,13 @@ class MurphyMeasures:
         self.dir_trial = None
 
         self.verbose = verbose
+
+        # Filtering when reading files
+        self.filt_fps = filt_fps
+        self.filt_cutoff_vel = filt_cutoff_vel
+        self.filt_cutoff_pos = filt_cutoff_pos
+        self.filt_order_pos = filt_order_pos
+        self.filt_order_vel = filt_order_vel
 
 
         """Settings"""
@@ -488,7 +498,7 @@ class MurphyMeasures:
         peak_ids_elbow, _ = self.get_peaks_of_movement(self.elbow_vel)
 
         # max velocity of hand mm/s
-        peak_vel_hand = np.max([self.hand_vel[peak] for peak in peak_ids_hand])*1000
+        peak_vel_hand = np.max([self.hand_vel[peak] for peak in peak_ids_hand])
         self.PeakVelocity_mms = round(peak_vel_hand, 3)
 
         # max elbow velocity deg/s
@@ -496,7 +506,7 @@ class MurphyMeasures:
         self.elbowVelocity = round(peak_vel_elbow, 3)
 
         # time to peak hand velocity
-        peak_id = np.where(self.hand_vel == self.hand_vel.flat[np.abs(self.hand_vel - (peak_vel_hand/1000)).argmin()])[0][0]
+        peak_id = np.where(self.hand_vel == self.hand_vel.flat[np.abs(self.hand_vel - peak_vel_hand).argmin()])[0][0]
         self.tTopeakV_s = self.time[peak_id]
 
         # time to first peak hand velocity
@@ -736,8 +746,7 @@ class MurphyMeasures:
 
         # Read Metadata and end at "endheader"
         if os.path.isfile(file_path) is False:
-            raise FileNotFoundError(f"\n"
-                                    f"Error in iDrinkMurphyMeasures.read_file: {file_path} not found.\n")
+            raise FileNotFoundError(f"Error in iDrinkMurphyMeasures.read_file: {file_path} not found.")
 
         if os.path.splitext(file_path)[1] == '.sto':
             meta_dat = []
@@ -760,9 +769,7 @@ class MurphyMeasures:
             meta_dat = None
             df = pd.read_csv(file_path)
         else:
-            raise ValueError(f"\n"
-                             f"Error in iDrinkMurphyMeasures.read_file: {file_path} \n"
-                             f"invalid file format {os.path.splitext(file_path)}.\n")
+            raise ValueError(f"Error in iDrinkMurphyMeasures.read_file: {file_path} invalid file format {os.path.splitext(file_path)}.\n")
         if standardize:
             df = self.standardize_data(df, verbose= self.verbose)
         return meta_dat, df
@@ -790,44 +797,78 @@ class MurphyMeasures:
 
             return np.sqrt(np.sum(np.array([axis ** 2 for axis in data]), axis=0))
 
+        # set values for filtering
+        if self.filt_fps is None:
+            self.filt_fps = round(len(self.time)/self.time[-1])
+
+        if self.filt_cutoff_vel is None:
+            self.filt_cutoff_vel = 6
+
+        if self.filt_cutoff_pos is None:
+            self.filt_cutoff_pos = 6
+
+        if self.filt_order_pos is None:
+            self.filt_order_pos = 4
+
+        if self.filt_order_vel is None:
+            self.filt_order_vel = 4
+
+
 
         _, df = self.read_file(self.path_bodyparts_vel)
         self.time = df['time'].values
 
-        # Get Bodypart velocities
+        # Get hand velocity in mm/s
         hand_vel = [df[f'hand_{self.side.lower()}_{axis}'].values for axis in ['x', 'y', 'z']]
         hand_vel = magnitude(hand_vel)
-        self.hand_vel = self.use_butterworth_filter(hand_vel, cutoff=10, fs=100, order=4, normcutoff=False)
 
-        # Get Bodypart Positions
+
+        self.hand_vel = self.use_butterworth_filter(hand_vel,
+                                                    cutoff=self.filt_cutoff_vel, fs=self.filt_fps,
+                                                    order=self.filt_order_vel, normcutoff=False) * 1000
+
+        # Get trunk displacement in mm
         _, df = self.read_file(self.path_trunk_pos, standardize=False)
         # TODO: Decide what to use for trunk displacement
         trunk_pos = [df[f'chest_{axis}'].values for axis in ['x', 'y', 'z']] # For now, we use head position
-        trunk_pos = self.use_butterworth_filter(trunk_pos, cutoff=10, fs=100, order=4, normcutoff=False).transpose()
-        self.trunk_displacement = np.linalg.norm(trunk_pos[0] - trunk_pos, axis=1)
+        trunk_pos = self.use_butterworth_filter(trunk_pos,
+                                                cutoff=self.filt_cutoff_pos, fs=self.filt_fps,
+                                                order=self.filt_order_pos, normcutoff=False).transpose()
+
+        self.trunk_displacement = np.linalg.norm(trunk_pos[0] - trunk_pos, axis=1) * 1000
 
         _, df = self.read_file(self.path_bodyparts_pos)
         trunk_ang =[df[f'torso_{axis}'].values for axis in ['ox', 'oy', 'oz']]
         trunk_ang = magnitude(trunk_ang)
-        self.trunk_ang = self.use_butterworth_filter(trunk_ang, cutoff=10, fs=100, order=4, normcutoff=False)
+        self.trunk_ang = self.use_butterworth_filter(trunk_ang,
+                                                     cutoff=self.filt_cutoff_pos, fs=self.filt_fps,
+                                                     order=self.filt_order_pos, normcutoff=False)
 
 
         # get joint velocities
         _, df = self.read_file(self.path_joint_vel)
         elbow_vel = np.sqrt(df[f'elbow_flex_{self.side.lower()}'].values ** 2)
-        self.elbow_vel = self.use_butterworth_filter(elbow_vel, cutoff=10, fs=100, order=4, normcutoff=False)
+        self.elbow_vel = self.use_butterworth_filter(elbow_vel,
+                                                     cutoff=self.filt_cutoff_vel, fs=self.filt_fps,
+                                                     order=self.filt_order_vel, normcutoff=False)
 
         # Get joint Positions
         _, df = self.read_file(self.path_joint_pos)
 
         elbow_flex_pos = df[f'elbow_flex_{self.side.lower()}']
-        self.elbow_flex_pos = self.use_butterworth_filter(elbow_flex_pos, cutoff=10, fs=100, order=4, normcutoff=False)
+        self.elbow_flex_pos = self.use_butterworth_filter(elbow_flex_pos,
+                                                          cutoff=self.filt_cutoff_pos, fs=self.filt_fps,
+                                                          order=self.filt_order_pos, normcutoff=False)
 
         shoulder_flex_pos = df[f'arm_flex_{self.side.lower()}'].values
-        self.shoulder_flex_pos = self.use_butterworth_filter(shoulder_flex_pos, cutoff=10, fs=100, order=4, normcutoff=False)
+        self.shoulder_flex_pos = self.use_butterworth_filter(shoulder_flex_pos,
+                                                             cutoff=self.filt_cutoff_pos, fs=self.filt_fps,
+                                                             order=self.filt_order_pos, normcutoff=False)
 
         shoulder_abduction = -df[f'arm_add_{self.side.lower()}'].values  # Abduction is the negativ of adduction
-        self.shoulder_abduction_pos = self.use_butterworth_filter(shoulder_abduction, cutoff=10, fs=100, order=4, normcutoff=False)
+        self.shoulder_abduction_pos = self.use_butterworth_filter(shoulder_abduction,
+                                                                  cutoff=self.filt_cutoff_pos, fs=self.filt_fps,
+                                                                  order=self.filt_order_pos, normcutoff=False)
 
         if self.write_mov_data:
 
@@ -880,8 +921,7 @@ class MurphyMeasures:
                                "ReturningStart", "RestStart", "TotalMovementTime"]
 
         if self.trial_id is None:
-            raise ValueError("No trial_id given.\n"
-                                "Murphy object needs a trial_id to retrieve data from DataFrame.")
+            raise ValueError("No trial_id given. Murphy object needs a trial_id to retrieve data from DataFrame.")
 
         try:
             for column in columns_of_interest:
@@ -895,8 +935,7 @@ class MurphyMeasures:
             if self.id_p not in df['id_p'].values: # If Murphy Measures cannot be calculated, calculate velocities of recording and save them into .csv-file
                 self.read_files()
 
-                raise ValueError(f"\n"
-                                 f"Error in iDrinkMurphyMeasures.get_data: Participant {self.id_p} not in DataFrame.\n")
+                raise ValueError(f"Error in iDrinkMurphyMeasures.get_data: Participant {self.id_p} not in DataFrame.")
 
             for column in columns_of_interest:
                 self.__setattr__(column, df.loc[(df['id_t'] == self.id_t) & (df['id_p'] == self.id_p), column].values[0])

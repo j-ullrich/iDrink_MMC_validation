@@ -5,6 +5,7 @@ import time
 import re
 import glob
 from tqdm import tqdm
+import sys
 
 import cv2
 # Solve the memory leak issue
@@ -16,6 +17,8 @@ from mmpose.apis import convert_keypoint_definition, init_model, inference_topdo
     inference_pose_lifter_model
 from mmpose.visualization import Pose3dLocalVisualizer, PoseLocalVisualizer
 
+
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
 from iDrink.iDrinkUtilities import pack_as_zip
 
 import queue

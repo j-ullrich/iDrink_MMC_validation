@@ -4,6 +4,8 @@ import pandas as pd
 
 import os
 import ast
+import glob
+from tqdm import tqdm
 
 import plotly as py
 from PIL.ImageOps import scale
@@ -11,7 +13,7 @@ from PIL.ImageOps import scale
 import plotly.graph_objects as go
 import statsmodels.api as sm
 import plotly.express as px
-from matplotlib.pyplot import legend
+from matplotlib.pyplot import legend, title
 
 
 def plot_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.png', use_smoother=True,
@@ -346,6 +348,204 @@ def calibration_boxplot(csv_calib_errors, dir_dst, verbose=1, show_fig=False):
     path = os.path.join(dir_dst, f'CalibrationErrors.png')
     fig.write_image(path, scale=5)
 
+def generate_plot_error_single_setting_all_patients_all_trials(dir_src, dir_dst, id_s, value, y_label,
+                                      write_html=True, write_png=True,
+                                      verbose=1):
+    """
+    Plots the error of the given value for all trials and patients of a single setting.
+    """
+    pass
+
+
+
+
+def generate_plots_grouped_different_settings(dir_src, dir_dst, df_omc, id_p, id_t, value, y_label,
+                                              write_html=True, write_png=True,
+                                              showfig = False, verbose=1):
+    """
+    Iterates over .csv files of processed data and creates plots for all files.
+    Only the given values will be plotted
+    """
+
+    # get all idx_s for given id_p and id_t
+    idx_s = [os.path.basename(file).split('_')[0] for file in os.listdir(dir_src) if id_p in file and id_t in file and 'S15133' not in file]
+
+    fig = go.Figure()
+
+    time = pd.to_timedelta(df_omc['time']).apply(lambda x: x.total_seconds())
+    # Add line for omc
+    fig.add_trace(go.Scatter(x=time, y=df_omc[value], mode='lines', name='OMC',
+                             line=dict(color='red',
+                                       width=5)))
+
+    colours = px.colors.qualitative.Plotly
+
+    for i, id_s in enumerate(idx_s):
+
+        df_mmc = pd.read_csv(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}_preprocessed.csv'), sep=';')
+
+        time = pd.to_timedelta(df_mmc['time']).apply(lambda x: x.total_seconds())
+        # Add line for mmc setting
+        fig.add_trace(go.Scatter(x=time, y=df_mmc[value],
+                                 mode='lines', name=f'MMC {id_s}', opacity=0.75,
+                                 line=dict(color=colours[i % len(colours)])))
+
+    fig.update_layout(xaxis_title='Time [s]',
+                      yaxis_title=y_label,
+                      title= f'{y_label} by setting of {id_p}, {id_t}')
+
+    if write_html:
+        path = os.path.join(dir_dst, f'{id_p}_{id_t}_{value}.html')
+        fig.write_html(path)
+    if write_png:
+        path = os.path.join(dir_dst, f'{id_p}_{id_t}_{value}.png')
+        fig.write_image(path, scale=5)
+
+
+
+def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None,
+                                  write_html=True, write_png=True, gen_plots_diff_settings=True,
+                                  showfig = True, verbose=1):
+    """
+    Iterates over .csv files of processed data and creates plots for all files.
+
+    if id_s, id_p or id_t are given, only the data of the given id_s, id_p or id_t are used.
+
+    if values are given, only those will be plotted. Otherwise all timeseries will be plotted.
+
+    Following Plots can be generated:
+
+    1.  Plots with single S, single P, single T
+    2.  Plots with multiple S, single P, single T
+
+    All Plots are generated for all t_ids. In 2 the line of OMC is highlighted and all MMC lines are slightly transparent.
+
+    P_id and t_id of MMC and OMC need to be the same.
+
+    Plots of 1:    os.path.join(root_val, 04_statistics, '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', '01_single')
+    Plots of 2:    os.path.join(dir_root_val, '04_statistics', '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', '03_grouped_by_s')
+
+    :param dir_processed:
+
+    :param write_png:
+    :param write_html:
+    :param values:
+    :param id_s:
+    :param id_p:
+    :param id_t:
+    :param verbose:
+    :return:
+    """
+    dir_processed = os.path.join(dir_root_val, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+    dir_dst_single = os.path.join(dir_root_val, '04_statistics', '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', '01_single')
+    dir_dst_grouped_by_s = os.path.join(dir_root_val, '04_statistics', '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', '03_grouped_by_s')
+
+    for dir in [dir_dst_single, dir_dst_grouped_by_s]:
+        os.makedirs(dir, exist_ok=True)
+
+    if values is None:
+        values = ["hand_vel",
+                  "elbow_vel",
+                  "trunk_disp",
+                  "trunk_ang",
+                  "elbow_flex_pos",
+                  "shoulder_flex_pos",
+                  "shoulder_abduction_pos"]
+
+    elif type(values) is str:
+        values = [values]
+
+    if id_s is None:
+        idx_s = sorted(list(set([os.path.basename(file).split('_')[0] for file in os.listdir(dir_processed)])))
+        idx_s.remove('S15133')
+    elif type(id_s) is str:
+        idx_s = [id_s]
+    else:
+        idx_s = id_s
+
+    id_s_omc = 'S15133'
+
+    # get all omc_trials
+    omc_csvs = glob.glob(os.path.join(dir_processed, 'S15133_P*_T*.csv'))
+    # retrieve all p_ids and t_ids present in omc data.
+    idx_p_omc = list(set([os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]))
+
+    for value in values:
+        # get y_axis label from value
+        match value:
+            case 'hand_vel':
+                y_label = 'Hand Velocity [mm/s]'
+            case 'elbow_vel':
+                y_label = 'Elbow Velocity [deg/s]'
+            case 'trunk_disp':
+                y_label = 'Trunk Displacement [mm]'
+            case 'trunk_ang':
+                y_label = 'Trunk Angle [deg]'
+            case 'elbow_flex_pos':
+                y_label = 'Elbow Flexion [deg]'
+            case 'shoulder_flex_pos':
+                y_label = 'Shoulder Flexion [deg]'
+            case 'shoulder_abduction_pos':
+                y_label = 'Shoulder Abduction [deg]'
+            case _:
+                y_label = value
+        progress = tqdm(total=len(idx_s)*len(values), desc='Creating Plots', disable=verbose<1)
+        for id_s in idx_s:
+            idx_p_mmc = [os.path.basename(file).split('_')[1] for file in os.listdir(dir_processed) if id_s in file]
+            # get all p_ids present for mmc and omc data
+            idx_p = sorted(list(set(idx_p_omc) & set(idx_p_mmc)))
+
+            for id_p in idx_p:
+                idx_t_omc = [os.path.basename(omc_csv).split('_')[2].split('.')[0] for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
+                idx_t_mmc = [os.path.basename(file).split('_')[2].split('.')[0] for file in os.listdir(dir_processed) if id_s in file and id_p in file]
+                idx_t = sorted(list(set(idx_t_omc) & set(idx_t_mmc)))
+
+                for id_t in idx_t:
+                    progress.set_description(f'Creating Plots for {value}_{id_s}_{id_p}_{id_t}')
+
+                    # read data
+                    omc_files = glob.glob(os.path.join(dir_processed, f'{id_s_omc}_{id_p}_{id_t}*.csv'))
+                    if omc_files:
+                        omc_file = omc_files[0]
+
+                    df_omc = pd.read_csv(omc_file, sep=';')
+
+                    mmc_files = glob.glob(os.path.join(dir_processed, f'{id_s}_{id_p}_{id_t}*.csv'))
+                    if mmc_files:
+                        mmc_file = mmc_files[0]
+                    df_mmc = pd.read_csv(mmc_file, sep=';')
+
+                    # plot t_plot
+                    time = pd.to_timedelta(df_omc['time']).apply(lambda x: x.total_seconds())
+                    df_t = pd.DataFrame({'Time': time, 'OMC': df_omc[value], 'MMC': df_mmc[value]})
+                    fig = px.line(df_t, x='Time', y=['OMC', 'MMC'], title=f'{y_label} for {id_s}, {id_p}, {id_t}')
+                    fig.update_layout(xaxis_title='Time [s]', yaxis_title=y_label)
+
+                    if showfig:
+                        fig.show()
+
+                    if write_html:
+                        path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{value}.html')
+                        fig.write_html(path)
+                    if write_png:
+                        path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{value}.png')
+                        fig.write_image(path, scale=5)
+
+                    progress.set_description(f'Creating Plots for {value}_{id_s}_{id_p}_{id_t} - Grouped by S')
+
+                    if gen_plots_diff_settings:
+                        generate_plots_grouped_different_settings(dir_processed, dir_dst_grouped_by_s, df_omc, id_p, id_t, value, y_label,
+                                                              write_html=write_html, write_png=write_png,
+                                                              showfig=showfig, verbose=1)
+        progress.update(1)
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     dir_data = r"I:\iDrink\validation_root\03_data"
     dir_dst = r"I:\iDrink\validation_root\04_statistics\01_continuous\02_plots"
@@ -353,9 +553,13 @@ if __name__ == "__main__":
     cols_of_interest = ['']
 
     id_s = 'S001'
-    plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True,
-                         id_p=None,  verbose=1)
+
+    dir_root_val = r"D:\iDrink\validation_root"
+
+    generate_plots_for_timeseries(dir_root_val, showfig = False, write_html=False)
+
+    #plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True, id_p=None,  verbose=1)
 
 
 
-    plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)
+    #plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)

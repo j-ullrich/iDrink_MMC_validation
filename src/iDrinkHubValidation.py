@@ -930,16 +930,13 @@ def run_mode():
                                 print(f"Trial: {trial.identifier} \t Posemode: {pose}")
                             try:
                                 iDrinkUtilities.unpack_zip_to_trial(trial, pose, filt, root_val)
-
                                 if 'metrabs' in pose:
                                     trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
-                                    try:
-                                        trial.run_pose2sim(only_triangulation=False)
-                                    except:
-                                        trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
-                                        trial.save_configuration()
-                                        trial.run_pose2sim(only_triangulation=False)
-                                else:
+                                try:
+                                    trial.run_pose2sim(only_triangulation=False)
+                                except:
+                                    trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
+                                    trial.save_configuration()
                                     trial.run_pose2sim(only_triangulation=False)
 
                                 trial.P2S_done = True
@@ -975,18 +972,14 @@ def run_mode():
                 opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
             for i, trial in enumerate(trial_list):
                 opensim_progress.set_description(f"Running Opensim for: {trial.identifier}")
+                if args.verbose >= 1:
+                    opensim_progress.update(1)
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
 
                 trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
 
-                if int(trial.id_s.split('S')[1]) < 13:
-                    opensim_progress.update(1)
-                    continue
-
                 if args.only_single_cam_trials:
-                    if trial.used_cams > 1:
-                        opensim_progress.update(1)
                         continue
 
                 if trial.OS_done:
@@ -1016,13 +1009,11 @@ def run_mode():
 
                     iDrinkUtilities.del_geometry_from_trial(trial, verbose = args.verbose)
 
-                if args.verbose >= 1:
-                    opensim_progress.update(1)
-
-            df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
-
             if args.verbose >= 1:
                 opensim_progress.close()
+            df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
+
 
         case "murphy_measures":  # runs only the calculation of murphy measures
             if args.verbose >= 1:
@@ -1037,7 +1028,10 @@ def run_mode():
                                                         csv_timestamps=path_csv_murphy_timestamps,
                                                         csv_measures=path_csv_murphy_measures,
                                                         write_mov_data=True,
-                                                        path_mov_data=path_preprocessed
+                                                        path_mov_data=path_preprocessed,
+                                                        filt_fps=60,
+                                                        filt_cutoff_vel=4 , filt_cutoff_pos=4,
+                                                        filt_order_pos=4, filt_order_vel=6,
                                                         )
                 except Exception as e:
                     if args.verbose >= 2:
@@ -1073,6 +1067,12 @@ def run_mode():
             iDrinkStatisticalAnalysis.get_omc_mmc_error(dir_root=root_val, df_timestamps=df_timestamps, verbose=args.verbose)
 
 
+            # generate Plots
+
+
+
+
+
 
         case "full":  # runs the full pipeline
             print("Johann, take this out")
@@ -1098,7 +1098,7 @@ if __name__ == '__main__':
              4: "murphy_measures",
              5: "statistics",
              6: "full"}
-    args.mode = modes[2]
+    args.mode = modes[4]
 
     args.poseback = ["pose2sim", 'metrabs_multi']
     #args.verbose = 2
