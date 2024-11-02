@@ -359,7 +359,7 @@ def generate_plot_error_single_setting_all_patients_all_trials(dir_src, dir_dst,
 
 
 
-def generate_plots_grouped_different_settings(dir_src, dir_dst, df_omc, id_p, id_t, value, y_label,
+def generate_plots_grouped_different_settings(dir_src, dir_dst, df_omc, id_p, id_t, condition, value, y_label,
                                               write_html=True, write_png=True,
                                               showfig = False, verbose=1):
     """
@@ -395,21 +395,21 @@ def generate_plots_grouped_different_settings(dir_src, dir_dst, df_omc, id_p, id
                       title= f'{y_label} by setting of {id_p}, {id_t}')
 
     if write_html:
-        path = os.path.join(dir_dst, f'{id_p}_{id_t}_{value}.html')
+        path = os.path.join(dir_dst, f'{id_p}_{id_t}_{condition}_{value}.html')
         fig.write_html(path)
     if write_png:
-        path = os.path.join(dir_dst, f'{id_p}_{id_t}_{value}.png')
+        path = os.path.join(dir_dst, f'{id_p}_{id_t}_{condition}_{value}.png')
         fig.write_image(path, scale=5)
 
 
 
-def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None,
+def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None, id_p_in=None, id_t_in=None,
                                   write_html=True, write_png=True, gen_plots_diff_settings=True,
                                   showfig = True, verbose=1):
     """
     Iterates over .csv files of processed data and creates plots for all files.
 
-    if id_s, id_p or id_t are given, only the data of the given id_s, id_p or id_t are used.
+    if id_p or id_t are given, only the data of the given id_s, id_p or id_t are used.
 
     if values are given, only those will be plotted. Otherwise all timeseries will be plotted.
 
@@ -438,10 +438,16 @@ def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None,
     """
     dir_processed = os.path.join(dir_root_val, '03_data', 'preprocessed_data', '02_fully_preprocessed')
     dir_dst_single = os.path.join(dir_root_val, '04_statistics', '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', '01_single')
-    dir_dst_grouped_by_s = os.path.join(dir_root_val, '04_statistics', '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', '03_grouped_by_s')
+    dir_dst_grouped_by_s = os.path.join(dir_root_val, '04_statistics', '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', '02_grouped_by_s')
 
-    for dir in [dir_dst_single, dir_dst_grouped_by_s]:
-        os.makedirs(dir, exist_ok=True)
+    df_timestamps = pd.read_csv(os.path.join(dir_root_val, '04_statistics', '02_categorical', 'murphy_timestamps.csv'), sep=';')
+
+
+    if id_p_in is not None and id_t_in is not None:
+        dir_dst_single = os.path.join(dir_root_val, '04_statistics', '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', f'03_specific', '01_single')
+        dir_dst_grouped_by_s = os.path.join(dir_root_val, '04_statistics', '01_continuous', '02_plots', '02_OMC_to_mmc_kinematics', f'03_specific', '02_grouped_by_s')
+
+    os.makedirs(dir_dst_single, exist_ok=True)
 
     if values is None:
         values = ["hand_vel",
@@ -455,13 +461,16 @@ def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None,
     elif type(values) is str:
         values = [values]
 
+    multi_id_s = True
     if id_s is None:
         idx_s = sorted(list(set([os.path.basename(file).split('_')[0] for file in os.listdir(dir_processed)])))
         idx_s.remove('S15133')
     elif type(id_s) is str:
         idx_s = [id_s]
+        multi_id_s = False
     else:
         idx_s = id_s
+
 
     id_s_omc = 'S15133'
 
@@ -470,7 +479,10 @@ def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None,
     # retrieve all p_ids and t_ids present in omc data.
     idx_p_omc = list(set([os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]))
 
+    progress = tqdm(total=len(values), desc='Creating Plots', disable=verbose < 1)
+
     for value in values:
+
         # get y_axis label from value
         match value:
             case 'hand_vel':
@@ -489,56 +501,143 @@ def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None,
                 y_label = 'Shoulder Abduction [deg]'
             case _:
                 y_label = value
-        progress = tqdm(total=len(idx_s)*len(values), desc='Creating Plots', disable=verbose<1)
+
+
         for id_s in idx_s:
-            idx_p_mmc = [os.path.basename(file).split('_')[1] for file in os.listdir(dir_processed) if id_s in file]
+
+
+            if id_p_in is None:
+                idx_p_mmc = [os.path.basename(file).split('_')[1] for file in os.listdir(dir_processed) if id_s in file]
+            elif type(id_p_in) is str:
+                idx_p_mmc = [id_p_in]
+            else:
+                idx_p_mmc = id_p_in
+
             # get all p_ids present for mmc and omc data
             idx_p = sorted(list(set(idx_p_omc) & set(idx_p_mmc)))
 
             for id_p in idx_p:
                 idx_t_omc = [os.path.basename(omc_csv).split('_')[2].split('.')[0] for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
-                idx_t_mmc = [os.path.basename(file).split('_')[2].split('.')[0] for file in os.listdir(dir_processed) if id_s in file and id_p in file]
+
+                if id_t_in is None:
+                    idx_t_mmc = [os.path.basename(file).split('_')[2].split('.')[0] for file in os.listdir(dir_processed) if id_s in file and id_p in file]
+                elif type(id_t_in) is str:
+                    idx_t_mmc = [id_t_in]
+                else:
+                    idx_t_mmc = id_t_in
+
                 idx_t = sorted(list(set(idx_t_omc) & set(idx_t_mmc)))
 
                 for id_t in idx_t:
                     progress.set_description(f'Creating Plots for {value}_{id_s}_{id_p}_{id_t}')
 
+                    condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
+
                     # read data
                     omc_files = glob.glob(os.path.join(dir_processed, f'{id_s_omc}_{id_p}_{id_t}*.csv'))
-                    if omc_files:
-                        omc_file = omc_files[0]
-
-                    df_omc = pd.read_csv(omc_file, sep=';')
-
                     mmc_files = glob.glob(os.path.join(dir_processed, f'{id_s}_{id_p}_{id_t}*.csv'))
-                    if mmc_files:
+
+                    if omc_files and mmc_files:
+                        omc_file = omc_files[0]
+                        df_omc = pd.read_csv(omc_file, sep=';')
+
                         mmc_file = mmc_files[0]
-                    df_mmc = pd.read_csv(mmc_file, sep=';')
+                        df_mmc = pd.read_csv(mmc_file, sep=';')
+                    else:
+                        continue
+
 
                     # plot t_plot
                     time = pd.to_timedelta(df_omc['time']).apply(lambda x: x.total_seconds())
                     df_t = pd.DataFrame({'Time': time, 'OMC': df_omc[value], 'MMC': df_mmc[value]})
-                    fig = px.line(df_t, x='Time', y=['OMC', 'MMC'], title=f'{y_label} for {id_s}, {id_p}, {id_t}')
+                    fig = px.line(df_t, x='Time', y=['OMC', 'MMC'], title=f'{y_label} for {id_s}, {id_p}, {id_t}, {condition}')
                     fig.update_layout(xaxis_title='Time [s]', yaxis_title=y_label)
 
                     if showfig:
                         fig.show()
 
                     if write_html:
-                        path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{value}.html')
+                        path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{condition}_{value}.html')
                         fig.write_html(path)
                     if write_png:
-                        path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{value}.png')
+                        path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{condition}_{value}.png')
                         fig.write_image(path, scale=5)
 
                     progress.set_description(f'Creating Plots for {value}_{id_s}_{id_p}_{id_t} - Grouped by S')
 
-                    if gen_plots_diff_settings:
-                        generate_plots_grouped_different_settings(dir_processed, dir_dst_grouped_by_s, df_omc, id_p, id_t, value, y_label,
-                                                              write_html=write_html, write_png=write_png,
-                                                              showfig=showfig, verbose=1)
+                    if gen_plots_diff_settings and multi_id_s:
+                        os.makedirs(dir_dst_grouped_by_s, exist_ok=True)
+                        generate_plots_grouped_different_settings(dir_processed, dir_dst_grouped_by_s,
+                                                                  df_omc, id_p, id_t, condition,
+                                                                  value, y_label,
+                                                                  write_html=write_html, write_png=write_png,
+                                                                  showfig=showfig, verbose=1)
+
         progress.update(1)
 
+
+
+def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
+    """
+    Iterate over id_s, id_p, id_t and find all identifier, that can be plotted.
+
+    To be plotted, id_p and id_t need to be present for both OMC and MMC data.
+
+    to plot is the kind of plot that can be plotted and is used as suffix for the generated .csv file.
+
+        - murphy_measures
+        - preprocessed_timeseries
+
+    :param dir_src:
+    :return:
+    """
+    columns = ['id_s', 'id_p', 'id_t', 'condition']
+
+    path_csv = os.path.join(dir_root_val, '05_logs', f'plottable_trials_{to_plot}.csv')
+
+    df_timestamps = pd.read_csv(os.path.join(dir_root_val, '04_statistics', '02_categorical', 'murphy_timestamps.csv'),
+                                sep=';')
+
+    df = pd.DataFrame(columns=columns)
+
+    id_s_omc = 'S15133'
+
+    idx_s = sorted(list(set([os.path.basename(file).split('_')[0] for file in os.listdir(dir_src)])))
+    idx_s.remove(id_s_omc)
+
+    # get all omc_trials
+    omc_csvs = glob.glob(os.path.join(dir_src, 'S15133_P*_T*.csv'))
+    # retrieve all p_ids and t_ids present in omc data.
+    idx_p_omc = list(set([os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]))
+
+
+    progress = tqdm(total=len(idx_s), desc='Searching plottable Trials', disable=verbose < 1)
+
+    progress.update(1)
+    idx_p_mmc = sorted(list(set([os.path.basename(file).split('_')[1] for file in os.listdir(dir_src)])))
+    # get all p_ids present for mmc and omc data
+    idx_p = sorted(list(set(idx_p_omc) & set(idx_p_mmc)))
+
+    for id_p in idx_p:
+        idx_t_omc = [os.path.basename(omc_csv).split('_')[2].split('.')[0] for omc_csv in omc_csvs
+                     if id_p in os.path.basename(omc_csv)]
+        idx_t_mmc = [os.path.basename(file).split('_')[2].split('.')[0] for file in os.listdir(dir_src) if id_p in file]
+        idx_t = sorted(list(set(idx_t_omc) & set(idx_t_mmc)))
+        for id_t in idx_t:
+            idx_s = [os.path.basename(file).split('_')[0] for file in os.listdir(dir_src) if id_p in file and id_t in file and 'S15133' not in file]
+            condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
+            side = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['side'].values[0]
+            # read data
+            omc_files = glob.glob(os.path.join(dir_src, f'{id_s_omc}_{id_p}_{id_t}*.csv'))
+            mmc_files = glob.glob(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}*.csv'))
+
+            if omc_files and mmc_files:
+                df_new = pd.DataFrame({'id_s': idx_s, 'id_p': id_p, 'id_t': id_t, 'condition': condition, 'side': side, 'to_plot': to_plot})
+                df = pd.concat([df, df_new], ignore_index=True)
+            else:
+                continue
+
+    df.to_csv(path_csv, sep=';')
 
 
 
@@ -555,11 +654,11 @@ if __name__ == "__main__":
     id_s = 'S001'
 
     dir_root_val = r"D:\iDrink\validation_root"
+    dir_processed = os.path.join(dir_root_val, '03_data', 'preprocessed_data', '02_fully_preprocessed')
 
-    generate_plots_for_timeseries(dir_root_val, showfig = False, write_html=False)
+    write_plottable_identifier(dir_root_val, dir_processed, to_plot='preprocessed_timeseries', verbose=1)
+
+    generate_plots_for_timeseries(dir_root_val, id_p_in = 'P251', id_t_in = 'T013', showfig = False, write_html=False)
 
     #plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True, id_p=None,  verbose=1)
-
-
-
     #plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)

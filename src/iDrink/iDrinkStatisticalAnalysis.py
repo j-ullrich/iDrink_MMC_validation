@@ -1398,8 +1398,8 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
         df_s_error.to_csv(csv_s_error, sep=';')
         df_s_rse.to_csv(csv_s_rse, sep=';')
 
-def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, detect_outliers = False,
-                          joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1):
+def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = False,
+                          joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False):
     """
     Preprocess timeseries data for statistical analysis.
 
@@ -1412,7 +1412,124 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, 
     :param verbose:
     :return:
     """
-    pass
+    import matplotlib.pyplot as plt
+
+    def fixing_decay_and_offset_trial_by_trial(df_omc, dm_mmc, kinematic_val, trial_identifier, print_able=False,
+                                               plot_debug=False, offset=False):
+        '''
+        This Function is taken and modified from Marwen Moknis Masterthesis:
+        https://github.com/cf-project-delta/Delta_3D_reconstruction/blob/main/processing/transform_coordinate.py#L322
+
+        This function optimize the positioning of the kinematic trajectories
+
+        By getting the time delay between the trials of two systems (sys 1 as reference)
+
+        It will also get the offset present between both functions.
+
+        We will try to  minimize the root mean square error for those two variables :
+
+         - delta_t: time delay  (s)
+
+         - offset: Vertical offset in the unit of trajectory
+
+        '''
+
+        from scipy.optimize import curve_fit
+        ## creating two copies of both DataFrames
+        work_df_omc = df_omc.copy()
+        work_df_mmc = dm_mmc.copy()
+
+        # Setting the time vector for the reference DataFrame
+        end_time = work_df_omc['time'].iloc[-1].total_seconds()
+        start_time = work_df_omc['time'].iloc[0].total_seconds()
+        frames = len(work_df_omc)
+        # time_delta = (end_time-start_time)/frames
+        time_df_omc = np.linspace(start_time, end_time, frames)
+        work_df_omc['time'] = time_df_omc
+
+        ##Same for the second Dataframe
+
+        end_time_2 = work_df_mmc['time'].iloc[-1].total_seconds()
+        start_time_2 = work_df_mmc['time'].iloc[0].total_seconds()
+        frames_2 = len(work_df_mmc)
+        time_df_mmc = np.linspace(start_time_2, end_time_2, frames_2)
+        work_df_mmc['time'] = time_df_mmc
+
+        if offset:
+            def reference_function(time, delay_time, offset):
+
+                return np.interp(time + delay_time, work_df_omc['time'], work_df_omc[kinematic_val] + offset)
+        else:
+            def reference_function(time, delay_time):
+
+                return np.interp(time + delay_time, work_df_omc['time'], work_df_omc[kinematic_val])
+
+        popt, _ = curve_fit(reference_function, work_df_mmc['time'], work_df_mmc[kinematic_val])
+
+        ## Getting the value we did the optimisation on
+        optimal_delay_time = popt[0]
+        if offset:
+            optimal_offset_val = popt[1]
+
+        if print_able:
+            if offset:
+                print(
+                    f"Those are the optimal delay time {optimal_delay_time} and offset {optimal_offset_val} for trial {trial_identifier} ")
+            else:
+                print(f"This is the optimal delay time {optimal_delay_time} for trial {trial_identifier} ")
+
+        if not (offset):
+            ## We try the method of just taking ou the mean of sys_2 and adding by the mean of the reference system
+            mean_omc = np.mean(work_df_omc[kinematic_val])
+            mean_mmc = np.mean(work_df_mmc[kinematic_val])
+            val_work_mmc = work_df_mmc[kinematic_val] - mean_mmc + mean_omc
+
+        if plot_debug:
+            plt.plot(work_df_omc['time'], work_df_omc[kinematic_val])
+            if offset:
+                plt.plot(work_df_mmc['time'] + optimal_delay_time,
+                         work_df_mmc[kinematic_val] + optimal_offset_val)
+            else:
+                plt.plot(work_df_mmc['time'] + optimal_delay_time, val_work_mmc)
+            plt.xlabel("Time (s)")
+            plt.ylabel(f"{kinematic_val} (Unit of kinematic)")
+            plt.title(f"Optimisation of the time delay for trial {trial_identifier}")
+            plt.show()
+
+        if offset:
+            return optimal_delay_time, optimal_offset_val
+        else:
+            return optimal_delay_time
+
+    def handling_vertical_offset(df_omc, df_mmc):
+        '''
+        Taken and adapted from Marwen Moknis Masterthesis:
+
+        Function that centers the graphs relative to each other (vertically)
+
+        Centers mmc to omc by adding the mean of omc to mmc
+
+        Reference system : df_omc
+
+        '''
+        ##Copy of both DataFrames
+        df_omc_cp = df_omc.copy()
+        df_mmc_cp = df_mmc.copy()
+
+        ##Getting only the kinematic labels
+        kinematics = list(df_mmc_cp.columns)[1:] # TODO check that kinematics list is correct
+
+        for kinematic in kinematics:
+            val_omc = df_omc_cp[kinematic]
+            val_mmc = df_mmc_cp[kinematic]
+
+            mean_omc = np.mean(val_omc)
+            mean_mmc = np.mean(val_mmc)
+
+            df_mmc_cp[kinematic] = df_mmc_cp[kinematic] - mean_mmc + mean_omc
+
+        return df_mmc_cp
+
 
     def downsample_dataframe(df_, fps=60):
         """
@@ -1499,6 +1616,8 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, 
 
     dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '01_murphy_out')
     dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+    if correct == 'dynamic':
+        dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic')
 
     csv_outliers = os.path.join(dir_root, '05_logs', 'outliers.csv')
     if os.path.isfile(csv_outliers):
@@ -1565,15 +1684,49 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, 
                     df_omc = downsample_dataframe(df_omc)
                     df_mmc = downsample_dataframe(df_mmc)
 
-
                     #df_omc, df_mmc = drop_nan(df_omc, df_mmc)
 
-                if drop_last_frame:
-                    # Drop last rows if needed
-                    df_omc, df_mmc = drop_last_rows_if_needed(df_omc, df_mmc)
+                # Drop last rows if needed
+                df_omc, df_mmc = drop_last_rows_if_needed(df_omc, df_mmc)
 
-                # Cut DataFrames to same timeframe
-                df_omc, df_mmc = cut_to_same_timeframe(df_omc, df_mmc)
+                if correct == "dynamic":
+                    ## Correct on Elbow Angle:
+                    kinematic_value = "elbow_flex_pos"
+                    delay_time = fixing_decay_and_offset_trial_by_trial(df_omc, df_mmc,
+                                                                        kinematic_value, trial_identifier = f'{id_s}_{id_p}_{id_t}',print_able=print_able,
+                                                                        plot_debug=plot_debug)
+
+                # Taken from Marwen Moknis Masterthesis
+                df_omc['time'] = np.around(
+                    np.linspace(0.01, len(df_omc) / 60, num=len(df_omc)), decimals=3)
+                df_mmc['time'] = np.around(
+                    np.linspace(0.01, len(df_omc) / 60, num=len(df_mmc)), decimals=3)
+
+                if correct == "dynamic":
+                    ## shifting the values of kinematics by the nb frames needed
+                    time_step = df_omc["time"].iloc[1] - df_omc["time"].iloc[0]
+                    frames = int(delay_time / time_step)
+
+                    if frames < 0:
+                        nb_frames = -frames
+                        df_omc = df_omc[:-nb_frames]
+                        df_mmc = df_mmc[nb_frames:]
+                        df_mmc["time"] = np.array(df_omc["time"])
+                    elif frames > 0:
+                        nb_frames = frames
+                        df_mmc = df_mmc[:-nb_frames]
+                        df_omc = df_omc[nb_frames:]
+                        df_omc["time"] = np.array(df_mmc["time"])
+
+                    ## Function that handle the offset
+                    df_mmc = handling_vertical_offset(df_omc, df_mmc)
+                    # df_mmc = df_mmc
+
+                else:
+                    df_mmc = df_mmc
+
+                """# Cut DataFrames to same timeframe
+                df_omc, df_mmc = cut_to_same_timeframe(df_omc, df_mmc)"""
 
                 # Detect Outliers
                 if detect_outliers:
@@ -1608,6 +1761,26 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, 
                         pd.concat([df_outliers, df])
                         continue
 
+                if plot_debug:
+                    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
+                    axes[0].plot(df_omc["time"], df_omc["hand_vel"])
+                    axes[0].plot(df_mmc["time"], df_mmc["hand_vel"])
+                    axes[0].text(np.mean(df_omc["time"]),
+                                 np.max(df_mmc["hand_vel"]), f'{id_s}_{id_p}_{id_t}')
+                    axes[0].set_xlabel("Time (s)")
+                    axes[0].set_ylabel("Hand Velocity mm/s")
+                    axes[0].legend(['OMC', 'MMC'])
+
+                    axes[1].plot(df_omc["time"], df_omc["elbow_vel"])
+                    axes[1].plot(df_mmc["time"], df_mmc["elbow_vel"])
+                    axes[1].text(np.mean(df_omc["time"]),
+                                 np.max(df_mmc["elbow_vel"]), f'{id_s}_{id_p}_{id_t}')
+                    axes[1].set_xlabel("Time (s)")
+                    axes[1].set_ylabel("Elbow Velocity deg/s")
+                    axes[1].legend(['OMC', 'MMC'])
+                    plt.tight_layout()
+                    plt.show()
+
 
                 omc_nframes_after = len(df_omc)
                 mmc_nframes_after = len(df_mmc)
@@ -1621,7 +1794,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_frame = False, 
                 df_omc.to_csv(path_omc_out, sep=';')
                 df_mmc.to_csv(path_mmc_out, sep=';')
 
-                if verbose >= 1:
+                if verbose >= 2:
                     print(f"Preprocessed:\t{path_omc_out}\n"
                           f"Preprocessed:\t{path_mmc_out}\n"
                           f"Dropped Frames:\n"
@@ -1678,10 +1851,10 @@ if __name__ == '__main__':
     if test_timeseries:
 
         preprocess_timeseries(root_val,
-                              downsample=True, drop_last_frame=False, detect_outliers=False,
-                              joint_vel_thresh=5, hand_vel_thresh=3000,
-                              verbose=0)
-        get_omc_mmc_error(root_val, path_csv_murphy_timestamps, verbose=1)
+                              downsample=True, drop_last_rows=False, detect_outliers=False,
+                              joint_vel_thresh=5, hand_vel_thresh=3000, correct='static',
+                              verbose=1, plot_debug=False, print_able=False)
+        #get_omc_mmc_error(root_val, path_csv_murphy_timestamps, verbose=1)
 
 
     else:

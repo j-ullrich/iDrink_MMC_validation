@@ -1017,9 +1017,10 @@ def run_mode():
 
         case "murphy_measures":  # runs only the calculation of murphy measures
             if args.verbose >= 1:
-                murphy_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Murphy Measures", unit="Trial")
+                murphy_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Murphy Measuresfor: ", unit="Trial")
 
             for trial in trial_list:
+                murphy_progress.set_description(f"Running Murphy Measures for: {trial.identifier}")
 
                 try:
                     path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out', f'{trial.identifier}_filtered.csv')
