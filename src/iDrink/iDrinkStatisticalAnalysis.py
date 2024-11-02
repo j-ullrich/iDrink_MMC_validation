@@ -1148,7 +1148,7 @@ def get_omc_file(id_p, id_t, root_omc, endeff=None, joint=None):
     return df_omc
 
 
-def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
+def get_omc_mmc_error(dir_root, df_timestamps, correct='fixed', verbose=1):
     """
     Writes csv file containing error for all trials and participants of a setting.
     S*_omc_mmc_error.csv
@@ -1187,10 +1187,15 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
     if type(df_timestamps) is not pd.DataFrame:
         df_timestamps = pd.read_csv(df_timestamps, sep=';')
 
-    dir_dat_out = os.path.join(dir_root, '04_statistics', '01_continuous', '01_results', '01_omc_to_mmc_error_per_s')
+    if correct == 'fixed':
+        dir_dat_out = os.path.join(dir_root, '04_statistics', '01_continuous', '01_results', '01_omc_to_mmc_error_per_s')
+        dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+    elif correct == 'dynamic':
+        dir_dat_out = os.path.join(dir_root, '04_statistics', '01_continuous', '01_results', '02_omc_to_mmc_error_per_s_dynamic')
+        dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic')
 
-    dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
-
+    for dir in [dir_dat_out, dir_dat_in]:
+        os.makedirs(dir, exist_ok=True)
     # get all omc_trials
     omc_csvs = glob.glob(os.path.join(dir_dat_in, 'S15133_P*_T*.csv'))
 
@@ -1255,7 +1260,7 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
                           f"OMC-File:\t{omc_csv} \n"
                           f"MMC-File:\t{mmc_csv}\n"
                           f"\n"
-                          f"Error:\t{e}")
+                          f"Error:\t{e} \t {e.filename}")
                     continue
 
                 time_t = df_omc['time']
@@ -1398,7 +1403,7 @@ def get_omc_mmc_error(dir_root, df_timestamps, verbose=1):
         df_s_error.to_csv(csv_s_error, sep=';')
         df_s_rse.to_csv(csv_s_rse, sep=';')
 
-def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = False,
+def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
                           joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False):
     """
     Preprocess timeseries data for statistical analysis.
@@ -1620,10 +1625,13 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
         dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic')
 
     csv_outliers = os.path.join(dir_root, '05_logs', 'outliers.csv')
-    if os.path.isfile(csv_outliers):
-        df_outliers = pd.read_csv(csv_outliers, sep=';')
+
+    df_outliers = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'reason'])
+
+    if type(detect_outliers) is str:
+        detect_outliers = [detect_outliers]
     else:
-        df_outliers = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'reason'])
+        detect_outliers = detect_outliers
 
     # get all omc_trials
     omc_csvs = glob.glob(os.path.join(dir_dat_in, 'S15133_P*_T*.csv'))
@@ -1729,37 +1737,39 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                 df_omc, df_mmc = cut_to_same_timeframe(df_omc, df_mmc)"""
 
                 # Detect Outliers
-                if detect_outliers:
-                    max_omc = max(df_omc['elbow_vel'])
-                    max_mmc = max(df_mmc['elbow_vel'])
-                    if max_omc > max_mmc:
-                        reason = 'omc'
-                        max_val = max_omc
-                    else:
-                        reason = 'mmc'
-                        max_val = max_mmc
+                for detect in  detect_outliers:
+                    if detect == 'elbow':
+                        max_omc = max(df_omc['elbow_vel'])
+                        max_mmc = max(df_mmc['elbow_vel'])
+                        if max_omc > max_mmc:
+                            reason = 'omc'
+                            max_val = max_omc
+                        else:
+                            reason = 'mmc'
+                            max_val = max_mmc
 
-                    if max_val > joint_vel_thresh:
-                        print(f"Trial {id_p}_{id_t} is an outlier due to high elbow velocity.")
-                        df = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': f'elbow_vel of {reason} {max_val} > {joint_vel_thresh}'})
-                        pd.concat([df_outliers, df])
-                        continue
+                        if max_val > joint_vel_thresh:
+                            print(f"Trial {id_s}_{id_p}_{id_t} is an outlier due to high elbow velocity.")
+                            df = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': f'elbow_vel of {reason} {max_val} > {joint_vel_thresh}'}, index=[0])
+                            pd.concat([df_outliers, df], ignore_index=True)
+                            continue
 
-                    max_omc = max(df_omc['hand_vel'])
-                    max_mmc = max(df_mmc['hand_vel'])
+                    if detect == 'endeff':
+                        max_omc = max(df_omc['hand_vel'])
+                        max_mmc = max(df_mmc['hand_vel'])
 
-                    if max_omc > max_mmc:
-                        reason = 'omc'
-                        max_val = max_omc
-                    else:
-                        reason = 'mmc'
-                        max_val = max_mmc
+                        if max_omc > max_mmc:
+                            reason = 'omc'
+                            max_val = max_omc
+                        else:
+                            reason = 'mmc'
+                            max_val = max_mmc
 
-                    if max_val > hand_vel_thresh:
-                        print(f"Trial {id_p}_{id_t} is an outlier due to high endeffector velocity.")
-                        df = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': f'hand_vel {reason} {max_val} > {hand_vel_thresh}'})
-                        pd.concat([df_outliers, df])
-                        continue
+                        if max_val > hand_vel_thresh:
+                            print(f"Trial {id_s}_{id_p}_{id_t} is an outlier due to high endeffector velocity.")
+                            df = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': f'hand_vel {reason} {max_val} > {hand_vel_thresh}'}, index = [0])
+                            pd.concat([df_outliers, df], ignore_index=True)
+                            continue
 
                 if plot_debug:
                     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
@@ -1845,16 +1855,18 @@ if __name__ == '__main__':
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
     test_timeseries = True
-
+    corrections = ['fixed', 'dynamic']
 
 
     if test_timeseries:
 
-        preprocess_timeseries(root_val,
-                              downsample=True, drop_last_rows=False, detect_outliers=False,
-                              joint_vel_thresh=5, hand_vel_thresh=3000, correct='static',
-                              verbose=1, plot_debug=False, print_able=False)
-        #get_omc_mmc_error(root_val, path_csv_murphy_timestamps, verbose=1)
+        for correct in corrections:
+
+            preprocess_timeseries(root_val,
+                                  downsample=True, drop_last_rows=False, detect_outliers= 'elbow',
+                                  joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct,
+                                  verbose=1, plot_debug=False, print_able=False)
+            get_omc_mmc_error(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
 
 
     else:

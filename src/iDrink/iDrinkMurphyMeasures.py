@@ -829,7 +829,6 @@ class MurphyMeasures:
 
         # Get trunk displacement in mm
         _, df = self.read_file(self.path_trunk_pos, standardize=False)
-        # TODO: Decide what to use for trunk displacement
         trunk_pos = [df[f'chest_{axis}'].values for axis in ['x', 'y', 'z']] # For now, we use head position
         trunk_pos = self.use_butterworth_filter(trunk_pos,
                                                 cutoff=self.filt_cutoff_pos, fs=self.filt_fps,

@@ -176,7 +176,7 @@ def create_trial_objects():
             if not os.path.exists(dir_setting):
                 os.makedirs(dir_setting, exist_ok=True)
 
-            for p in os.listdir(root_MMC):
+            for p in sorted(os.listdir(root_MMC)):
                 p_dir = os.path.join(root_MMC, p)
                 # Get the patient_id
                 id_p = re.search(r'(P\d+)', p_dir).group(1)  # # get Participant ID for use in the Pipeline
@@ -194,11 +194,11 @@ def create_trial_objects():
                 if not os.path.exists(part_dir):
                     os.makedirs(part_dir, exist_ok=True)
 
-                # Make sure, we only iterate over videos, that correspond to the correct camera
-                pattern = "".join([f"{i}" for i in cams_tuple])
-
-                pattern = re.compile(f'cam[{pattern}]*').pattern
-                cam_folders = glob.glob(os.path.join(p_dir, "01_measurement", "04_Video", "03_Cut", "drinking", pattern))
+                cam_folders = []
+                for cam_number in cams_tuple:
+                    cam_root = os.path.join(root_MMC, p, "01_measurement", "04_Video", "03_Cut", "drinking")
+                    if f'cam{cam_number}' in os.listdir(cam_root):
+                        cam_folders.append(os.path.join(cam_root, f'cam{cam_number}'))
 
                 # Get all video files of patient
                 video_files = []
@@ -1067,7 +1067,6 @@ def run_mode():
             #iDrinkStatisticalAnalysis.preprocess_timeseries(dir_root=root_val, detect_outliers=False, verbose=args.verbose)
             iDrinkStatisticalAnalysis.get_omc_mmc_error(dir_root=root_val, df_timestamps=df_timestamps, verbose=args.verbose)
 
-
             # generate Plots
 
 
@@ -1099,7 +1098,7 @@ if __name__ == '__main__':
              4: "murphy_measures",
              5: "statistics",
              6: "full"}
-    args.mode = modes[4]
+    args.mode = modes[2]
 
     args.poseback = ["pose2sim", 'metrabs_multi']
     #args.verbose = 2
