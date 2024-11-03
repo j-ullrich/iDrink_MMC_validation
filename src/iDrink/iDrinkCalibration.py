@@ -95,12 +95,10 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
 
     # Find all video files in the calibration folder
     cam_names= []
-    pattern = "".join([f"{i}" for i in cams])
-    pattern = re.compile(f'cam[{pattern}]').pattern
     for file_name in video_files:
-        match = re.search(pattern, file_name)
-        if match:
-            cam_names.append(match.group())
+        cam_num = os.path.basename(os.path.splitext(file_name)[0]).split('cam')[1]
+        if cam_num in cams:
+            cam_names.append('cam' + cam_num)
 
     if verbose >= 2:
         print(cam_names)

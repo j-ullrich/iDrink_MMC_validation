@@ -168,7 +168,7 @@ class Trial:
 
         # Pose Estimation
         self.PE_dim = 2  # Dimension of Pose Estimation
-        self.used_framework = "mmpose" # openpose, mmpose, pose2sim
+        self.used_framework = '' # openpose, mmpose, pose2sim
         self.pose_model = pose_model
         self.write_pose_videos = False
 
@@ -695,6 +695,8 @@ class Trial:
         self.config_dict.get("project").update({"project_dir": self.dir_trial})
         self.config_dict['pose']['pose_framework'] = self.used_framework
         self.config_dict['pose']['pose_model'] = self.pose_model
+
+        self.save_configuration()
 
 
 

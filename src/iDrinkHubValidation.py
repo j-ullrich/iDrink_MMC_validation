@@ -684,6 +684,7 @@ def run_mode():
     # First create list of trials to iterate through
     if args.mode != 'statistics':
         trial_list = create_trial_objects()
+        trial_list.sort(key=lambda x: x.id_s, reverse=False)
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     if args.mode in ["pose_estimation", "pose2sim"]:
@@ -884,7 +885,13 @@ def run_mode():
                 p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
 
             for i, trial in enumerate(trial_list):
-                p2s_progress.set_description(f"Running Pose2Sim for: {trial.identifier}")
+                if args.verbose >= 1:
+                    p2s_progress.set_description(f"Running Pose2Sim for: {trial.identifier}")
+
+                """if trial.identifier != 'S012_P19_T062':
+                    continue"""
+
+
                 # Get Pose method from settings dataframe
                 """i=78 # Trial that leads to exception in P2S
                 trial = trial_list[i]"""
@@ -911,7 +918,6 @@ def run_mode():
                         shutil.copy2(path_src, path_dst)
                 else:
                     if args.only_single_cam_trials:
-                        p2s_progress.update(1)
                         continue
 
                     trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
@@ -926,6 +932,7 @@ def run_mode():
                                 print(f"Pose2Sim for {trial.identifier} already done.")
                             continue
                         else:
+
                             if args.verbose >= 1:
                                 print(f"Trial: {trial.identifier} \t Posemode: {pose}")
                             try:
@@ -955,16 +962,13 @@ def run_mode():
 
                     else:
                         print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
-                if args.verbose >= 1:
-                    p2s_progress.update(1)
 
-            if args.verbose >= 1:
-                p2s_progress.close()
 
             if all([trial.P2SPose_done for trial in trial_list]) is False:
                 print("Pose2Sim could not be completed for all Trials. Please Check whether Pose Estimaiton is fully done.\n"
                       "If not, please run Pose Estimation first. And then repeat Pose2Sim Mode.")
 
+            p2s_progress.close()
             df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
         case "opensim":  # Runs only Opensim
@@ -972,6 +976,10 @@ def run_mode():
                 opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
             for i, trial in enumerate(trial_list):
                 opensim_progress.set_description(f"Running Opensim for: {trial.identifier}")
+                if trial.identifier != 'S003_P15_T079':
+                    continue
+
+
                 if args.verbose >= 1:
                     opensim_progress.update(1)
                 pose = df_settings.loc[
@@ -1101,8 +1109,9 @@ if __name__ == '__main__':
     args.mode = modes[2]
 
     args.poseback = ["pose2sim", 'metrabs_multi']
-    #args.verbose = 2
+    args.verbose = 2
     args.only_single_cam_trials = False
+    #args.single_setting = 'S001'
 
 
 
