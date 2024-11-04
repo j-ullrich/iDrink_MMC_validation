@@ -846,7 +846,7 @@ class MurphyMeasures:
 
         # Get trunk displacement in mm
         _, df = self.read_file(self.path_trunk_pos, standardize=False)
-        trunk_pos = [df[f'chest_{axis}'].values for axis in ['x', 'y', 'z']] # For now, we use head position
+        trunk_pos = [df[f'chest_{axis}'].values for axis in ['x', 'y', 'z']]
         trunk_pos = self.use_butterworth_filter(trunk_pos,
                                                 cutoff=self.filt_cutoff_pos, fs=self.filt_fps,
                                                 order=self.filt_order_pos, normcutoff=False).transpose()
@@ -974,7 +974,6 @@ class MurphyMeasures:
     def get_df_from_timestamps(self, ):
         """
         Get DataFrame for Murphy measures based on csv containing timestamps.
-
         #TODO: Check if still needed
 
         :return:
