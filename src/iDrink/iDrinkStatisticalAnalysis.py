@@ -1863,7 +1863,7 @@ if __name__ == '__main__':
         for correct in corrections:
 
             preprocess_timeseries(root_val,
-                                  downsample=True, drop_last_rows=False, detect_outliers= 'elbow',
+                                  downsample=True, drop_last_rows=False, detect_outliers= [],
                                   joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct,
                                   verbose=1, plot_debug=False, print_able=False)
             get_omc_mmc_error(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)

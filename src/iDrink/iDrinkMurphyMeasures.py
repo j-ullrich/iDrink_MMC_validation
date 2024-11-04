@@ -407,7 +407,7 @@ class MurphyMeasures:
         Output:
             - corr_inter: Temporal Cross Correlation of joint 1 and 2
 
-        The code inspired from https://github.com/cf-project-delta/Delta_3D_reconstruction/blob/main/processing/murphy_measures.py
+        code from https://github.com/cf-project-delta/Delta_3D_reconstruction/blob/main/processing/murphy_measures.py
         """
 
         corr_inter = np.corrcoef(pos_joint1, pos_joint2)[1, 0]
@@ -476,9 +476,20 @@ class MurphyMeasures:
 
         id_start, id_end = self.get_phase_ids("reaching", "returning")
 
-        peaks, peaks_info = scipy.signal.find_peaks(data[id_start:id_end], prominence=max(data)*0.1)
+        peaks = []
+        prom = max(data*0.1)
+        i=0
+        while not peaks:
+            peaks, peaks_info = scipy.signal.find_peaks(data[id_start:id_end], prominence=prom)
+            peaks = [peak + id_start for peak in peaks]
+            prom = prom * 0.5
 
-        peaks = [peak + id_start for peak in peaks]
+            i += 1
+
+            if self.verbose >= 2:
+                print(f"get_peaks_of_movement:\n"
+                      f"Prominence: {prom}\n"
+                      f"Iterations: {i}")
 
         return peaks, peaks_info
 
@@ -498,12 +509,18 @@ class MurphyMeasures:
         peak_ids_elbow, _ = self.get_peaks_of_movement(self.elbow_vel)
 
         # max velocity of hand mm/s
-        peak_vel_hand = np.max([self.hand_vel[peak] for peak in peak_ids_hand])
-        self.PeakVelocity_mms = round(peak_vel_hand, 3)
+        if len(peak_ids_hand) == 0:
+            self.PeakVelocity_mms = None
+        else:
+            peak_vel_hand = np.max([self.hand_vel[peak] for peak in peak_ids_hand])
+            self.PeakVelocity_mms = round(peak_vel_hand, 3)
 
         # max elbow velocity deg/s
-        peak_vel_elbow = np.max([self.elbow_vel[peak] for peak in peak_ids_elbow])
-        self.elbowVelocity = round(peak_vel_elbow, 3)
+        if len(peak_ids_elbow) == 0:
+            self.elbowVelocity = None
+        else:
+            peak_vel_elbow = np.max([self.elbow_vel[peak] for peak in peak_ids_elbow])
+            self.elbowVelocity = round(peak_vel_elbow, 3)
 
         # time to peak hand velocity
         peak_id = np.where(self.hand_vel == self.hand_vel.flat[np.abs(self.hand_vel - peak_vel_hand).argmin()])[0][0]

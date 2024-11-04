@@ -5,6 +5,7 @@ import time
 import re
 import shutil
 import subprocess
+from tabnanny import verbose
 
 from tqdm import tqdm
 
@@ -976,8 +977,8 @@ def run_mode():
                 opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
             for i, trial in enumerate(trial_list):
                 opensim_progress.set_description(f"Running Opensim for: {trial.identifier}")
-                if trial.identifier != 'S003_P15_T079':
-                    continue
+                """if trial.identifier != 'S003_P15_T079':
+                    continue"""
 
 
                 if args.verbose >= 1:
@@ -1028,7 +1029,17 @@ def run_mode():
                 murphy_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Murphy Measuresfor: ", unit="Trial")
 
             for trial in trial_list:
-                murphy_progress.set_description(f"Running Murphy Measures for: {trial.identifier}")
+                if args.verbose >= 1:
+                    murphy_progress.set_description(f"Running Murphy Measures for: {trial.identifier}")
+                    murphy_progress.update(1)
+
+                # check that .sto files exist
+                mov_files = glob.glob(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool', f'*.csv'))
+
+                if not mov_files:
+                    if args.verbose >= 1:
+                        murphy_progress.set_description(f"No Mov data for for: {trial.identifier}")
+                    continue
 
                 try:
                     path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out', f'{trial.identifier}_filtered.csv')
@@ -1051,8 +1062,7 @@ def run_mode():
                     iDrinkLog.log_error(args, trial, e, 'Murphy', '', log_val_errors)
 
 
-                if args.verbose >= 1:
-                    murphy_progress.update(1)
+
 
             if args.verbose >= 1:
                 murphy_progress.close()
