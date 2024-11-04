@@ -8,11 +8,11 @@ import glob
 from tqdm import tqdm
 
 import plotly as py
+import plotly.express as px
+import plotly.graph_objects as go
 from PIL.ImageOps import scale
 
-import plotly.graph_objects as go
 import statsmodels.api as sm
-import plotly.express as px
 from matplotlib.pyplot import legend, title
 
 
