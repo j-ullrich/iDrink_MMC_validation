@@ -513,9 +513,9 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
                     os.makedirs(dir_out_trc)
 
             trc_file_filt = os.path.join(dir_out_trc_filt,
-                                         f"{cam}_{curr_trial.id_p}_{curr_trial.id_t}_{os.path.basename(video).split('.mp4')[0]}_0-{frame_idx}_filt_iDrinkbutter.trc")
+                                         f"{curr_trial.id_p}_{curr_trial.id_t}_{os.path.basename(video).split('.mp4')[0]}_0-{frame_idx}_filt_iDrinkbutter.trc")
             trc_file_unfilt = os.path.join(dir_out_trc_unfilt,
-                                           f"{identifier}_{os.path.basename(video).split('.mp4')[0]}_0-{frame_idx}_iDrink.trc")
+                                           f"{curr_trial.id_p}_{curr_trial.id_t}__{os.path.basename(video).split('.mp4')[0]}_0-{frame_idx}_unfilt_iDrink.trc")
 
 
             if verbose >= 2:
