@@ -113,7 +113,7 @@ def df_to_trc(df, trc_file, identifier, fps, n_frames, n_markers, verbose=1):
     if verbose >= 2:
         print(f'columns added to {os.path.basename(trc_file)}')
 
-    for column in tqdm(df.columns, desc="Writing .trc file", position=0, leave=True):
+    for column in tqdm(df.columns, desc="Writing .trc file", position=0, leave=True, disable=verbose < 1):
         trc[column] = df[column].tolist()
 
     for i in range(n_frames):
@@ -257,7 +257,17 @@ def get_unfiltered_trc_files(root_hpe, remove_old_files=False, verbose=1):
 
             for trc_filename_unfilt in trc_filenames_unfilt:
                 prgs.set_description(f"Processing {id_p}_{cam} - {trc_filename_unfilt}")
-                id_t = trc_filename_unfilt.split('_')[2]
+
+                id_t = trc_filename_unfilt.split('_')[1]
+                while 'T' not in id_t:
+                    i = 0
+                    id_t = trc_filename_unfilt.split('_')[i]
+                    i += 1
+
+                    if '.trc' in id_t:
+                        raise ValueError(f"Could not find id_t in {trc_filename_unfilt}")
+
+                    return
 
                 trc_filename_filt = os.path.join(dir_single_cam_filt, trc_filename_unfilt.replace('_iDrink', '_iDrinkbutter_filt'))
 
@@ -271,7 +281,7 @@ def get_unfiltered_trc_files(root_hpe, remove_old_files=False, verbose=1):
 
                 df_unfilt = trc_to_df(trc_path_unfilt)
 
-                df_filt = filter_df(df_unfilt, fs=120, verbose=1)
+                df_filt = filter_df(df_unfilt, fs=120, verbose=0)
 
                 df_to_trc(df_filt, trc_path_filt, identifier=trc_filename_filt, fps=60, n_frames=len(df_filt), n_markers=len(df_filt.columns), verbose=0)
 
