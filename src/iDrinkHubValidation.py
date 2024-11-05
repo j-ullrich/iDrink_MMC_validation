@@ -916,6 +916,11 @@ def run_mode():
                     if len(paths_found) > 0:
                         path_src = paths_found[0]
                         path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{trial.identifier}_cam{cam}_{buttered}.trc')
+
+                        old_files = glob.glob(os.path.join(trial.dir_trial, 'pose-3d', f'.trc'))
+                        for file in old_files:
+                            os.remove(file)
+
                         shutil.copy2(path_src, path_dst)
                 else:
                     if args.only_single_cam_trials:
