@@ -843,7 +843,7 @@ def run_mode():
                                     print(f"Pose Estimation for {trial.identifier} already done.")
                             else:
                                 try:
-                                    video_files = iDrinkPoseEstimation.get_all_trial_vids(trial)
+                                    video_files = sorted(iDrinkPoseEstimation.get_all_trial_vids(trial))
 
                                     calib = os.path.join(trial.dir_calib_videos, f'Calib_full_{trial.id_p}.toml')
                                     metrabs_pose_estimation_2d_val(curr_trial=trial, video_files=video_files,
@@ -1115,7 +1115,7 @@ if __name__ == '__main__':
              6: "full"}
     args.mode = modes[1]
 
-    args.poseback = ["pose2sim", 'metrabs_multi']
+    args.poseback = ['metrabs_multi']
     args.verbose = 2
     args.only_single_cam_trials = False
     #args.single_setting = 'S001'

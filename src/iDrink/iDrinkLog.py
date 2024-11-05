@@ -264,7 +264,8 @@ def does_HPE_zip_exist(trial, pose_root, filtered=True, posebacks=["openpose", "
 
     :return: True if all zip files exist, False otherwise
     """
-    id_t = f"trial_{int(trial.id_t.split('T')[1])}"
+    id_trial = f"trial_{int(trial.id_t.split('T')[1])}"
+    id_t = trial.id_t
     id_p = trial.id_p
     cams = [f'cam{cam}' for cam in trial.used_cams]
 
@@ -282,9 +283,12 @@ def does_HPE_zip_exist(trial, pose_root, filtered=True, posebacks=["openpose", "
         if not os.path.isdir(cam_dir):
             return False
         for poseback in posebacks:
-            zip_files = glob.glob(os.path.join(cam_dir, poseback, f"{id_t}_*_json", f"{id_t}_*.zip"))
-            if len(zip_files) != 1:
-                return False  # If for one camera the number of json files is not equal to the number of frames return False
+            zip_files_trial = glob.glob(os.path.join(cam_dir, poseback, f"{id_trial}_*_json", f"{id_trial}_*.zip"))
+            zip_files_id = glob.glob(os.path.join(cam_dir, poseback, f"{id_t}_*_json", f"{id_t}_*.zip"))
+            zip_files = zip_files_trial + zip_files_id
+
+            if len(zip_files) < 1:
+                return False  # If no .zip file is present return False
     return True
 
 def does_json_exist(trial, pose_root, filtered=True, posebacks=["openpose", "metrabs", "mmpose", "pose2sim"]):
