@@ -4,8 +4,6 @@ import sys
 import time
 import re
 import shutil
-import subprocess
-from tabnanny import verbose
 
 from tqdm import tqdm
 
@@ -836,12 +834,6 @@ def run_mode():
                         for i, trial in enumerate(trial_list):
                             trial.pose_model = "bml_movi_87"
 
-                            if any(df_trials.loc[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p), "Metrabs_multi_done"].values):
-                                trial.Metrabs_multi_done = True
-                                trial.n_frames = max(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["n_frames"])
-                                df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
-                                            df_trials["id_p"] == trial.id_p), "Metrabs_multi_done"] = True
-
                             #Safety Check on json files
                             trial.Metrabs_multi_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
                                                                                  posebacks=["metrabs"])
@@ -1116,7 +1108,7 @@ if __name__ == '__main__':
              4: "murphy_measures",
              5: "statistics",
              6: "full"}
-    args.mode = modes[2]
+    args.mode = modes[1]
 
     args.poseback = ["pose2sim", 'metrabs_multi']
     args.verbose = 2
