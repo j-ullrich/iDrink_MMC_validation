@@ -171,6 +171,54 @@ def read_opensim_file(file_path):
     df = pd.read_csv(file_path, skiprows=len(metadata), sep="\t")
     return metadata, df
 
+def remove_duplicates_unfiltered(trc_files_unfiltered):
+    """
+    Gets list of paths to unfiltered trc files.
+
+    If multiple trc files have the same idP and id_t, only the last one is kept.
+
+    The s_id is removed from the filename.
+
+    """
+
+    trc_files = glob.glob(os.path.join(trc_files_unfiltered, '*.trc'))
+    if not trc_files:
+        print(f"No .trc files found in {trc_files_unfiltered}")
+        return
+
+    trc_files = sorted(trc_files, key=lambda x: x.split('_')[-1])
+
+    list_ids = []
+    for trc_file in trc_files:
+
+
+
+        dirname = os.path.dirname(trc_file)
+        filename = os.path.basename(trc_file)
+
+        split_id = 0
+        if 'S' in filename.split('_')[split_id]:
+            id_s = filename.split('_')[split_id]
+            split_id += 1
+        else:
+            id_s = None
+
+        id_p = filename.split('_')[split_id]
+        id_t = filename.split('_')[split_id+1]
+        ids = (id_p, id_t)
+        if ids in list_ids:
+            pass
+            os.remove(trc_file)
+        else:
+            list_ids.append((id_p, id_t))
+            if id_s is not None:
+                filename = filename.split(f'{id_s}_')[1]
+            #rename file
+            os.rename(trc_file, os.path.join(dirname, filename))
+
+
+
+
 
 def get_unfiltered_trc_files(root_hpe, remove_old_files=False, verbose=1):
 
@@ -196,7 +244,11 @@ def get_unfiltered_trc_files(root_hpe, remove_old_files=False, verbose=1):
 
 
             if os.path.isdir(dir_single_cam_unfilt):
+                remove_duplicates_unfiltered(dir_single_cam_unfilt)
                 trc_filenames_unfilt = sorted([f for f in os.listdir(dir_single_cam_unfilt) if f.endswith('.trc')])
+
+
+
             else:
                 print(f"Directory {dir_single_cam_unfilt} does not exist.")
                 continue
@@ -221,11 +273,14 @@ def get_unfiltered_trc_files(root_hpe, remove_old_files=False, verbose=1):
 
                 df_filt = filter_df(df_unfilt, fs=120, verbose=1)
 
-                df_to_trc(df_filt, trc_path_filt, identifier=trc_filename_filt, fps=60, n_frames=len(df_filt), n_markers=len(df_filt.columns), verbose=1)
+                df_to_trc(df_filt, trc_path_filt, identifier=trc_filename_filt, fps=60, n_frames=len(df_filt), n_markers=len(df_filt.columns), verbose=0)
 
                 prgs.update(1)
 
             prgs.close()
+
+
+
 
 
 if __name__ == '__main__':
