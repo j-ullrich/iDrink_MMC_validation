@@ -1,5 +1,6 @@
 import logging
 import logging.handlers
+import shutil
 import sys
 import os
 import string
@@ -341,10 +342,23 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
     if not os.path.isdir(log_dir):
         os.makedirs(log_dir)
 
+    log_file = os.path.join(log_dir, f'{curr_trial.identifier}_opensim.log')
+    # move old file in subfolder old_logs
+    if os.path.isfile(log_file):
+        if not os.path.isdir(os.path.join(log_dir, 'old_logs')):
+            os.makedirs(os.path.join(log_dir, 'old_logs'))
+
+        # move file, if file with same name already exists, add a number to the file
+        if os.path.isfile(os.path.join(log_dir, 'old_logs', f'{curr_trial.identifier}_opensim.log')):
+            i = 1
+            while os.path.isfile(os.path.join(log_dir, 'old_logs', f'{curr_trial.identifier}_opensim_{i}.log')):
+                i += 1
+
+            shutil.move(log_file, os.path.join(log_dir, 'old_logs', f'{curr_trial.identifier}_opensim_{i}.log'))
 
     # Set Logfile for Opensim
     opensim.Logger.removeFileSink()
-    opensim.Logger.addFileSink(os.path.join(log_dir, f'{curr_trial.identifier}_opensim.log'))
+    opensim.Logger.addFileSink(log_file)
 
 
     model = opensim.Model(curr_trial.opensim_model)
