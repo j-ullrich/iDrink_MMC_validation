@@ -1,6 +1,6 @@
-<mxfile host="drawio-plugin" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" modified="2024-10-08T12:07:41.051Z" etag="_WDWeEsQh7vx70yAdOzw" version="22.1.22" type="embed" pages="4">
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.5 Chrome/126.0.6478.183 Electron/31.3.0 Safari/537.36" version="24.7.5" pages="4">
   <diagram name="Validation Pipeline" id="cTNYEhEPU5jRSqe9hr1z">
-    <mxGraphModel dx="1628" dy="427" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <mxGraphModel dx="1943" dy="971" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -190,8 +190,8 @@
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="G-v-RlKd_GFZ50NiNK6M" name="Statistics¨">
-    <mxGraphModel dx="801" dy="427" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+  <diagram id="G-v-RlKd_GFZ50NiNK6M" name="Statistics">
+    <mxGraphModel dx="1128" dy="971" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -415,10 +415,151 @@
     </mxGraphModel>
   </diagram>
   <diagram id="PlMNAmcODcLZFb0mktVv" name="Statistics Pipeline">
-    <mxGraphModel dx="1602" dy="854" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="2901" dy="1765" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
+        <mxCell id="tCYF-J3Z0wnZiljEcyxN-2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="aqVZA-WZKFIDA6QSbvik-1" target="tCYF-J3Z0wnZiljEcyxN-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="aqVZA-WZKFIDA6QSbvik-1" value="&lt;font style=&quot;font-size: 16px;&quot;&gt;&lt;b&gt;Bland-Altman-Plot&lt;/b&gt;&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=39;shadow=0;glass=0;" vertex="1" parent="1">
+          <mxGeometry x="181" y="396" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="tCYF-J3Z0wnZiljEcyxN-1" value="Limits of Agreement smaller than CAD?" style="whiteSpace=wrap;html=1;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="201" y="556" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="E9cMR0V6qQ4SOdED4xY--2" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="tCYF-J3Z0wnZiljEcyxN-3" target="E9cMR0V6qQ4SOdED4xY--1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eHaL4sbO0ly1JKl8VLyM-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="tCYF-J3Z0wnZiljEcyxN-3" target="sDLCdGWK-9ZAtAPXypEx-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tCYF-J3Z0wnZiljEcyxN-3" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Murphy Measures&lt;/b&gt;&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="sDLCdGWK-9ZAtAPXypEx-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="tCYF-J3Z0wnZiljEcyxN-4" target="sDLCdGWK-9ZAtAPXypEx-1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="571" y="130" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eHaL4sbO0ly1JKl8VLyM-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="tCYF-J3Z0wnZiljEcyxN-4" target="2wNycvQnTWbg3qdyqnMy-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tCYF-J3Z0wnZiljEcyxN-4" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;&lt;b&gt;Kinematics&lt;/b&gt;&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;glass=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="641" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="vZs8eyW9xL9gqc8FvXWL-1" value="&lt;font size=&quot;1&quot; style=&quot;&quot;&gt;&lt;b style=&quot;font-size: 20px;&quot;&gt;CAD&lt;/b&gt;&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="181" y="756" width="160" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="GagUbqir0DBNS3rDwDGC-3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="vZs8eyW9xL9gqc8FvXWL-2" target="dAnxfXlOFhGkwlvHdQQR-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="vZs8eyW9xL9gqc8FvXWL-2" value="Kwakkel et al 2019" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="81" y="996" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="GagUbqir0DBNS3rDwDGC-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="dAnxfXlOFhGkwlvHdQQR-1" target="vZs8eyW9xL9gqc8FvXWL-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dAnxfXlOFhGkwlvHdQQR-1" value="&lt;p&gt;change in&amp;nbsp;&lt;span style=&quot;background-color: initial;&quot;&gt;kinematic measures is clinically important if it is at least 15% of&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;the range of a measure&lt;/span&gt;&lt;/p&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="41" y="876" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="GagUbqir0DBNS3rDwDGC-1" value="if LOA &amp;lt; CAD / MCID&amp;nbsp;&lt;div&gt;=&amp;gt; system is sensitive enough&amp;nbsp;&lt;div&gt;to be clinically important&lt;br&gt;&lt;/div&gt;&lt;/div&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;endArrow=classic;endFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="tCYF-J3Z0wnZiljEcyxN-1" target="vZs8eyW9xL9gqc8FvXWL-1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="201" y="756" as="sourcePoint" />
+            <mxPoint x="111" y="726" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="GagUbqir0DBNS3rDwDGC-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="GagUbqir0DBNS3rDwDGC-5" target="GagUbqir0DBNS3rDwDGC-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="GagUbqir0DBNS3rDwDGC-5" value="&lt;p&gt;OMC-TimeSeries&lt;/p&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="321" y="996" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="GagUbqir0DBNS3rDwDGC-11" value="CAD for Time Series&amp;nbsp;&lt;div&gt;is Patient specific&lt;/div&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="GagUbqir0DBNS3rDwDGC-7" target="vZs8eyW9xL9gqc8FvXWL-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-14" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="GagUbqir0DBNS3rDwDGC-7" target="thSx9ZmHQks2-pZAd7RQ-13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="GagUbqir0DBNS3rDwDGC-7" value="&lt;p&gt;calculate mean of healthy trials of each patient --&amp;gt; std is CAD&lt;/p&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="321" y="876" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="E9cMR0V6qQ4SOdED4xY--3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="E9cMR0V6qQ4SOdED4xY--1" target="aqVZA-WZKFIDA6QSbvik-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="E9cMR0V6qQ4SOdED4xY--1" target="thSx9ZmHQks2-pZAd7RQ-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0;exitY=0.75;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="E9cMR0V6qQ4SOdED4xY--1" target="thSx9ZmHQks2-pZAd7RQ-12">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="-59" y="360" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="E9cMR0V6qQ4SOdED4xY--1" value="Error between OMC and MMC Measures for same trial" style="whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="41" y="200" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="E9cMR0V6qQ4SOdED4xY--7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fillColor=#ffe6cc;strokeColor=#000000;" edge="1" parent="1" source="E9cMR0V6qQ4SOdED4xY--4" target="E9cMR0V6qQ4SOdED4xY--6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="E9cMR0V6qQ4SOdED4xY--4" value="RMSE of each Trial" style="whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;rounded=0;glass=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="681" y="200" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="E9cMR0V6qQ4SOdED4xY--6" value="Mean RMSE of each Setting per TimeSeries" style="whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;rounded=0;glass=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="681" y="300" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sDLCdGWK-9ZAtAPXypEx-1" value="Pearson Correlation" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="361" y="10" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="_94nUZm6NU99mkzBDQY7-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="mRhik3-ckaXg6JCfoWFq-1" target="aqVZA-WZKFIDA6QSbvik-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eHaL4sbO0ly1JKl8VLyM-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="mRhik3-ckaXg6JCfoWFq-1" target="mRhik3-ckaXg6JCfoWFq-11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mRhik3-ckaXg6JCfoWFq-1" value="Range of Motion Error (ROM Error)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="426" y="280" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="mRhik3-ckaXg6JCfoWFq-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="mRhik3-ckaXg6JCfoWFq-3" target="mRhik3-ckaXg6JCfoWFq-1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mRhik3-ckaXg6JCfoWFq-3" value="Range of Motion" style="whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;rounded=0;glass=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="361" y="120" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="mRhik3-ckaXg6JCfoWFq-9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="tCYF-J3Z0wnZiljEcyxN-4" target="E9cMR0V6qQ4SOdED4xY--4">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="681" y="230" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mRhik3-ckaXg6JCfoWFq-11" value="RMSE of each Setting" style="whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;rounded=0;glass=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="251" y="230" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="2wNycvQnTWbg3qdyqnMy-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="2wNycvQnTWbg3qdyqnMy-1" target="mRhik3-ckaXg6JCfoWFq-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2wNycvQnTWbg3qdyqnMy-1" value="&lt;font size=&quot;1&quot; style=&quot;&quot;&gt;&lt;b style=&quot;font-size: 17px;&quot;&gt;Joint Positions&lt;/b&gt;&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;glass=0;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="521" y="120" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-3" value="Barplot mit CAD Grenze&lt;div&gt;eine bar pro Setting&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;shadow=0;arcSize=36;" vertex="1" parent="1">
+          <mxGeometry x="-279" y="360" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="thSx9ZmHQks2-pZAd7RQ-4" target="thSx9ZmHQks2-pZAd7RQ-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-4" value="Mean error pro Setting" style="whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="-279" y="200" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-12" value="Box&lt;span style=&quot;background-color: initial;&quot;&gt;plot mit CAD Grenze&lt;/span&gt;&lt;div&gt;&lt;div&gt;eine bar pro Setting&lt;/div&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=38;" vertex="1" parent="1">
+          <mxGeometry x="-119" y="360" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-16" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="thSx9ZmHQks2-pZAd7RQ-13" target="thSx9ZmHQks2-pZAd7RQ-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-13" value="&lt;p&gt;Idea: Mean difference that healthy side has within itself, is a good lower limit.&lt;/p&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="601" y="876" width="200" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="thSx9ZmHQks2-pZAd7RQ-15" value="&lt;p&gt;Calculate std for healthy and affected and compare. If healthy is clearly lower, it can be used as CAD... maybe&lt;/p&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="601" y="756" width="200" height="80" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
