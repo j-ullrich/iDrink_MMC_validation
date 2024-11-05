@@ -49,7 +49,7 @@ def use_butterworth_filter(data, cutoff, fs, order=4, normcutoff=False, verbose 
 
     return filtered_data
 
-def filter_df(df_unfiltered, fs, verbose=1, normcutoff=False):
+def filter_df(df_unfiltered, fs, cutoff, order,  verbose=1, normcutoff=False):
     """
     Use a butterworth-filter on the 3D-keypoints in the DF and return the filtered DF.
 
@@ -62,14 +62,13 @@ def filter_df(df_unfiltered, fs, verbose=1, normcutoff=False):
     from scipy.signal import butter, sosfiltfilt
 
     df_filtered = pd.DataFrame(columns=df_unfiltered.columns)
-    cutoff = 5
 
     if verbose >= 1:
         progress = tqdm(total=len(df_unfiltered.columns), desc="Filtering 3D keypoints", position=0, leave=True)
 
     for column in df_unfiltered.columns:
         data = np.array(df_unfiltered[column].tolist())
-        df_filtered[column] = use_butterworth_filter(data, cutoff, order = 4, fs=fs, normcutoff=normcutoff).tolist()
+        df_filtered[column] = use_butterworth_filter(data, cutoff, order = order, fs=fs, normcutoff=normcutoff).tolist()
 
         if verbose >= 1:
             progress.update(1)
@@ -220,7 +219,7 @@ def remove_duplicates_unfiltered(trc_files_unfiltered):
 
 
 
-def get_unfiltered_trc_files(root_hpe, remove_old_files=False, verbose=1):
+def get_unfiltered_trc_files(root_hpe, fps, cutoff, order,  remove_old_files=False, verbose=1):
 
     dir_unfilt = os.path.join(root_hpe, '01_unfiltered')
     dir_filt = os.path.join(root_hpe, '02_filtered')
@@ -281,9 +280,9 @@ def get_unfiltered_trc_files(root_hpe, remove_old_files=False, verbose=1):
 
                 df_unfilt = trc_to_df(trc_path_unfilt)
 
-                df_filt = filter_df(df_unfilt, fs=120, verbose=0)
+                df_filt = filter_df(df_unfilt, fs=fps, cutoff=cutoff, order=order, verbose=0)
 
-                df_to_trc(df_filt, trc_path_filt, identifier=trc_filename_filt, fps=60, n_frames=len(df_filt), n_markers=len(df_filt.columns), verbose=0)
+                df_to_trc(df_filt, trc_path_filt, identifier=trc_filename_filt, fps=fps, n_frames=len(df_filt), n_markers=len(df_filt.columns), verbose=0)
 
                 prgs.update(1)
 
@@ -309,4 +308,8 @@ if __name__ == '__main__':
     default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
     root_HPE = os.path.join(root_val, "02_pose_estimation")  # Root directory of all Pose Estimation Data
 
-    get_unfiltered_trc_files(root_HPE, remove_old_files=True, verbose=1)
+    fps = 60
+    cutoff = 5
+    order = 4
+
+    get_unfiltered_trc_files(root_HPE, fps=fps, cutoff=cutoff, order=order, remove_old_files=True, verbose=1)
