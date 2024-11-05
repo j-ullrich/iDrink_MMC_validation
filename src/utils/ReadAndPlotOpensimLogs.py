@@ -38,6 +38,8 @@ class OpensimLogReader:
         self.mean_rmse = None
         self.mean_max_error = None
         self.worst_bodypart = None
+        self.valid_04 = None
+        self.valid_02 = None
 
         self.max_total_squared_error = None
         self.max_rmse = None
@@ -70,11 +72,38 @@ class OpensimLogReader:
 
         self.df = pd.read_csv(self.csv_path)
 
+        self.get_mean_max_val()
+        self.df_to_mean_df()
+
+    def get_mean_max_val(self):
+
+        self.mean_total_squared_error = self.df['total_squared_error'].mean()
+        self.mean_rmse = self.df['marker_rmse'].mean()
+        self.mean_max_error = self.df['marker_max_error'].mean()
+        self.worst_bodypart = self.df['bodypart_max'].value_counts().idxmax()
+
+        self.max_total_squared_error = self.df['total_squared_error'].max()
+        self.max_rmse = self.df['marker_rmse'].max()
+        self.max_max_error = self.df['marker_max_error'].max()
+
+        if self.mean_rmse < self.thresh_mid:
+            self.valid_02 = 1
+        else:
+            self.valid_02 = 0
+
+        if self.mean_rmse < self.thresh_high:
+            self.valid_04 = 1
+        else:
+            self.valid_04 = 0
+
+    def df_to_mean_df(self):
+
         self.df_mean = pd.DataFrame({'id_p': self.id_p, 'id_t': self.id_t,
-                                    'total_squared_error': self.df['total_squared_error'].mean(),
-                                    'marker_rmse': self.df['marker_rmse'].mean(),
-                                    'marker_max_error': self.df['marker_max_error'].mean(),
-                                    'bodypart_max': self.df['bodypart_max'].value_counts().idxmax()}, index=[0])
+                                     'valid_02': self.valid_02, 'valid_04': self.valid_04,
+                                     'total_squared_error': self.mean_total_squared_error,
+                                     'marker_rmse': self.mean_rmse, 'marker_max_error': self.mean_max_error,
+                                     'bodypart_max': self.worst_bodypart}, index=[0])
+
 
     @staticmethod
     def parse_errors(line_data):
@@ -135,21 +164,11 @@ class OpensimLogReader:
 
                 df = pd.concat([df, df_newline], ignore_index=True)
 
-        self.mean_total_squared_error = df['total_squared_error'].mean()
-        self.mean_rmse = df['marker_rmse'].mean()
-        self.mean_max_error = df['marker_max_error'].mean()
-        self.worst_bodypart = df['bodypart_max'].value_counts().idxmax()
-
-        self.max_total_squared_error = df['total_squared_error'].max()
-        self.max_rmse = df['marker_rmse'].max()
-        self.max_max_error = df['marker_max_error'].max()
-
-        self.df_mean = pd.DataFrame({'id_p': self.id_p, 'id_t': self.id_t,
-                                     'total_squared_error': self.mean_total_squared_error,
-                                     'marker_rmse': self.mean_rmse, 'marker_max_error': self.mean_max_error,
-                                     'bodypart_max': self.worst_bodypart}, index=[0])
-
         self.df = df
+        self.get_mean_max_val()
+        self.df_to_mean_df()
+
+
 
     def get_last_ik_lines(self):
         """iterates backwards over a files lines and sets self.lines to the last set of lines of the Inverse Kinematics tool."""
@@ -399,4 +418,4 @@ if __name__ == '__main__':
     run_first_stage(dir_opensim_logs, id_s)
     #run_second_stage(dir_opensim_logs, id_s)
     #run_third_stage(dir_opensim_logs, dir_plots, id_s, showfig=True)
-    plot_means(dir_opensim_logs, dir_plots, id_s, showfig=False)
+    #plot_means(dir_opensim_logs, dir_plots, id_s, showfig=False)
