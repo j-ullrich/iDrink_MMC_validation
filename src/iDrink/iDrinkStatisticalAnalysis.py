@@ -276,7 +276,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms
     df_mean.to_csv(path_csv_murphy_mean, sep=';')
     df_rmse.to_csv(path_csv_murphy_rmse, sep=';')
 
-    save_plots_murphy(df_murphy, root_stat_cat, filetype=['.html', '.png'], verbose=verbose)
+    save_plots_murphy(df_murphy, root_stat_cat, filetype=['.html'], verbose=verbose)
 
     # Create DataFrame for each trial
     run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
@@ -1052,7 +1052,7 @@ if __name__ == '__main__':
     if os.name == 'posix':  # Running on Linux
         drive = '/media/devteam-dart/Extreme SSD'
     else:
-        drive = drives[1] + '\\'
+        drive = drives[2] + '\\'
 
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")
@@ -1089,4 +1089,4 @@ if __name__ == '__main__':
 
     else:
 
-        runs_statistics_discrete(csv_murphy, root_stat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)
+        runs_statistics_discrete(path_csv_murphy_measures, root_stat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)

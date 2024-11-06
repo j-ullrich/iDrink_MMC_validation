@@ -346,7 +346,7 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
     # move old file in subfolder old_logs
     if os.path.isfile(log_file):
         if not os.path.isdir(os.path.join(log_dir, 'old_logs')):
-            os.makedirs(os.path.join(log_dir, 'old_logs'))
+            os.makedirs(os.path.join(log_dir, 'old_logs'), exist_ok=True)
 
         # move file, if file with same name already exists, add a number to the file
         if os.path.isfile(os.path.join(log_dir, 'old_logs', f'{curr_trial.identifier}_opensim.log')):

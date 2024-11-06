@@ -385,7 +385,8 @@ def generate_plots_grouped_different_settings(dir_src, dir_dst, df_omc, id_p, id
 
         df_mmc = pd.read_csv(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}_preprocessed.csv'), sep=';')
 
-        time = pd.to_timedelta(df_mmc['time']).apply(lambda x: x.total_seconds())
+        #time = pd.to_timedelta(df_mmc['time']).apply(lambda x: x.total_seconds())
+        time = df_omc['time']
         # Add line for mmc setting
         fig.add_trace(go.Scatter(x=time, y=df_mmc[value],
                                  mode='lines', name=f'MMC {id_s}', opacity=0.75,
@@ -652,14 +653,15 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
             condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
             side = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['side'].values[0]
             # read data
-            omc_files = glob.glob(os.path.join(dir_src, f'{id_s_omc}_{id_p}_{id_t}*.csv'))
-            mmc_files = glob.glob(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}*.csv'))
+            for id_s in idx_s:
+                omc_files = glob.glob(os.path.join(dir_src, f'{id_s_omc}_{id_p}_{id_t}*.csv'))
+                mmc_files = glob.glob(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}*.csv'))
 
-            if omc_files and mmc_files:
-                df_new = pd.DataFrame({'id_s': idx_s, 'id_p': id_p, 'id_t': id_t, 'condition': condition, 'side': side, 'to_plot': to_plot})
-                df = pd.concat([df, df_new], ignore_index=True)
-            else:
-                continue
+                if omc_files and mmc_files:
+                    df_new = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'condition': condition, 'side': side, 'to_plot': to_plot}, index = [0])
+                    df = pd.concat([df, df_new], ignore_index=True)
+                else:
+                    continue
 
     df.to_csv(path_csv, sep=';')
 
@@ -714,17 +716,30 @@ if __name__ == "__main__":
 
     id_s = 'S001'
 
+    """Set Root Paths for Processing"""
+    drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'I:']
+    if os.name == 'posix':  # Running on Linux
+        drive = '/media/devteam-dart/Extreme SSD'
+    else:
+        drive = drives[2] + '\\'
 
-    dir_root_val = r"D:\iDrink\validation_root"
-    dir_processed = os.path.join(dir_root_val, '03_data', 'preprocessed_data', '02_fully_preprocessed')
-    #dir_processed = os.path.join(dir_root_val, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic')
+    root_iDrink = os.path.join(drive, 'iDrink')
+    root_val = os.path.join(root_iDrink, "validation_root")
+    root_stat = os.path.join(root_val, '04_Statistics')
+    root_omc = os.path.join(root_val, '03_data', 'OMC_new', 'S15133')
+    root_data = os.path.join(root_val, "03_data")
+    root_logs = os.path.join(root_val, "05_logs")
+
+
+    dir_processed = os.path.join(root_val, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+    dir_processed = os.path.join(root_val, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic')
 
     if 'dynamic' in dir_processed:
         dynamic = True
     else:
         dynamic = False
 
-    csv_plottable = write_plottable_identifier(dir_root_val, dir_processed,
+    csv_plottable = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
 
     df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='affected', verbose=1)
@@ -734,8 +749,8 @@ if __name__ == "__main__":
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]
 
-        generate_plots_for_timeseries(dir_root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
-                                      showfig = False, write_html=False)
+        generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
+                                      showfig = False, write_html=True, write_png=False)
 
     #plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True, id_p=None,  verbose=1)
     #plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)

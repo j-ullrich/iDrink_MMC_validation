@@ -683,7 +683,7 @@ def run_mode():
     # First create list of trials to iterate through
     if args.mode != 'statistics':
         trial_list = create_trial_objects()
-        trial_list.sort(key=lambda x: x.id_s, reverse=False)
+        trial_list.sort(key=lambda x: x.id_p, reverse=False)
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
     if args.mode in ["pose_estimation", "pose2sim"]:
@@ -930,7 +930,6 @@ def run_mode():
                                 print(f"Pose2Sim for {trial.identifier} already done.")
                             continue
                         else:
-
                             if args.verbose >= 1:
                                 print(f"Trial: {trial.identifier} \t Posemode: {pose}")
                             try:
@@ -953,6 +952,7 @@ def run_mode():
                                 iDrinkLog.log_error(args, trial, e, 'Pose2Sim', pose, log_val_errors)
 
                                 trial.P2S_done = False
+                                p2s_progress.update(1)
 
 
 
@@ -960,6 +960,8 @@ def run_mode():
 
                     else:
                         print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
+
+                p2s_progress.update(1)
 
 
             if all([trial.P2SPose_done for trial in trial_list]) is False:
@@ -983,9 +985,12 @@ def run_mode():
                 pose = df_settings.loc[
                     df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
 
-                trial.OS_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
+                joint_kin_exist = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
+                chest_pos_exist = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'kin_opensim_analyzetool'), 'OutputsVec3.sto')
 
-                if args.only_single_cam_trials:
+                trial.OS_done = joint_kin_exist and chest_pos_exist
+
+                if args.only_single_cam_trials and len(trial.used_cams) > 1:
                         continue
 
                 if trial.OS_done:
@@ -1033,7 +1038,9 @@ def run_mode():
                 # check that .sto files exist
                 mov_files = glob.glob(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool', f'*.csv'))
 
-                if not mov_files:
+                chest_files = glob.glob(os.path.join(trial.dir_trial, 'movement_analysis', 'kin_opensim_analyzetool', f'*OutputsVec3.sto'))
+
+                if not mov_files or not chest_files:
                     if args.verbose >= 1:
                         murphy_progress.set_description(f"No Mov data for for: {trial.identifier}")
                     continue
@@ -1066,16 +1073,6 @@ def run_mode():
 
 
         case "statistics":  # runs only the statistic script
-            print("Johann, take this out")
-            joints_of_interest = ['arm_flex_r', 'arm_add_r', 'arm_rot_r',
-                                  'elbow_flex_r', 'pro_sup_r',
-                                  'arm_flex_l', 'arm_add_l', 'arm_rot_l',
-                                  'elbow_flex_l', 'pro_sup_l', ]
-
-            body_parts_of_interest = ['time', 'hand_r_x', 'hand_r_y', 'hand_r_z', 'hand_l_x', 'hand_l_y',
-                                      'hand_l_z']
-
-            body_parts_of_interest_no_axes = ['hand_r', 'hand_l']
 
             df_timestamps = pd.read_csv(os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv'), sep=';')
 
