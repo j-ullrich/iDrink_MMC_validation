@@ -88,30 +88,30 @@ def filter_df(df_unfiltered, fs, verbose, normcutoff=False):
     order = 2  # Desired order 5. Because of filtfilt, half of that needs to be given. --> filtfilt doubles the order
 
     nyquist = 0.5 * fs
-
     if cutoff >= nyquist:
-        if verbose >= 1:
+        if verbose >= 2:
             print(f"Warning: Cutoff frequency {cutoff} is higher than Nyquist frequency {nyquist}.")
             print("Filtering with Nyquist frequency.")
         cutoff = int(nyquist - 1)
 
     if normcutoff:
         cutoff = cutoff / nyquist
-    else:
-        sos = butter(order, cutoff, btype="low", analog=False, output="sos", fs=fs)
-
-    if verbose >= 2:
-        print(f"Filtering 3D keypoints:\n"
-              f"Filter: Butterworth\n"
-              f"Order: {order}\n"
-              f"Sampling frequency: {fs} Hz\n"
-              f"cutoff frequency of {cutoff} Hz")
 
     if verbose >= 1:
         progress = tqdm(total=len(df_unfiltered.columns), desc="Filtering 3D keypoints", position=0, leave=True)
+        if verbose >= 2:
+            print(f"Filtering 3D keypoints:\n"
+                  f"Filter: Butterworth\n"
+                  f"Order: {order}\n"
+                  f"Sampling frequency: {fs} Hz\n"
+                  f"cutoff frequency of {cutoff} Hz")
+
+    # prepare filter
+    sos = butter(order, cutoff, btype="low", analog=False, output="sos", fs=fs)
 
     for column in df_unfiltered.columns:
         data = np.array(df_unfiltered[column].tolist())
+
         df_filtered[column] = sosfiltfilt(sos, data, axis=0).tolist()
 
         if verbose >= 1:
