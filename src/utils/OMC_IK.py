@@ -50,7 +50,7 @@ if os.name=='posix':  # Running on Linux
     drive = '/media/devteam-dart/Extreme SSD'
     root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 else:
-    drive = drives[3]
+    drive = drives[2]
     root_iDrink = os.path.join(drive, '\iDrink')  # Root directory of all iDrink Data
 
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.
@@ -98,24 +98,22 @@ def run_opensim_OMC(stabilize_hip=True):
     if DEBUG:
         p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
+    p_list_val_HS_full = ["P07", "P08", "P10", "P11", "P12"]
+    p_list_val_HS_1 = ["P07", "P08"]
+    p_list_val_HS_2 = ["P10", "P11"]
+    p_list_val_HS_3 = ["P12"]
+
+    p_list_val_ZH__full = ["P13", "P15", "P19", "P241", "P242", "P251", "P252"]
+    p_list_val_ZH_1 = ["P13", "P15"]
+    p_list_val_ZH_2 = ["P19", "P241", "P242"]
+    p_list_val_ZH_3 = ["P251", "P252"]
+
+
+    p_list = p_list_val_HS_1
+
     if verbose >=2:
         print(f"p_list: \n"
                 f"{p_list}")
-    p_list = ["P01", "P02", "P04", "P05", "P06", "P07", "P08", "P09", "P10", "P11", "P12", "P13", "P14", "P15", "P17",
-              "P19", "P23", "P24", "P25", "P27", "P28", "P30", "P31", "P34"]
-    p_list = ['P08', 'P10', 'P12', 'P13', 'P14', 'P15', 'P17', 'P19', 'P24', 'P25', 'P27', 'P28', 'P30', 'P31', 'P34']
-    #p_list = ['P19', 'P34']
-    p_list = ['P30']
-    #p_list = ['P31']
-
-    p_list = ["P241",
-        "P242",
-        "P251",
-        "P252",]
-
-
-
-    #p_list = p_new_struc
 
     for p_id in p_list:
 
@@ -130,7 +128,7 @@ def run_opensim_OMC(stabilize_hip=True):
         if verbose >= 2:
             print(f"trc_files for {p_id}: \n"
                   f"{trc_files}")
-        for trc_file in trc_files:
+        for trc_file in sorted(trc_files):
             id_t = re.search("\d+", os.path.basename(trc_file)).group()
             id_t = f"T{int(id_t):03d}"
             identifier = f"{id_s}_{p_id}_{id_t}"
