@@ -287,6 +287,13 @@ def does_HPE_zip_exist(trial, pose_root, filtered=True, posebacks=["openpose", "
             zip_files_id = glob.glob(os.path.join(cam_dir, poseback, f"{id_t}_*_json", f"{id_t}_*.zip"))
             zip_files = zip_files_trial + zip_files_id
 
+            if poseback == "metrabs":
+                trc_file = glob.glob(os.path.join(cam_dir, poseback, "single-cam", f'{id_p}_{id_t}*.trc'))
+                if not trc_file:
+                    return False
+
+
+
             if len(zip_files) < 1:
                 return False  # If no .zip file is present return False
     return True
