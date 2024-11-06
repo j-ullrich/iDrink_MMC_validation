@@ -98,3 +98,5 @@ src/Pose2Sim/__pycache__/skeletons.cpython-311.pyc
 src/Pose2Sim/__pycache__/triangulation.cpython-311.pyc
 /src/replay_pid26420.log
 *.pyc
+*.pyc
+*.pyc
