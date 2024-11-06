@@ -836,12 +836,16 @@ bml_movi_87 = Node("backneck", id=0, children=[
             ]),
             Node("lsho", id=76, children=[
                 Node("lelb", id=72, children=[
-                    Node("lwri", id=77)
+                    Node("lwri", id=77, children=[
+                        Node('lhan', id=74)
+                    ]),
                 ]),
             ]),
             Node("rsho", id=84, children=[
                 Node("relb", id=80, children=[
-                         Node("rwri", id=85)
+                         Node("rwri", id=85, children=[
+                                Node('rhan', id=82)
+                         ]),
                 ]),
             ])
         ])
