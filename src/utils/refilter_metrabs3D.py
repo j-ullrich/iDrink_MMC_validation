@@ -6,8 +6,12 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 from trc import TRCData
+import platform
 
 import glob
+
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
+from iDrink import iDrinkUtilities
 
 
 
@@ -294,11 +298,7 @@ def get_unfiltered_trc_files(root_hpe, fps, cutoff, order,  remove_old_files=Fal
 
 if __name__ == '__main__':
     """Set Root Paths for Processing"""
-    drives = ['C:', 'D:', 'E:', 'I:']
-    if os.name == 'posix':  # Running on Linux
-        drive = '/media/devteam-dart/Extreme SSD'
-    else:
-        drive = drives[3] + '\\'
+    drive = iDrinkUtilities.get_drivepath()
 
     root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
     root_MMC = os.path.join(root_iDrink, "Delta",

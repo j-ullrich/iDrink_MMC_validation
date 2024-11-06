@@ -497,8 +497,26 @@ def get_valid_trials(csv_murphy):
     for id_p, id_t in zip(list_id_p, list_id_t):
 
         valid_trials.append(f"{id_p}*T{id_t}")
-
     return valid_trials
+
+def get_drivepath():
+    """
+    Returns the drive path based on the machine the code is run on.
+    :return:
+    """
+    import platform
+    drives = ['C:', 'D:', 'E:', 'I:']
+
+    # Get drive based on machines validation is used on
+    match platform.uname().node:
+        case 'DESKTOP-N3R93K5':
+            drive = drives[1] + '\\'
+        case 'DESKTOP-0GLASVD':
+            drive = drives[2] + '\\'
+        case _:  # Default case
+            drive = drives[3] + '\\'
+
+    return drive
 
 
 if __name__ == '__main__':

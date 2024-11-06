@@ -8,11 +8,7 @@ import shutil
 import glob
 import re
 from tqdm import tqdm
-from fuzzywuzzy import process
-
-from trc import TRCData
-
-import math
+import platform
 import pandas as pd
 import numpy as np
 import scipy as sp
@@ -20,6 +16,7 @@ import scipy as sp
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from iDrinkOpenSim import read_opensim_file
 import iDrinkValPlots as iDrinkVP
+import iDrinkUtilities
 
 murphy_measures = ["PeakVelocity_mms",
                    "elbowVelocity",
@@ -1047,12 +1044,7 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
 
-    """Set Root Paths for Processing"""
-    drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'I:']
-    if os.name == 'posix':  # Running on Linux
-        drive = '/media/devteam-dart/Extreme SSD'
-    else:
-        drive = drives[2] + '\\'
+    drive = iDrinkUtilities.get_drivepath()
 
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")

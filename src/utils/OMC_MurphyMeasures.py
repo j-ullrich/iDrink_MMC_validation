@@ -5,7 +5,7 @@ import time
 import re
 import shutil
 import subprocess
-
+import platform
 from tqdm import tqdm
 
 import argparse
@@ -20,12 +20,7 @@ if sys.gettrace() is not None:
     print("Debug Mode is activated\n"
           "Starting debugging script.")
 
-"""Set Root Paths for Processing"""
-drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'I:']
-if os.name == 'posix':  # Running on Linux
-    drive = '/media/devteam-dart/Extreme SSD'
-else:
-    drive = drives[1]
+drive = iDrinkUtilities.get_drivepath()
 
 root_iDrink = os.path.join(drive, 'iDrink')
 root_val = os.path.join(root_iDrink, "validation_root")
