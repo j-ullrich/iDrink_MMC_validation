@@ -609,6 +609,8 @@ def create_trial_objects():
         # Run the pipeline
         trial.run_pipeline(mode)"""
 
+
+
 def run_calibrations(trial_list):
 
     failed_p = []
@@ -672,6 +674,409 @@ def run_calibrations(trial_list):
 
     return iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
+def run_HPE(trial_list):
+    global df_trials
+    global df_settings
+
+    print("Pose Estimaton Method: ", args.poseback)
+
+    if args.poseback == "all":
+        # args.poseback = ["openpose", "mmpose", "pose2sim", "metrabs_multi", "metrabs_single"]
+        args.poseback = ["mmpose", "pose2sim", "metrabs_multi"]
+
+    elif type(args.poseback) == list:
+        args.poseback = args.poseback
+
+    else:
+        args.poseback = [args.poseback]
+
+    for poseback in args.poseback:
+        match poseback:
+            case "openpose":
+                print("Running Openpose")
+                # trial_list = create_trial_objects(mode)
+                raise NotImplementedError("Openpose is not yet implemented")
+
+                # TODO: Move Openpose Data from DataNewStruc to pose estimation data folder
+
+            case "mmpose":
+                print("Pose Estimation mode: MMPose starting.")
+                for i, trial in enumerate(trial_list):
+                    if args.verbose >= 1:
+                        print(f"starting Pose Estimation for: {trial.identifier}")
+
+                    trial.pose_model = "Coco17_UpperBody"
+
+                    if any(df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
+                            df_trials["id_p"] == trial.id_p), "MMPose_done"].values):
+                        trial.MMPose_done = True
+                        trial.n_frames = max(
+                            df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)][
+                                "n_frames"])
+                        df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
+                                df_trials["id_p"] == trial.id_p), "MMPose_done"] = True
+
+                    # Safety Check on json files
+                    trial.MMPose_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
+                                                                     posebacks=["mmpose"])
+
+                    if trial.MMPose_done:
+                        if args.verbose >= 2:
+                            print(f"Pose Estimation for {trial.identifier} already done.")
+                        continue
+                    else:
+
+                        try:
+                            if args.verbose >= 2:
+                                print(f"starting Pose Estimation for {trial.identifier}")
+
+                            video_files = iDrinkPoseEstimation.get_all_trial_vids(trial)
+                            iDrinkPoseEstimation.validation_pose_estimation_2d(trial, root_val, video_files=video_files,
+                                                                               writevideofiles=False,
+                                                                               filter_2d=False, DEBUG=False)
+
+                            trial.MMPose_done = True
+                            trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
+
+                        except Exception as e:
+                            if args.verbose >= 2:
+                                print(f"Error in Pose Estimation\n"
+                                      f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
+                                      f"{e}")
+
+                            iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'mmpose', log_val_errors)
+                            trial.MMPose_done = False
+
+                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
+            case "pose2sim":
+                from Pose2Sim import Pose2Sim
+                print("Pose Estimation mode: Pose2Sim starting.")
+
+                for i, trial in enumerate(trial_list):
+                    # Change the config_dict so that the correct pose model is used
+                    trial.pose_model = "Coco17_UpperBody"
+
+                    if any(df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
+                            df_trials["id_p"] == trial.id_p), "P2SPose_done"].values):
+                        trial.P2SPose_done = True
+                        trial.n_frames = max(
+                            df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)][
+                                "n_frames"])
+                        df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
+                                df_trials["id_p"] == trial.id_p), "P2SPose_done"] = True
+
+                    # Safety Check on zip file
+                    trial.P2SPose_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
+                                                                      posebacks=["pose2sim"])
+
+                    if trial.P2SPose_done:
+                        if args.verbose >= 2:
+                            print(f"Pose Estimation for {trial.identifier} already done.")
+                        continue
+                    else:
+                        try:
+                            # Prepare Pose Estimation
+                            trial.config_dict['pose']['pose_model'] = 'COCO_17'
+                            vids_used = trial.config_dict['pose']['videos']
+                            all_vids = iDrinkPoseEstimation.get_all_trial_vids(trial)
+                            trial.config_dict['pose']['videos'] = all_vids
+                            trial.config_dict['pose']['save_video'] = 'none'
+
+                            # Run Pose Estimation
+                            Pose2Sim.poseEstimation(trial.config_dict)
+
+                            # Filter json_files and packing them to .zip file
+                            iDrinkPoseEstimation.filt_p2s_pose(trial, root_val, verbose=args.verbose)
+
+                            """dir_unfilt =
+                            dir_filt ="""
+
+                            unfilt_dir = os.path.realpath(
+                                os.path.join(root_val, "02_pose_estimation", "01_unfiltered"))
+                            filt_dir = os.path.realpath(
+                                os.path.join(root_val, "02_pose_estimation", "02_filtered"))
+
+                            trial.config_dict['pose']['pose_model'] = trial.pose_model
+
+                            trial.config_dict['pose']['videos'] = vids_used
+                            trial.P2SPose_done = True
+                            trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
+
+                        except Exception as e:
+                            if args.verbose >= 2:
+                                print(f"Error in Pose Estimation\n"
+                                      f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
+                                      f"{e}")
+
+                            iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'pose2sim', log_val_errors)
+                            trial.P2SPose_done = False
+
+                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
+            case "metrabs_multi":
+                from Metrabs_PoseEstimation.metrabsPose2D_pt import metrabs_pose_estimation_2d_val
+                print("Pose Estimation mode: Metrabs Multi Cam starting.")
+                model_path = os.path.realpath(
+                    os.path.join(metrabs_models_dir, 'pytorch', 'metrabs_eff2l_384px_800k_28ds_pytorch'))
+                for i, trial in enumerate(trial_list):
+                    trial.pose_model = "bml_movi_87"
+
+                    # Safety Check on json files
+                    trial.Metrabs_multi_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
+                                                                            posebacks=["metrabs"])
+
+                    if trial.Metrabs_multi_done:
+                        if args.verbose >= 2:
+                            print(f"Pose Estimation for {trial.identifier} already done.")
+                    else:
+                        try:
+                            video_files = sorted(iDrinkPoseEstimation.get_all_trial_vids(trial))
+
+                            calib = os.path.join(trial.dir_calib_videos, f'Calib_full_{trial.id_p}.toml')
+                            metrabs_pose_estimation_2d_val(curr_trial=trial, video_files=video_files,
+                                                           calib_file=os.path.join(trial.dir_calib_videos,
+                                                                                   f'Calib_full_{trial.id_p}.toml'),
+                                                           model_path=model_path,
+                                                           identifier=trial.identifier, root_val=root_val,
+                                                           skeleton=trial.pose_model)
+                            trial.Metrabs_multi_done = True
+
+                            trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
+                        except Exception as e:
+                            if args.verbose >= 2:
+                                print(f"Error in Pose Estimation\n"
+                                      f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
+                                      f"{e}")
+
+                            iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'metrabs_multi', log_val_errors)
+                            trial.Metrabs_multi_done = False
+
+            case _:  # If no valid mode is given
+                print(f"Invalid HPE-Mode: {poseback}\n"
+                      f"Please specify a valid mode.")
+                sys.exit(1)
+
+        df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
+
+def run_triangulation(trial_list):
+    from Pose2Sim import Pose2Sim
+
+    global df_trials
+    global df_settings
+    if args.verbose >= 1:
+        p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
+
+    for i, trial in enumerate(trial_list):
+        if args.verbose >= 1:
+            p2s_progress.set_description(f"Running Pose2Sim for: {trial.identifier}")
+
+        """if trial.identifier != 'S012_P19_T062':
+            continue"""
+
+        # Get Pose method from settings dataframe
+        """i=78 # Trial that leads to exception in P2S
+        trial = trial_list[i]"""
+        pose = df_settings.loc[
+            df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
+        filt = df_settings.loc[
+            df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
+
+        if len(trial.used_cams) == 1:
+            if filt == 'filtered':
+                filt = '02_filtered'
+                buttered = 'iDrinkbutterfilt'
+            else:
+                filt = '01_unfiltered'
+                buttered = 'iDrink_unfilt'
+
+            cam = trial.used_cams[0]
+
+            paths_found = glob.glob(
+                os.path.join(root_HPE, filt, trial.id_p, f'{trial.id_p}_cam{cam}', 'metrabs', 'single-cam',
+                             f'*{trial.id_t}*.trc'))
+
+            if len(paths_found) > 0:
+                path_src = paths_found[0]
+                path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{trial.identifier}_cam{cam}_{buttered}.trc')
+
+                old_files = glob.glob(os.path.join(trial.dir_trial, 'pose-3d', f'.trc'))
+                for file in old_files:
+                    os.remove(file)
+
+                shutil.copy2(path_src, path_dst)
+        else:
+            if args.only_single_cam_trials:
+                continue
+
+            trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
+            if trial.HPE_done:
+                if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
+                    trial.P2S_done = True
+                else:
+                    trial.P2S_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.trc',
+                                                           args.verbose)
+
+                if trial.P2S_done:
+                    if args.verbose >= 2:
+                        print(f"Pose2Sim for {trial.identifier} already done.")
+                    continue
+                else:
+                    if args.verbose >= 1:
+                        print(f"Trial: {trial.identifier} \t Posemode: {pose}")
+                    try:
+                        iDrinkUtilities.unpack_zip_to_trial(trial, pose, filt, root_val)
+                        if 'metrabs' in pose:
+                            trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
+                        try:
+                            trial.run_pose2sim(only_triangulation=False)
+                        except:
+                            trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
+                            trial.save_configuration()
+                            trial.run_pose2sim(only_triangulation=False)
+
+                        trial.P2S_done = True
+
+                    except Exception as e:
+                        if args.verbose >= 2:
+                            print(f"Pose2Sim for {trial.identifier} failed with error: {e}")
+
+                        iDrinkLog.log_error(args, trial, e, 'Pose2Sim', pose, log_val_errors)
+
+                        trial.P2S_done = False
+                        p2s_progress.update(1)
+
+                iDrinkUtilities.del_json_from_trial(trial, False)
+
+            else:
+                print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
+
+        p2s_progress.update(1)
+
+    if all([trial.P2SPose_done for trial in trial_list]) is False:
+        print("Pose2Sim could not be completed for all Trials. Please Check whether Pose Estimaiton is fully done.\n"
+              "If not, please run Pose Estimation first. And then repeat Pose2Sim Mode.")
+
+    p2s_progress.close()
+    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
+
+def run_opensim(trial_list):
+
+    global df_trials
+    global df_settings
+
+
+    if args.verbose >= 1:
+        opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
+    for i, trial in enumerate(trial_list):
+        opensim_progress.set_description(f"Running Opensim for: {trial.identifier}")
+        """if trial.identifier != 'S003_P15_T079':
+            continue"""
+
+        if args.verbose >= 1:
+            opensim_progress.update(1)
+        pose = df_settings.loc[
+            df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
+
+        joint_kin_exist = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
+        chest_pos_exist = iDrinkLog.files_exist(
+            os.path.join(trial.dir_trial, 'movement_analysis', 'kin_opensim_analyzetool'), 'OutputsVec3.sto')
+
+        trial.OS_done = joint_kin_exist and chest_pos_exist
+
+        if args.only_single_cam_trials and len(trial.used_cams) > 1:
+            continue
+
+        if trial.OS_done:
+            if args.verbose >= 2:
+                print(f"Opensim for {trial.identifier} already done.")
+            continue
+        else:
+            try:
+                trial.prepare_opensim()
+                iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'), args.verbose)
+                """
+                mmpose: Coco17_UpperBody
+                pose2sim: Coco17_UpperBody
+                metrabs_multi: bml_movi_87
+                """
+
+                trial.OS_done = True
+            except Exception as e:
+                if args.verbose >= 2:
+                    print(f"Error in openSim\n"
+                          f"Trial: {trial.identifier}\n"
+                          f"{e}")
+
+                iDrinkLog.log_error(args, trial, e, 'Opensim', pose, log_val_errors)
+
+                trial.OS_done = False
+
+            iDrinkUtilities.del_geometry_from_trial(trial, verbose=args.verbose)
+
+    if args.verbose >= 1:
+        opensim_progress.close()
+    df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
+def run_murphy_measures(trial_list):
+    global df_trials
+    global df_settings
+
+    if args.verbose >= 1:
+        murphy_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Murphy Measuresfor: ",
+                               unit="Trial")
+
+    for trial in trial_list:
+        if args.verbose >= 1:
+            murphy_progress.set_description(f"Running Murphy Measures for: {trial.identifier}")
+            murphy_progress.update(1)
+
+        # check that .sto files exist
+        mov_files = glob.glob(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool', f'*.csv'))
+
+        chest_files = glob.glob(
+            os.path.join(trial.dir_trial, 'movement_analysis', 'kin_opensim_analyzetool', f'*OutputsVec3.sto'))
+
+        if not mov_files or not chest_files:
+            if args.verbose >= 1:
+                murphy_progress.set_description(f"No Mov data for for: {trial.identifier}")
+            continue
+
+        try:
+            path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
+                                             f'{trial.identifier}_filtered.csv')
+
+            iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
+                                                csv_timestamps=path_csv_murphy_timestamps,
+                                                csv_measures=path_csv_murphy_measures,
+                                                write_mov_data=True,
+                                                path_mov_data=path_preprocessed,
+                                                filt_fps=60,
+                                                filt_cutoff_vel=4, filt_cutoff_pos=4,
+                                                filt_order_pos=4, filt_order_vel=6,
+                                                )
+        except Exception as e:
+            if args.verbose >= 2:
+                print(f"Error in murphy_measures\n"
+                      f"Trial: {trial.identifier}\n"
+                      f"{e}")
+
+            iDrinkLog.log_error(args, trial, e, 'Murphy', '', log_val_errors)
+
+    if args.verbose >= 1:
+        murphy_progress.close()
+
+
+def run_statistics():
+    df_timestamps = pd.read_csv(os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv'), sep=';')
+
+    # iDrinkStatisticalAnalysis.preprocess_timeseries(dir_root=root_val, detect_outliers=False, verbose=args.verbose)
+    iDrinkStatisticalAnalysis.get_omc_mmc_error(dir_root=root_val, df_timestamps=df_timestamps, verbose=args.verbose)
+
+    # generate Plots
+
 def run_mode():
     """
     Runs the pipeline for given mode.
@@ -686,7 +1091,7 @@ def run_mode():
         trial_list.sort(key=lambda x: x.id_p, reverse=False)
 
     # before starting on any mode, make sure, each Trial has their respective calibration file generated.
-    if args.mode in ["pose_estimation", "pose2sim"]:
+    if args.mode in ["pose_estimation", "pose2sim", 'full']:
         if args.mode == "pose_estimation" and args.poseback != "metrabs_multi":
             pass
         else:
@@ -695,401 +1100,26 @@ def run_mode():
 
     match args.mode:
         case "pose_estimation":  # Runs only the Pose Estimation
-            print("Pose Estimaton Method: ", args.poseback)
-
-            if args.poseback == "all":
-                #args.poseback = ["openpose", "mmpose", "pose2sim", "metrabs_multi", "metrabs_single"]
-                args.poseback = ["mmpose", "pose2sim", "metrabs_multi"]
-
-            elif type(args.poseback) == list:
-                args.poseback = args.poseback
-
-            else:
-                args.poseback = [args.poseback]
-
-            for poseback in args.poseback:
-                match poseback:
-                    case "openpose":
-                        print("Running Openpose")
-                        #trial_list = create_trial_objects(mode)
-                        raise NotImplementedError("Openpose is not yet implemented")
-
-                        # TODO: Move Openpose Data from DataNewStruc to pose estimation data folder
-
-                    case "mmpose":
-                        print("Pose Estimation mode: MMPose starting.")
-                        for i, trial in enumerate(trial_list):
-                            if args.verbose >= 1:
-                                print(f"starting Pose Estimation for: {trial.identifier}")
-
-                            trial.pose_model = "Coco17_UpperBody"
-
-                            if any(df_trials.loc[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p), "MMPose_done"].values):
-                                trial.MMPose_done = True
-                                trial.n_frames = max(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["n_frames"])
-                                df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
-                                            df_trials["id_p"] == trial.id_p), "MMPose_done"] = True
-
-                            # Safety Check on json files
-                            trial.MMPose_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
-                                                                          posebacks=["mmpose"])
-
-
-                            if trial.MMPose_done:
-                                if args.verbose >= 2:
-                                    print(f"Pose Estimation for {trial.identifier} already done.")
-                                continue
-                            else:
-
-                                try:
-                                    if args.verbose >= 2:
-                                        print(f"starting Pose Estimation for {trial.identifier}")
-
-                                    video_files = iDrinkPoseEstimation.get_all_trial_vids(trial)
-                                    iDrinkPoseEstimation.validation_pose_estimation_2d(trial, root_val, video_files=video_files, writevideofiles=False,
-                                                                                       filter_2d=False, DEBUG=False)
-
-                                    trial.MMPose_done = True
-                                    trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
-
-                                except Exception as e:
-                                    if args.verbose>=2:
-                                        print(f"Error in Pose Estimation\n"
-                                              f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
-                                              f"{e}")
-
-                                    iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'mmpose', log_val_errors)
-                                    trial.MMPose_done = False
-
-                        df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
-
-
-                    case "pose2sim":
-                        from Pose2Sim import Pose2Sim
-                        print("Pose Estimation mode: Pose2Sim starting.")
-
-
-                        for i, trial in enumerate(trial_list):
-                            # Change the config_dict so that the correct pose model is used
-                            trial.pose_model = "Coco17_UpperBody"
-
-                            if any(df_trials.loc[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p), "P2SPose_done"].values):
-                                trial.P2SPose_done = True
-                                trial.n_frames = max(df_trials[(df_trials["id_t"] == trial.id_t) & (df_trials["id_p"] == trial.id_p)]["n_frames"])
-                                df_trials.loc[(df_trials["id_t"] == trial.id_t) & (
-                                            df_trials["id_p"] == trial.id_p), "P2SPose_done"] = True
-
-                            # Safety Check on zip file
-                            trial.P2SPose_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
-                                                                           posebacks=["pose2sim"])
-
-                            if trial.P2SPose_done:
-                                if args.verbose >= 2:
-                                    print(f"Pose Estimation for {trial.identifier} already done.")
-                                continue
-                            else:
-                                try:
-                                    # Prepare Pose Estimation
-                                    trial.config_dict['pose']['pose_model'] = 'COCO_17'
-                                    vids_used = trial.config_dict['pose']['videos']
-                                    all_vids = iDrinkPoseEstimation.get_all_trial_vids(trial)
-                                    trial.config_dict['pose']['videos'] = all_vids
-                                    trial.config_dict['pose']['save_video'] = 'none'
-
-                                    # Run Pose Estimation
-                                    Pose2Sim.poseEstimation(trial.config_dict)
-
-                                    # Filter json_files and packing them to .zip file
-                                    iDrinkPoseEstimation.filt_p2s_pose(trial, root_val, verbose=args.verbose)
-
-                                    """dir_unfilt =
-                                    dir_filt ="""
-
-                                    unfilt_dir = os.path.realpath(
-                                        os.path.join(root_val, "02_pose_estimation", "01_unfiltered"))
-                                    filt_dir = os.path.realpath(
-                                        os.path.join(root_val, "02_pose_estimation", "02_filtered"))
-
-                                    trial.config_dict['pose']['pose_model'] = trial.pose_model
-
-                                    trial.config_dict['pose']['videos'] = vids_used
-                                    trial.P2SPose_done = True
-                                    trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial)
-
-                                except Exception as e:
-                                    if args.verbose >= 2:
-                                        print(f"Error in Pose Estimation\n"
-                                              f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
-                                              f"{e}")
-
-                                    iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'pose2sim', log_val_errors)
-                                    trial.P2SPose_done = False
-
-                        df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
-
-                    case "metrabs_multi":
-                        from Metrabs_PoseEstimation.metrabsPose2D_pt import metrabs_pose_estimation_2d_val
-                        print("Pose Estimation mode: Metrabs Multi Cam starting.")
-                        model_path = os.path.realpath(os.path.join(metrabs_models_dir, 'pytorch', 'metrabs_eff2l_384px_800k_28ds_pytorch'))
-                        for i, trial in enumerate(trial_list):
-                            trial.pose_model = "bml_movi_87"
-
-                            #Safety Check on json files
-                            trial.Metrabs_multi_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
-                                                                                 posebacks=["metrabs"])
-
-                            if trial.Metrabs_multi_done:
-                                if args.verbose >= 2:
-                                    print(f"Pose Estimation for {trial.identifier} already done.")
-                            else:
-                                try:
-                                    video_files = sorted(iDrinkPoseEstimation.get_all_trial_vids(trial))
-
-                                    calib = os.path.join(trial.dir_calib_videos, f'Calib_full_{trial.id_p}.toml')
-                                    metrabs_pose_estimation_2d_val(curr_trial=trial, video_files=video_files,
-                                                                   calib_file=os.path.join(trial.dir_calib_videos, f'Calib_full_{trial.id_p}.toml'),
-                                                                   model_path=model_path,
-                                                                   identifier=trial.identifier, root_val=root_val,
-                                                                   skeleton=trial.pose_model)
-                                    trial.Metrabs_multi_done = True
-
-                                    trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE)
-                                except Exception as e:
-                                    if args.verbose >= 2:
-                                        print(f"Error in Pose Estimation\n"
-                                              f"Trial: {trial.identifier}\tPoseback: {poseback}\n"
-                                              f"{e}")
-
-                                    iDrinkLog.log_error(args, trial, e, '2D_pose_estimation', 'metrabs_multi', log_val_errors)
-                                    trial.Metrabs_multi_done = False
-
-                    case _:  # If no valid mode is given
-                        print(f"Invalid HPE-Mode: {poseback}\n"
-                              f"Please specify a valid mode.")
-                        sys.exit(1)
-
-                df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
-
+            run_HPE(trial_list)
 
         case "pose2sim":  # Runs only Pose2Sim
-
-            from Pose2Sim import Pose2Sim
-            if args.verbose >= 1:
-                p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
-
-            for i, trial in enumerate(trial_list):
-                if args.verbose >= 1:
-                    p2s_progress.set_description(f"Running Pose2Sim for: {trial.identifier}")
-
-                """if trial.identifier != 'S012_P19_T062':
-                    continue"""
-
-
-                # Get Pose method from settings dataframe
-                """i=78 # Trial that leads to exception in P2S
-                trial = trial_list[i]"""
-                pose = df_settings.loc[
-                    df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
-                filt = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
-
-
-                if len(trial.used_cams) == 1:
-                    if filt == 'filtered':
-                        filt = '02_filtered'
-                        buttered = 'iDrinkbutterfilt'
-                    else:
-                        filt = '01_unfiltered'
-                        buttered = 'iDrink_unfilt'
-
-                    cam = trial.used_cams[0]
-
-                    paths_found = glob.glob(os.path.join(root_HPE, filt, trial.id_p, f'{trial.id_p}_cam{cam}', 'metrabs', 'single-cam', f'*{trial.id_t}*.trc'))
-
-                    if len(paths_found) > 0:
-                        path_src = paths_found[0]
-                        path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{trial.identifier}_cam{cam}_{buttered}.trc')
-
-                        old_files = glob.glob(os.path.join(trial.dir_trial, 'pose-3d', f'.trc'))
-                        for file in old_files:
-                            os.remove(file)
-
-                        shutil.copy2(path_src, path_dst)
-                else:
-                    if args.only_single_cam_trials:
-                        continue
-
-                    trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
-                    if trial.HPE_done:
-                        if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
-                            trial.P2S_done = True
-                        else:
-                            trial.P2S_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.trc', args.verbose)
-
-                        if trial.P2S_done:
-                            if args.verbose >= 2:
-                                print(f"Pose2Sim for {trial.identifier} already done.")
-                            continue
-                        else:
-                            if args.verbose >= 1:
-                                print(f"Trial: {trial.identifier} \t Posemode: {pose}")
-                            try:
-                                iDrinkUtilities.unpack_zip_to_trial(trial, pose, filt, root_val)
-                                if 'metrabs' in pose:
-                                    trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
-                                try:
-                                    trial.run_pose2sim(only_triangulation=False)
-                                except:
-                                    trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
-                                    trial.save_configuration()
-                                    trial.run_pose2sim(only_triangulation=False)
-
-                                trial.P2S_done = True
-
-                            except Exception as e:
-                                if args.verbose >= 2:
-                                    print(f"Pose2Sim for {trial.identifier} failed with error: {e}")
-
-                                iDrinkLog.log_error(args, trial, e, 'Pose2Sim', pose, log_val_errors)
-
-                                trial.P2S_done = False
-                                p2s_progress.update(1)
-
-
-
-                        iDrinkUtilities.del_json_from_trial(trial, False)
-
-                    else:
-                        print(f"Pose Estimation for {trial.identifier} not done yet. Please repeat Pose Estimation Mode")
-
-                p2s_progress.update(1)
-
-
-            if all([trial.P2SPose_done for trial in trial_list]) is False:
-                print("Pose2Sim could not be completed for all Trials. Please Check whether Pose Estimaiton is fully done.\n"
-                      "If not, please run Pose Estimation first. And then repeat Pose2Sim Mode.")
-
-            p2s_progress.close()
-            df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+            run_triangulation(trial_list)
 
         case "opensim":  # Runs only Opensim
-            if args.verbose >= 1:
-                opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
-            for i, trial in enumerate(trial_list):
-                opensim_progress.set_description(f"Running Opensim for: {trial.identifier}")
-                """if trial.identifier != 'S003_P15_T079':
-                    continue"""
-
-
-                if args.verbose >= 1:
-                    opensim_progress.update(1)
-                pose = df_settings.loc[
-                    df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
-
-                joint_kin_exist = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
-                chest_pos_exist = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'kin_opensim_analyzetool'), 'OutputsVec3.sto')
-
-                trial.OS_done = joint_kin_exist and chest_pos_exist
-
-                if args.only_single_cam_trials and len(trial.used_cams) > 1:
-                        continue
-
-                if trial.OS_done:
-                    if args.verbose >= 2:
-                        print(f"Opensim for {trial.identifier} already done.")
-                    continue
-                else:
-                    try:
-                        trial.prepare_opensim()
-                        iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'),  args.verbose)
-                        """
-                        mmpose: Coco17_UpperBody
-                        pose2sim: Coco17_UpperBody
-                        metrabs_multi: bml_movi_87
-                        """
-
-                        trial.OS_done = True
-                    except Exception as e:
-                        if args.verbose >= 2:
-                            print(f"Error in openSim\n"
-                                  f"Trial: {trial.identifier}\n"
-                                  f"{e}")
-
-                        iDrinkLog.log_error(args, trial, e, 'Opensim', pose, log_val_errors)
-
-                        trial.OS_done = False
-
-                    iDrinkUtilities.del_geometry_from_trial(trial, verbose = args.verbose)
-
-            if args.verbose >= 1:
-                opensim_progress.close()
-            df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
-
-
+            run_opensim(trial_list)
 
         case "murphy_measures":  # runs only the calculation of murphy measures
-            if args.verbose >= 1:
-                murphy_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Murphy Measuresfor: ", unit="Trial")
-
-            for trial in trial_list:
-                if args.verbose >= 1:
-                    murphy_progress.set_description(f"Running Murphy Measures for: {trial.identifier}")
-                    murphy_progress.update(1)
-
-                # check that .sto files exist
-                mov_files = glob.glob(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool', f'*.csv'))
-
-                chest_files = glob.glob(os.path.join(trial.dir_trial, 'movement_analysis', 'kin_opensim_analyzetool', f'*OutputsVec3.sto'))
-
-                if not mov_files or not chest_files:
-                    if args.verbose >= 1:
-                        murphy_progress.set_description(f"No Mov data for for: {trial.identifier}")
-                    continue
-
-                try:
-                    path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out', f'{trial.identifier}_filtered.csv')
-
-                    iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
-                                                        csv_timestamps=path_csv_murphy_timestamps,
-                                                        csv_measures=path_csv_murphy_measures,
-                                                        write_mov_data=True,
-                                                        path_mov_data=path_preprocessed,
-                                                        filt_fps=60,
-                                                        filt_cutoff_vel=4 , filt_cutoff_pos=4,
-                                                        filt_order_pos=4, filt_order_vel=6,
-                                                        )
-                except Exception as e:
-                    if args.verbose >= 2:
-                        print(f"Error in murphy_measures\n"
-                              f"Trial: {trial.identifier}\n"
-                              f"{e}")
-
-                    iDrinkLog.log_error(args, trial, e, 'Murphy', '', log_val_errors)
-
-
-
-
-            if args.verbose >= 1:
-                murphy_progress.close()
-
+            run_murphy_measures(trial_list)
 
         case "statistics":  # runs only the statistic script
+            run_statistics()
 
-            df_timestamps = pd.read_csv(os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv'), sep=';')
-
-            #iDrinkStatisticalAnalysis.preprocess_timeseries(dir_root=root_val, detect_outliers=False, verbose=args.verbose)
-            iDrinkStatisticalAnalysis.get_omc_mmc_error(dir_root=root_val, df_timestamps=df_timestamps, verbose=args.verbose)
-
-            # generate Plots
-
-
-
-
-
-
-        case "full":  # runs the full pipeline
-            print("Johann, take this out")
-
-
+        case "full":  # runs the full pipeline back-to-back
+            run_HPE(trial_list)
+            run_triangulation(trial_list)
+            run_opensim(trial_list)
+            run_murphy_measures(trial_list)
+            run_statistics()
 
         case _:  # If no mode is given
             raise ValueError("Invalid Mode was given. Please specify a valid mode.")
@@ -1110,13 +1140,14 @@ if __name__ == '__main__':
              4: "murphy_measures",
              5: "statistics",
              6: "full"}
+
     args.mode = modes[1]
 
     args.poseback = ['metrabs_multi']
     args.verbose = 2
     args.only_single_cam_trials = False
     #args.single_setting = 'S001'
-
+    args.single_identifier = None
 
 
     if args.mode is not None:
