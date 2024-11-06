@@ -5,6 +5,7 @@ import time
 import re
 import shutil
 from operator import index
+import platform
 
 from tqdm import tqdm
 
@@ -46,13 +47,15 @@ def prepare_opensim(self, filterflag="filt"):
 
 """Set Root Paths for Processing"""
 drives=["C:", "D:", "E:", "I:"]
-if os.name=='posix':  # Running on Linux
-    drive = '/media/devteam-dart/Extreme SSD'
-    root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
-else:
-    drive = drives[2]
-    root_iDrink = os.path.join(drive, '\iDrink')  # Root directory of all iDrink Data
+match platform.uname().node:
+    case 'DESKTOP-N3R93K5':
+        drive = drives[1] + '\\'
+    case 'DESKTOP-0GLASVD':
+        drive = drives[2] + '\\'
+    case _:  # Default case
+        drive = drives[3] + '\\'
 
+root_iDrink = os.path.join(drive, 'iDrink') # Root directory of all iDrink Data
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 root_dat_out = os.path.join(root_val, "03_data", "OMC")  # Root directory of all the data for the validation
@@ -98,18 +101,24 @@ def run_opensim_OMC(stabilize_hip=True):
     if DEBUG:
         p_list = ['P07', 'P08', 'P10', 'P11']  # Temporary
 
-    p_list_val_HS_full = ["P07", "P08", "P10", "P11", "P12"]
-    p_list_val_HS_1 = ["P07", "P08"]
-    p_list_val_HS_2 = ["P10", "P11"]
-    p_list_val_HS_3 = ["P12"]
+    match platform.uname().node:
+        case 'DESKTOP-N3R93K5':
+            dict_p_list = {1: ["P13", "P15"],
+                           2: ["P19", "P241", "P242"],
+                           3: ["P251", "P252"]}
+            p_list_full = ["P13", "P15", "P19", "P241", "P242", "P251", "P252"]
+        case 'DESKTOP-0GLASVD':
+            dict_p_list = {1: ["P07", "P08"],
+                            2: ["P10", "P11"],
+                            3: ["P12"]}
+            p_list_full = ["P07", "P08", "P10", "P11", "P12"]
+        case _:  # Default case
+            dict_p_list = {1: [],
+                           2: [],
+                           3: []}
+            p_list_full = []
 
-    p_list_val_ZH__full = ["P13", "P15", "P19", "P241", "P242", "P251", "P252"]
-    p_list_val_ZH_1 = ["P13", "P15"]
-    p_list_val_ZH_2 = ["P19", "P241", "P242"]
-    p_list_val_ZH_3 = ["P251", "P252"]
-
-
-    p_list = p_list_val_HS_1
+    p_list = dict_p_list[2]
 
     if verbose >=2:
         print(f"p_list: \n"
@@ -145,11 +154,14 @@ def run_opensim_OMC(stabilize_hip=True):
             trial.create_trial(for_omc=True)
             trial.load_configuration()
 
-            #trial_done = iDrinkLog.files_exist(os.path.join(dir_t, 'pose-3d'), '.mot', verbose=1)
+            #trial_done = iDrinkLog.files_exist(trial.dir_kin_ik_tool, '.csv', verbose=1)
 
+            joint_kin_exist = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'),
+                                                    '.csv')
+            chest_pos_exist = iDrinkLog.files_exist(
+                os.path.join(trial.dir_trial, 'movement_analysis', 'kin_opensim_analyzetool'), 'OutputsVec3.sto')
 
-
-            trial_done = iDrinkLog.files_exist(trial.dir_kin_ik_tool, '.csv', verbose=1)
+            trial_done = joint_kin_exist and chest_pos_exist
 
             if trial_done:
                 print(f"Skipping {identifier} as it is already done.")
