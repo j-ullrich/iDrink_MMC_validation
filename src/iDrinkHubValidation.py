@@ -4,7 +4,7 @@ import sys
 import time
 import re
 import shutil
-import datetime
+import platform
 
 from tqdm import tqdm
 
@@ -60,10 +60,15 @@ parser.add_argument('--DEBUG', action='store_true', default=False,
 
 """Set Root Paths for Processing"""
 drives=['C:', 'D:', 'E:', 'I:']
-if os.name=='posix':  # Running on Linux
-    drive = '/media/devteam-dart/Extreme SSD'
-else:
-    drive = drives[1] + '\\'
+
+# Get drive based on machines validation is used on
+match platform.uname().node:
+    case 'DESKTOP-N3R93K5':
+        drive = drives[1] + '\\'
+    case 'DESKTOP-0GLASVD':
+        drive = drives[2] + '\\'
+    case _:  # Default case
+        drive = drives[3] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
