@@ -4,6 +4,7 @@ import sys
 import time
 import re
 import shutil
+import platform
 
 from tqdm import tqdm
 
@@ -59,10 +60,15 @@ parser.add_argument('--DEBUG', action='store_true', default=False,
 
 """Set Root Paths for Processing"""
 drives=['C:', 'D:', 'E:', 'I:']
-if os.name=='posix':  # Running on Linux
-    drive = '/media/devteam-dart/Extreme SSD'
-else:
-    drive = drives[1] + '\\'
+
+# Get drive based on machines validation is used on
+match platform.uname().node:
+    case 'DESKTOP-N3R93K5':
+        drive = drives[1] + '\\'
+    case 'DESKTOP-0GLASVD':
+        drive = drives[2] + '\\'
+    case _:  # Default case
+        drive = drives[3] + '\\'
 
 root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
@@ -576,6 +582,7 @@ def run_HPE(trial_list):
                     trial.Metrabs_multi_done = iDrinkLog.does_HPE_zip_exist(trial, root_HPE,
                                                                             posebacks=["metrabs"])
 
+
                     if trial.Metrabs_multi_done:
                         if args.verbose >= 2:
                             print(f"Pose Estimation for {trial.identifier} already done.")
@@ -610,65 +617,85 @@ def run_HPE(trial_list):
         df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
 
+def move_metrabs3d_trc(trial, filt):
+    if filt == 'filtered':
+        filt = '02_filtered'
+        buttered = 'iDrinkbutterfilt'
+    else:
+        filt = '01_unfiltered'
+        buttered = 'iDrink_unfilt'
+
+    cam = trial.used_cams[0]
+
+    paths_found = glob.glob(
+        os.path.join(root_HPE, filt, trial.id_p, f'{trial.id_p}_cam{cam}', 'metrabs', 'single-cam',
+                     f'*{trial.id_t}*.trc'))
+
+    if len(paths_found) > 0:
+        path_src = paths_found[0]
+        path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{trial.identifier}_cam{cam}_{buttered}.trc')
+
+        old_files = glob.glob(os.path.join(trial.dir_trial, 'pose-3d', f'.trc'))
+        for file in old_files:
+            os.remove(file)
+
+        shutil.copy2(path_src, path_dst)
+
+
 def run_triangulation(trial_list):
     from Pose2Sim import Pose2Sim
 
     global df_trials
     global df_settings
+
     if args.verbose >= 1:
         p2s_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Pose2Sim", unit="Trial")
+
+
+    csv_failed_p2s = os.path.join(root_logs, "failed_p2s.csv")
+    if os.path.exists(csv_failed_p2s):
+        df_failed_p2s = pd.read_csv(csv_failed_p2s, sep=';')
+    else:
+        df_failed_p2s = pd.DataFrame(columns=["date", "time", "id_p", "id_s", "id_t", "identifier", "error"])
 
     for i, trial in enumerate(trial_list):
         if args.verbose >= 1:
             p2s_progress.set_description(f"Running Pose2Sim for: {trial.identifier}")
 
-        """if trial.identifier != 'S012_P19_T062':
-            continue"""
-
         # Get Pose method from settings dataframe
-        """i=78 # Trial that leads to exception in P2S
-        trial = trial_list[i]"""
         pose = df_settings.loc[
             df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
         filt = df_settings.loc[
             df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
 
         if len(trial.used_cams) == 1:
-            if filt == 'filtered':
-                filt = '02_filtered'
-                buttered = 'iDrinkbutterfilt'
-            else:
-                filt = '01_unfiltered'
-                buttered = 'iDrink_unfilt'
+            move_metrabs3d_trc(trial, filt)
 
-            cam = trial.used_cams[0]
-
-            paths_found = glob.glob(
-                os.path.join(root_HPE, filt, trial.id_p, f'{trial.id_p}_cam{cam}', 'metrabs', 'single-cam',
-                             f'*{trial.id_t}*.trc'))
-
-            if len(paths_found) > 0:
-                path_src = paths_found[0]
-                path_dst = os.path.join(trial.dir_trial, 'pose-3d', f'{trial.identifier}_cam{cam}_{buttered}.trc')
-
-                old_files = glob.glob(os.path.join(trial.dir_trial, 'pose-3d', f'.trc'))
-                for file in old_files:
-                    os.remove(file)
-
-                shutil.copy2(path_src, path_dst)
         else:
             if args.only_single_cam_trials:
                 continue
 
-            trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
-            if trial.HPE_done:
-                if df_trials.loc[(df_trials["identifier"] == trial.identifier), 'P2S_done'].values[0]:
-                    trial.P2S_done = True
-                else:
-                    trial.P2S_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.trc',
-                                                           args.verbose)
+            # check if trial is in failed trials
+            if trial.identifier in df_failed_p2s["identifier"].values:
+                if args.verbose >= 2:
+                    when_date = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "date"].values[0]
+                    when_time = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "time"].values[0]
+                    because = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "error"].values[0]
+                    print(f"Triangulation for {trial.identifier} failed before.\n"
+                          f"It failed on {when_date} at {when_time} with error:\n "
+                          f"{because}.")
 
-                if trial.P2S_done:
+                p2s_progress.update(1)
+                continue
+
+            trial.HPE_done = iDrinkLog.all_2d_HPE_done(trial, root_HPE, pose)
+
+            if trial.HPE_done:
+
+                trial.P2S_done = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'pose-3d'), '.trc',
+                                                       args.verbose)
+
+                if trial.P2S_done and not args.run_again:
                     if args.verbose >= 2:
                         print(f"Pose2Sim for {trial.identifier} already done.")
                     continue
@@ -683,6 +710,7 @@ def run_triangulation(trial_list):
                             trial.run_pose2sim(only_triangulation=False)
                         except:
                             trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
+
                             trial.save_configuration()
                             trial.run_pose2sim(only_triangulation=False)
 
@@ -693,6 +721,15 @@ def run_triangulation(trial_list):
                             print(f"Pose2Sim for {trial.identifier} failed with error: {e}")
 
                         iDrinkLog.log_error(args, trial, e, 'Pose2Sim', pose, log_val_errors)
+
+                        curr_time = time.localtime()
+                        df_temp = pd.Series({"date": time.strftime("%d/%m/%Y", curr_time),
+                                             "time": time.strftime("%H:%M:%S", curr_time),
+                                             "id_p": trial.id_p, "id_s": trial.id_s, "id_t": trial.id_t,
+                                             "identifier": trial.identifier,
+                                             "error": str(e.args)})
+
+                        df_failed_p2s = pd.concat([df_failed_p2s, df_temp], ignore_index=True)
 
                         trial.P2S_done = False
                         p2s_progress.update(1)
@@ -898,6 +935,7 @@ if __name__ == '__main__':
     args.only_single_cam_trials = False
     #args.single_setting = 'S001'
     args.single_identifier = None
+    args.run_again = False
 
 
     if args.mode is not None:
