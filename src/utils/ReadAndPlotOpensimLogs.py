@@ -10,6 +10,9 @@ import plotly as py
 import plotly.express as px
 import plotly.graph_objects as go
 
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
+from iDrink import iDrinkUtilities
+
 
 class OpensimLogReader:
     def __init__(self, file = None, id_t=None, id_p=None):
@@ -404,15 +407,12 @@ def plot_individual_trial(dir_opensim_logs, dir_plots, id_s, showfig=False):
                 fig.show()
             fig.write_html(os.path.join(dir_plots, f"{os.path.basename(file).replace('.csv', f'_{column}.html')}"))
 
-
-
-
-
-
 if __name__ == '__main__':
 
-    dir_opensim_logs = r"I:\iDrink\validation_root\05_logs\opensim"
+    drive = iDrinkUtilities.get_drivepath()
+    dir_opensim_logs = os.path.join(drive, 'iDrink', "validation_root", "05_logs", 'opensim')
     dir_plots = os.path.join(dir_opensim_logs, 'plots')
+
     id_s = 'S15133'
 
     run_first_stage(dir_opensim_logs, id_s)
