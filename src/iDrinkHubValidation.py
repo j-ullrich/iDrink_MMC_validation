@@ -652,6 +652,11 @@ def run_triangulation(trial_list):
         if args.verbose >= 1:
             p2s_progress.set_description(f"Running Pose2Sim for: {trial.identifier}")
 
+        if args.single_identifier:
+            if trial.identifier != args.single_identifier:
+                p2s_progress.update(1)
+                continue
+
         # Get Pose method from settings dataframe
         pose = df_settings.loc[
             df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
@@ -660,17 +665,19 @@ def run_triangulation(trial_list):
 
         if len(trial.used_cams) == 1:
             move_metrabs3d_trc(trial, filt)
+            trial.P2S_done = True
 
         else:
             if args.only_single_cam_trials:
+                p2s_progress.update(1)
                 continue
 
             # check if trial is in failed trials
             if trial.identifier in df_failed_p2s["identifier"].values:
-                if args.verbose >= 2:
-                    when_date = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "date"].values[0]
-                    when_time = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "time"].values[0]
-                    because = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "error"].values[0]
+                if args.verbose >= 2:  # Print the last time, the Trial failed in P2S before
+                    when_date = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "date"].values[-1]
+                    when_time = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "time"].values[-1]
+                    because = df_failed_p2s.loc[df_failed_p2s["identifier"] == trial.identifier, "error"].values[-1]
                     print(f"Triangulation for {trial.identifier} failed before.\n"
                           f"It failed on {when_date} at {when_time} with error:\n "
                           f"{because}.")
@@ -700,9 +707,21 @@ def run_triangulation(trial_list):
                             trial.run_pose2sim(only_triangulation=False)
                         except:
                             trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
-
+                            trial.config_dict['triangulation']['interp_if_gap_smaller_than'] = 100
                             trial.save_configuration()
-                            trial.run_pose2sim(only_triangulation=False)
+                            trial.run_pose2sim(only_triangulation=False, do_sync=False)
+
+                            """trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 200
+                            trial.config_dict['triangulation']['interp_if_gap_smaller_than'] = 50
+                            trial.config_dict['triangulation']['handle_LR_swap'] = False
+                            trial.save_configuration()
+                            trial.run_pose2sim(only_triangulation=False, do_sync=False)
+                            
+                            
+                            
+                            
+                            
+                            """
 
                         trial.P2S_done = True
 
@@ -757,14 +776,22 @@ def run_opensim(trial_list):
         pose = df_settings.loc[
             df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
 
+        if args.single_identifier:
+            if trial.identifier != args.single_identifier:
+                opensim_progress.update(1)
+                continue
+
+        if args.only_single_cam_trials and len(trial.used_cams) > 1:
+            opensim_progress.update(1)
+            continue
+
         joint_kin_exist = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
         chest_pos_exist = iDrinkLog.files_exist(
             os.path.join(trial.dir_trial, 'movement_analysis', 'kin_opensim_analyzetool'), 'OutputsVec3.sto')
 
         trial.OS_done = joint_kin_exist and chest_pos_exist
 
-        if args.only_single_cam_trials and len(trial.used_cams) > 1:
-            continue
+
 
         if trial.OS_done:
             if args.verbose >= 2:
@@ -854,7 +881,7 @@ def run_statistics():
 
     # generate Plots
 
-def run_mode():
+def run_mode(no_calib = False):
     """
     Runs the pipeline for given mode.
 
@@ -866,41 +893,47 @@ def run_mode():
     if args.mode != 'statistics':
         trial_list = create_trial_objects()
         trial_list.sort(key=lambda x: x.id_p, reverse=False)
+    if type(args.mode) == str:
+        args.mode = [args.mode]
 
-    # before starting on any mode, make sure, each Trial has their respective calibration file generated.
-    if args.mode in ["pose_estimation", "pose2sim", 'full']:
-        if args.mode == "pose_estimation" and args.poseback != "metrabs_multi":
-            pass
-        else:
-            df_trials = run_calibrations(trial_list)
+    for mode in args.mode:
+        match mode:
+            case "calibration":
+                df_trials = run_calibrations(trial_list)
 
+            case "pose_estimation":  # Runs only the Pose Estimation
+                if args.poseback == "metrabs_multi":
+                    if not no_calib:
+                        df_trials = run_calibrations(trial_list)
 
-    match args.mode:
-        case "pose_estimation":  # Runs only the Pose Estimation
-            run_HPE(trial_list)
+                run_HPE(trial_list)
 
-        case "pose2sim":  # Runs only Pose2Sim
-            run_triangulation(trial_list)
+            case "pose2sim":  # Runs only Pose2Sim
+                if not no_calib:
+                    df_trials = run_calibrations(trial_list)
 
-        case "opensim":  # Runs only Opensim
-            run_opensim(trial_list)
+                run_triangulation(trial_list)
 
-        case "murphy_measures":  # runs only the calculation of murphy measures
-            run_murphy_measures(trial_list)
+            case "opensim":  # Runs only Opensim
+                run_opensim(trial_list)
 
-        case "statistics":  # runs only the statistic script
-            run_statistics()
+            case "murphy_measures":  # runs only the calculation of murphy measures
+                run_murphy_measures(trial_list)
 
-        case "full":  # runs the full pipeline back-to-back
-            run_HPE(trial_list)
-            run_triangulation(trial_list)
-            run_opensim(trial_list)
-            run_murphy_measures(trial_list)
-            run_statistics()
+            case "statistics":  # runs only the statistic script
+                run_statistics()
 
-        case _:  # If no mode is given
-            raise ValueError("Invalid Mode was given. Please specify a valid mode.")
-            sys.exit(1)
+            case "full":  # runs the full pipeline back-to-back
+                df_trials = run_calibrations(trial_list)
+                run_HPE(trial_list)
+                run_triangulation(trial_list)
+                run_opensim(trial_list)
+                run_murphy_measures(trial_list)
+                run_statistics()
+
+            case _:  # If no mode is given
+                raise ValueError("Invalid Mode was given. Please specify a valid mode.")
+                sys.exit(1)
 
 
 if __name__ == '__main__':
@@ -911,26 +944,29 @@ if __name__ == '__main__':
         print("Debug Mode is activated\n"
               "Starting debugging script.")
 
-    modes = {1: "pose_estimation",
-             2: "pose2sim",
-             3: "opensim",
-             4: "murphy_measures",
-             5: "statistics",
-             6: "full"}
+    modes = {1: "calibration",
+             2: "pose_estimation",
+             3: "pose2sim",
+             4: "opensim",
+             5: "murphy_measures",
+             6: "statistics",
+             7: "full"}
 
-    args.mode = modes[1]
+    args.mode = modes[2]
 
     args.poseback = ['metrabs_multi']
     args.verbose = 2
     args.only_single_cam_trials = False
     #args.single_setting = 'S001'
-    args.single_identifier = None
+    args.single_identifier = 'S005_P15_T010'
     args.run_again = False
+
+    args.mode = [modes[3]]
 
 
     if args.mode is not None:
         print("Starting with Mode: ", args.mode)
-        run_mode()
+        run_mode(no_calib=False)
     else:
         print("No Mode was given. Please specify a mode.")
         sys.exit(1)

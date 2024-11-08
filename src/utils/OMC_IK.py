@@ -96,7 +96,7 @@ def run_opensim_OMC(stabilize_hip=True):
         case 'DESKTOP-N3R93K5':
             dict_p_list = {1: ["P13", "P15"],
                            2: ["P19", "P241", "P242"],
-                           3: ["P251", "P252"]}
+                           3: ["P251", "P252"]} # Done
             p_list_full = ["P13", "P15", "P19", "P241", "P242", "P251", "P252"]
         case 'DESKTOP-0GLASVD':
             dict_p_list = {1: ["P07", "P08"],
@@ -109,7 +109,7 @@ def run_opensim_OMC(stabilize_hip=True):
                            3: []}
             p_list_full = []
 
-    p_list = dict_p_list[2]
+    p_list = dict_p_list[3]
 
     if verbose >=2:
         print(f"p_list: \n"
