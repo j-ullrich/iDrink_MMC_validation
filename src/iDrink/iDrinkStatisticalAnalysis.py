@@ -623,7 +623,7 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
     """
     Writes the .csv files with omc-mmc error for all trials and participants.
 
-    Mpr,aöozed Data get a flag as appendix to the filename.
+    normalized Data get a flag as appendix to the filename.
 
 
     csv_out: - {id_p}_{id_t}_{condition}_{side}_tserror.csv
@@ -746,11 +746,167 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
             df_out_norm.to_csv(csv_out_norm, sep=';', index=False)
 
 
+def get_error_mean_rmse(dir_results, verbose=1):
+    """
+    Writes .csv file with mean and median error, std and rmse for each setting, participant and trial.
+
+    First the values for each trial are calculated and added to the DataFrame.
+
+    Then, using the trial-values, the values for Participants and Settings are calculated and added to the DataFrame.
+
+    csv_out:    omc_mmc_error.csv
+    df_out:     columns: [id, condition, dynamic, normalized, {metric}_mean, {metric}_median, {metric}_std, {metric}_rmse, {metric}_rmse_std]
+
+    condition: affected, unaffected
+    dynamic: 0, 1
+    normalized: 0, 1
+
+    :param dir_results:
+    :param verbose:
+    :return:
+    """
+    dir_src = os.path.join(dir_results, '01_ts_error')
+
+    csv_out = os.path.join(dir_results, 'omc_mmc_error.csv')
+
+    metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
+               'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
+
+    if os.path.isfile(csv_out):
+        df_out = pd.read_csv(csv_out, sep=';')
+    else:
+        df_out = pd.DataFrame(columns=['id', 'condition', 'dynamic', 'normalized'] + [f'{metric}_mean' for metric in metrics] +
+                               [f'{metric}_median' for metric in metrics] + [f'{metric}_std' for metric in metrics] +
+                               [f'{metric}_rmse' for metric in metrics] + [f'{metric}_rmse_std' for metric in metrics])
+
+    dir_dst = os.path.join(dir_results, '02_ts_error_mean_rmse')
+    os.makedirs(dir_dst, exist_ok=True)
+
+    id_s_omc = 'S15133'
+    csvs_in = glob.glob(os.path.join(dir_src, '*.csv'))
+    list_csv = sorted([csv for csv in csvs_in if id_s_omc not in os.path.basename(csv)])
+
+    for csv in list_csv:
+        id_p = os.path.basename(csv).split('_')[0]
+        id_t = os.path.basename(csv).split('_')[1]
+        condition = os.path.basename(csv).split('_')[2]
+        side = os.path.basename(csv).split('_')[3]
+        normalized = 'normalized' if 'norm' in os.path.basename(csv) else 'original'
+
+        df = pd.read_csv(csv, sep=';')
+        for id_s in df['id_s'].unique():
+            df_s = df[df['id_s'] == id_s]
+            id = f'{id_s}_{id_p}_{id_t}'
+
+            for dynamic in df_s['dynamic'].unique():
+                for metric in metrics:
+                    df_metric = df_s[[f'{metric}_error', f'{metric}_rse']]
+                    mean = np.mean(df_metric[f'{metric}_error'])
+                    median = np.median(df_metric[f'{metric}_error'])
+                    std = np.std(df_metric[f'{metric}_error'])
+                    rmse = np.sqrt(np.mean(df_metric[f'{metric}_error']**2))
+                    rmse_std = np.std(df_metric[f'{metric}_rse'])
+
+                    df_mean = pd.DataFrame({
+                        'id': id,
+                        'condition': condition,
+                        'dynamic': dynamic,
+                        'normalized': normalized,
+                        f'{metric}_mean': mean,
+                        f'{metric}_median': median,
+                        f'{metric}_std': std,
+                        f'{metric}_rmse': rmse,
+                        f'{metric}_rmse_std': rmse_std
+                    }, index=[0])
+
+                    df_out = pd.concat([df_out, df_mean], axis=0, ignore_index=True)
+
+    # safetysave
+    df_out.to_csv(csv_out, sep=';', index=False)
+
+    idx = df_out['id'].unique()
+
+    # get sets for id_s and id_p
+    idx_s = sorted(list(set([id.split('_')[0] for id in idx])))
+    idx_p = sorted(list(set([id.split('_')[1] for id in idx])))
+
+    df_mean_s = pd.DataFrame(columns=['id', 'condition', 'dynamic', 'normalized'] + [f'{metric}_mean' for metric in metrics] +
+                               [f'{metric}_median' for metric in metrics] + [f'{metric}_std' for metric in metrics] +
+                               [f'{metric}_rmse' for metric in metrics] + [f'{metric}_rmse_std' for metric in metrics])
+
+    df_mean_p = pd.DataFrame(columns=['id', 'condition', 'dynamic', 'normalized'] + [f'{metric}_mean' for metric in metrics] +
+                               [f'{metric}_median' for metric in metrics] + [f'{metric}_std' for metric in metrics] +
+                               [f'{metric}_rmse' for metric in metrics] + [f'{metric}_rmse_std' for metric in metrics])
+
+    def get_mean_error_for_s_and_p(df_temp, df_mean, metrics, id ):
+        if df_temp.shape[0] == 0:
+            return df_mean
+
+        for dynamic in df_temp['dynamic'].unique():
+            df_temp = df_temp[df_temp['dynamic'] == dynamic]
+
+            for normalized in df_temp['normalized'].unique():
+                df_temp = df_temp[df_temp['normalized'] == normalized]
+
+                for condition in df_temp['condition'].unique():
+                    df_temp = df_temp[df_temp['condition'] == condition]
+
+                    for metric in metrics:
+                        df_metric = df_temp[[f'{metric}_mean', f'{metric}_median', f'{metric}_std', f'{metric}_rmse',
+                                             f'{metric}_rmse_std']]
+                        mean = np.mean(df_metric[f'{metric}_mean'])
+                        median = np.mean(df_metric[f'{metric}_median'])
+                        std = np.mean(df_metric[f'{metric}_std'])
+                        rmse = np.mean(df_metric[f'{metric}_rmse'])
+                        rmse_std = np.mean(df_metric[f'{metric}_rmse_std'])
+
+                        df_mean = pd.concat([df_mean, pd.DataFrame({
+                            'id': id_s,
+                            'condition': condition,
+                            'dynamic': dynamic,
+                            'normalized': normalized,
+                            f'{metric}_mean': mean,
+                            f'{metric}_median': median,
+                            f'{metric}_std': std,
+                            f'{metric}_rmse': rmse,
+                            f'{metric}_rmse_std': rmse_std
+                        }, index=[0])], axis=0, ignore_index=True)
+
+        return df_mean
+
+    for id_s in idx_s:
+        df_mean_s = get_mean_error_for_s_and_p(df_out[df_out['id'].str.contains(id_s)], df_mean_s, metrics, id_s)
+
+        for id_p in idx_p:
+            df_mean_p = get_mean_error_for_s_and_p(df_out[df_out['id'].str.contains(id_p) & df_out['id'].str.contains(id_s)],
+                                                   df_mean_p, metrics, f'{id_s}_{id_p}')
+
+    df_out = pd.concat([df_out, df_mean_s, df_mean_p], axis=0, ignore_index=True)
+    df_out.to_csv(csv_out, sep=';', index=False)
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    for csv_mmc in list_csv:
+        id_s = os.path.basename(csv_mmc).split('_')[0]
+        id_p = os.path.basename(csv_mmc).split('_')[1]
+        id_t = os.path.basename(csv_mmc).split('_')[2]
 
 def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
                           joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False):
