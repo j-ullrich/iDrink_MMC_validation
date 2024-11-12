@@ -100,6 +100,8 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
         if cam_num in cams:
             cam_names.append('cam' + cam_num)
 
+    cam_names = sorted(cam_names, key=lambda x: int(re.search(r'\d+', x).group()))
+
     if verbose >= 2:
         print(cam_names)
 
@@ -114,9 +116,12 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
     videos = [[video] for video in video_files]
     error, all_rows = cgroup.calibrate_videos(videos, board)
 
-    new_row = pd.Series({"date": time.strftime("%d.%m.%Y"), "time": time.strftime("%H:%M:%S"), "id_s": curr_trial.id_s, "id_p": curr_trial.id_p, "cam_used": cam_names, "error": error})
-
-    df_error = pd.concat([df_error, new_row.to_frame().T], ignore_index=True)
+    cam_names = sorted(cam_names, key=lambda x: int(re.search(r'\d+', x).group()))
+    cam_string = ', '.join(cam_names)
+    new_row = pd.DataFrame({"date": time.strftime("%d.%m.%Y"), "time": time.strftime("%H:%M:%S"),
+                            "id_s": curr_trial.id_s, "id_p": curr_trial.id_p, "cam_used": cam_string, "error": error}, index=[0])
+    df_error = pd.concat([df_error, new_row], ignore_index=True)
+    df_error.to_csv(path_error_csv, sep=';', index=False)
 
     # Save the camera group configuration to a TOML file named after the configuration
     curr_trial.calib = calib_file
@@ -124,7 +129,7 @@ def delta_calibration_val(curr_trial, path_error_csv, verbose=1, df_settings=Non
 
     curr_trial.calib_done = True
 
-    df_error.to_csv(path_error_csv, sep=';', index=False)
+
 
     if verbose >= 1:
         print(f"Calibration for Session {curr_trial.id_s} done and saved to {curr_trial.calib}.")
@@ -150,7 +155,7 @@ def delta_full_calibration_val(curr_trial, path_error_csv, verbose=1):
     if os.path.isfile(path_error_csv):
         df_error = pd.read_csv(path_error_csv, sep=';')
     else:
-        df_error = pd.DataFrame(columns=["id_p",  "cam_used", "error"])
+        df_error = pd.DataFrame(columns=["date", "time", "id_p",  "cam_used", "error"])
 
     # Find all video files in the calibration folder
     cams = curr_trial.used_cams
@@ -183,12 +188,16 @@ def delta_full_calibration_val(curr_trial, path_error_csv, verbose=1):
     videos = [[video] for video in video_files]
     error, all_rows = cgroup.calibrate_videos(videos, board)
 
-    new_row = pd.Series({"id_p": curr_trial.id_p, "cam_used": cam_names, "error": error})
-    df_error = pd.concat([df_error, new_row.to_frame().T], ignore_index=True)
+
+    cam_names = sorted(cam_names, key=lambda x: int(re.search(r'\d+', x).group()))
+    cam_string = ', '.join(cam_names)
+    df_new = pd.DataFrame({"date": time.strftime("%d.%m.%Y"), "time": time.strftime("%H:%M:%S"),
+                           "id_p": curr_trial.id_p, "cam_used": cam_string, "error": error}, index=[0])
+    df_error = pd.concat([df_error, df_new], ignore_index=True)
+    df_error.to_csv(path_error_csv, sep=';', index=False)
 
     # Save the camera group configuration to a TOML file named after the configuration
     cgroup.dump(calib_file)
-    df_error.to_csv(path_error_csv, sep=';', index=False)
 
     if verbose >= 1:
         print(f"Full Calibration for Particiant {curr_trial.id_p} done and saved to {calib_file}.")

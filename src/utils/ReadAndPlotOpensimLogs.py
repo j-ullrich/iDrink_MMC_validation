@@ -5,6 +5,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas
 import pandas as pd
+import sys
 
 import plotly as py
 import plotly.express as px
@@ -416,6 +417,6 @@ if __name__ == '__main__':
     id_s = 'S15133'
 
     run_first_stage(dir_opensim_logs, id_s)
-    #run_second_stage(dir_opensim_logs, id_s)
+    plot_means(dir_opensim_logs, dir_plots, id_s, showfig=False)
     #run_third_stage(dir_opensim_logs, dir_plots, id_s, showfig=True)
     #plot_means(dir_opensim_logs, dir_plots, id_s, showfig=False)
