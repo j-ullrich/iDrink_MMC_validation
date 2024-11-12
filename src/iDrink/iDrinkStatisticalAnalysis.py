@@ -363,7 +363,7 @@ def get_omc_dirs(dirs_trial, root_omc):
     return dirs_omc
 
 
-def get_omc_mmc_error(dir_root, df_timestamps, correct='fixed', verbose=1):
+def get_omc_mmc_error_old(dir_root, df_timestamps, correct='fixed', verbose=1):
     """
     Writes csv file containing error for all trials and participants of a setting.
     S*_omc_mmc_error.csv
@@ -618,6 +618,140 @@ def get_omc_mmc_error(dir_root, df_timestamps, correct='fixed', verbose=1):
         df_s_error.to_csv(csv_s_error, sep=';')
         df_s_rse.to_csv(csv_s_rse, sep=';')
 
+
+def get_error_timeseries(dir_processed, dir_results, verbose = 1):
+    """
+    Writes the .csv files with omc-mmc error for all trials and participants.
+
+    Mpr,aöozed Data get a flag as appendix to the filename.
+
+
+    csv_out: - {id_p}_{id_t}_{condition}_{side}_tserror.csv
+             - {id_p}_{id_t}_{condition}_{side}_tserror_norm.csv
+
+    df_out:         columns: [id_s, dynamic, time, {metric}_omc, {metric}_mmc, {metric}_error, {metric}_rse]
+    df_out_norm =   columns: [id_s, dynamic, time, {metric}_omc, {metric}_mmc, {metric}_error, {metric}_rse]
+
+    :param dir_processed:
+    :param dir_results:
+    :param verbose:
+    :return:
+    """
+    list_dir_src = [
+        os.path.join(dir_processed, '02_fully_preprocessed'),
+        os.path.join(dir_processed, '03_fully_preprocessed_dynamic')
+    ]
+
+    metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
+               'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
+
+    for dir_src in list_dir_src:
+        dir_dst = os.path.join(dir_results, '01_ts_error')
+        os.makedirs(dir_dst, exist_ok=True)
+
+        id_s_omc = 'S15133'
+
+        csvs_in = glob.glob(os.path.join(dir_src, '*.csv'))
+        list_csvs_in_mmc = sorted([csv for csv in csvs_in if id_s_omc not in os.path.basename(csv)])
+        list_csvs_in_omc = sorted([csv for csv in csvs_in if id_s_omc in os.path.basename(csv)])
+
+        # get all s_ids from list_csvs_in_mmc
+        idx_s = sorted(list(set([os.path.basename(file).split('_')[0] for file in list_csvs_in_mmc])))
+
+
+        progbar = tqdm(total=len(list_csvs_in_mmc), desc='Calculating Timeseries Error', disable=verbose<1)
+
+        for csv_mmc in list_csvs_in_mmc:
+            id_s = os.path.basename(csv_mmc).split('_')[0]
+            id_p = os.path.basename(csv_mmc).split('_')[1]
+            id_t = os.path.basename(csv_mmc).split('_')[2]
+            condition = os.path.basename(csv_mmc).split('_')[3]
+            side = os.path.basename(csv_mmc).split('_')[4]
+            dynamic = os.path.basename(csv_mmc).split('_')[5]
+
+            progbar.set_description(f'Calculating Timeseries Error for {id_s}_{id_p}_{id_t}')
+
+            try:
+                csv_omc = \
+                [csv for csv in list_csvs_in_omc if id_p in os.path.basename(csv) and id_t in os.path.basename(csv)][0]
+            except IndexError:
+                print(f"No OMC-File found for {id_s}_{id_p}_{id_t}")
+                if verbose >= 1:
+                    progbar.update(1)
+                continue
+
+            df_mmc = pd.read_csv(csv_mmc, sep=';')
+            df_omc = pd.read_csv(csv_omc, sep=';')
+
+            csv_out = os.path.join(dir_dst, f'{id_p}_{id_t}_{condition}_{side}_tserror.csv')
+            csv_out_norm = os.path.join(dir_dst, f'{id_p}_{id_t}_{condition}_{side}_tserror_norm.csv')
+
+            df_out_temp = pd.DataFrame(columns=['id_s', 'dynamic', 'time'] + [f'{metric}_omc' for metric in metrics] +
+                                       [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
+                                       [f'{metric}_rse' for metric in metrics])
+
+            df_out_norm_temp = pd.DataFrame(columns=['id_s', 'dynamic', 'time'] + [f'{metric}_omc' for metric in metrics] +
+                                        [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
+                                        [f'{metric}_rse' for metric in metrics])
+
+            time = df_mmc['time']
+            time_normalized = np.linspace(0, 1, num=len(time))
+
+            df_out_temp['time'] = time
+            df_out_temp['id_s'] = id_s
+            df_out_temp['dynamic'] = dynamic
+
+            df_out_norm_temp['time'] = time_normalized
+            df_out_norm_temp['id_s'] = id_s
+            df_out_norm_temp['dynamic'] = dynamic
+
+            # Get errors for all metrics and add to dataframes
+            for metric in metrics:
+                omc = df_omc[metric]
+                mmc = df_mmc[metric]
+
+                error = mmc - omc
+                rse = np.sqrt(error**2)
+
+                df_out_temp[f'{metric}_omc'] = omc
+                df_out_temp[f'{metric}_mmc'] = mmc
+                df_out_temp[f'{metric}_error'] = error
+                df_out_temp[f'{metric}_rse'] = rse
+
+                df_out_norm_temp[f'{metric}_omc'] = omc
+                df_out_norm_temp[f'{metric}_mmc'] = mmc
+                df_out_norm_temp[f'{metric}_error'] = error
+                df_out_norm_temp[f'{metric}_rse'] = rse
+
+
+            #write to .csv file
+            if os.path.isfile(csv_out):
+                df_out = pd.read_csv(csv_out, sep=';')
+            else:
+                df_out = pd.DataFrame(columns=['id_s', 'dynamic', 'time'] + [f'{metric}_omc' for metric in metrics] +
+                                       [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
+                                       [f'{metric}_rse' for metric in metrics])
+
+            if os.path.isfile(csv_out_norm):
+                df_out_norm = pd.read_csv(csv_out_norm, sep=';')
+            else:
+                df_out_norm = pd.DataFrame(columns=['id_s', 'dynamic', 'time'] + [f'{metric}_omc' for metric in metrics] +
+                                        [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
+                                        [f'{metric}_rse' for metric in metrics])
+
+            df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
+            df_out_norm = pd.concat([df_out_norm, df_out_norm_temp], axis=0, ignore_index=True)
+
+            df_out.to_csv(csv_out, sep=';', index=False)
+            df_out_norm.to_csv(csv_out_norm, sep=';', index=False)
+
+
+
+
+
+
+
+
 def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
                           joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False):
     """
@@ -835,9 +969,9 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
         return df_1_out, df_2_out
 
     dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '01_murphy_out')
-    dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
-    if correct == 'dynamic':
-        dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic')
+    dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic') if correct == 'dynamic' \
+        else os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+
 
     csv_outliers = os.path.join(dir_root, '05_logs', 'outliers.csv')
 
@@ -1013,6 +1147,8 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                 # Write to new csv
                 os.makedirs(dir_dat_out, exist_ok=True)
 
+                appendix = '_dynamic_preprocessed.csv' if correct == 'dynamic' else '_preprocessed.csv'
+
                 path_omc_out = os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}_preprocessed.csv')
                 path_mmc_out = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_preprocessed.csv')
 
@@ -1157,7 +1293,7 @@ if __name__ == '__main__':
                                   downsample=True, drop_last_rows=False, detect_outliers= [],
                                   joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct,
                                   verbose=1, plot_debug=False, print_able=False)
-            get_omc_mmc_error(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
+            get_omc_mmc_error_old(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
 
 
     else:

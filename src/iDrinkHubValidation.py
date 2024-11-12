@@ -877,7 +877,7 @@ def run_statistics():
     df_timestamps = pd.read_csv(os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv'), sep=';')
 
     # iDrinkStatisticalAnalysis.preprocess_timeseries(dir_root=root_val, detect_outliers=False, verbose=args.verbose)
-    iDrinkStatisticalAnalysis.get_omc_mmc_error(dir_root=root_val, df_timestamps=df_timestamps, verbose=args.verbose)
+    iDrinkStatisticalAnalysis.get_omc_mmc_error_old(dir_root=root_val, df_timestamps=df_timestamps, verbose=args.verbose)
 
     # generate Plots
 
