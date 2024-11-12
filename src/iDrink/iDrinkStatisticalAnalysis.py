@@ -645,9 +645,14 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
     metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
                'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
 
-    df_out_rom_temp = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'dynamic'] + [f'{metric}_omc' for metric in metrics] +
-                                       [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
-                                       [f'{metric}_rse' for metric in metrics])
+    df_out_rom_temp = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'dynamic'] +
+                                           [f'{metric}_min_omc' for metric in metrics] +
+                                           [f'{metric}_max_omc' for metric in metrics] +
+                                           [f'{metric}_rom_omc' for metric in metrics] +
+                                           [f'{metric}_min_mmc' for metric in metrics] +
+                                           [f'{metric}_max_mmc' for metric in metrics] +
+                                           [f'{metric}_rom_mmc' for metric in metrics] +
+                                           [f'{metric}_rom_error' for metric in metrics])
 
     csv_out_rom = os.path.join(dir_results, 'omc_mmc_rom.csv')
 
@@ -772,7 +777,7 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
 
             df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
             df_out_norm = pd.concat([df_out_norm, df_out_norm_temp], axis=0, ignore_index=True)
-            df_out_rom = pd.concat([df_out_rom, df_out_rom_temp, df_out_rom_temp_norm], axis=0, ignore_index=True)
+            df_out_rom = pd.concat([df_out_rom, df_out_rom_temp], axis=0, ignore_index=True)
 
             df_out.to_csv(csv_out, sep=';', index=False)
             df_out_norm.to_csv(csv_out_norm, sep=';', index=False)
@@ -894,7 +899,7 @@ def get_error_mean_rmse(dir_results, verbose=1):
                         rmse_std = np.mean(df_metric[f'{metric}_rmse_std'])
 
                         df_mean = pd.concat([df_mean, pd.DataFrame({
-                            'id': id_s,
+                            'id': id,
                             'condition': condition,
                             'dynamic': dynamic,
                             'normalized': normalized,
@@ -917,29 +922,84 @@ def get_error_mean_rmse(dir_results, verbose=1):
     df_out = pd.concat([df_out, df_mean_s, df_mean_p], axis=0, ignore_index=True)
     df_out.to_csv(csv_out, sep=';', index=False)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     for csv_mmc in list_csv:
         id_s = os.path.basename(csv_mmc).split('_')[0]
         id_p = os.path.basename(csv_mmc).split('_')[1]
         id_t = os.path.basename(csv_mmc).split('_')[2]
+
+
+def get_rom_rmse(dir_results, verbose=1):
+    """
+    Reads the .csv files with range of motion errors and writes rmse for following ids: '{id_s}', '{id_s}_{id_p}'
+
+    :param dir_results:
+    :param verbose:
+    :return:
+    """
+    metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
+               'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
+
+    csv_in = os.path.join(dir_results, 'omc_mmc_rom.csv')
+    csv_out = os.path.join(dir_results, 'omc_mmc_rom_rmse.csv')
+
+    df_p_temp = pd.DataFrame(columns=['id', 'dynamic', 'condition'] + [f'{metric}_rom_rmse' for metric in metrics])
+    df_s_temp = pd.DataFrame(columns=['id', 'dynamic', 'condition'] + [f'{metric}_rom_rmse' for metric in metrics])
+
+    if os.path.isfile(csv_in):
+        df_in = pd.read_csv(csv_in, sep=';')
+    else:
+        raise FileNotFoundError(f"File not found: {csv_in}")
+
+
+    def get_mean_error_for_s_and_p(df_temp, df_mean, metrics, id ):
+        if df_temp.shape[0] == 0:
+            return df_mean
+
+        for dynamic in df_temp['dynamic'].unique():
+            df_temp = df_temp[df_temp['dynamic'] == dynamic]
+
+            for condition in df_temp['condition'].unique():
+                df_temp = df_temp[df_temp['condition'] == condition]
+                for metric in metrics:
+                    df_metric = df_temp[[f'{metric}_min_omc', f'{metric}_max_omc', f'{metric}_rom_omc', f'{metric}_min_mmc', f'{metric}_max_mmc', f'{metric}_rom_mmc', f'{metric}_rom_error']]
+
+                    error_max = df_metric[f'{metric}_max_mmc'] - df_metric[f'{metric}_max_omc']
+                    error_min = df_metric[f'{metric}_min_mmc'] - df_metric[f'{metric}_min_omc']
+                    error_rom = df_metric[f'{metric}_rom_mmc'] - df_metric[f'{metric}_rom_omc']
+
+                    df_mean = pd.concat([df_mean, pd.DataFrame({
+                        'id': id,
+                        'condition': condition,
+                        'dynamic': dynamic,
+                        f'{metric}_max_rmse': np.sqrt(np.mean( error_max**2)),
+                        f'{metric}_min_rmse': np.sqrt(np.mean( error_min**2)),
+                        f'{metric}_rom_rmse': np.sqrt(np.mean( error_rom**2))
+                    }, index=[0])], axis=0, ignore_index=True)
+
+        return df_mean
+
+    idx = df_in['id'].unique()
+    # get sets for id_s and id_p
+    idx_s = sorted(list(set([id.split('_')[0] for id in idx])))
+    idx_p = sorted(list(set([id.split('_')[1] for id in idx])))
+
+    for id_s in idx_s:
+        df_s_temp = get_mean_error_for_s_and_p(df_in[df_in['id'].str.contains(id_s)], df_s_temp, metrics, id_s)
+
+        for id_p in idx_p:
+            df_p_temp = get_mean_error_for_s_and_p(df_in[df_in['id'].str.contains(id_p) & df_in['id'].str.contains(id_s)],
+                                                   df_p_temp, metrics, f'{id_s}_{id_p}')
+
+    if os.path.isfile(csv_out):
+        df_out = pd.read_csv(csv_out, sep=';')
+        df_out = pd.concat([df_out, df_s_temp, df_p_temp], axis=0, ignore_index=True)
+    else:
+        df_out = pd.concat([df_s_temp, df_p_temp], axis=0, ignore_index=True)
+
+    df_out.to_csv(csv_out, sep=';', index=False)
+
+
+
 
 def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
                           joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False):
