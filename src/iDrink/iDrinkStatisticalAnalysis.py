@@ -1036,6 +1036,87 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
     if verbose >= 1:
         process.close()
 
+def normalize_data(dir_src, dynamic=False, verbose=1):
+    """
+    iterates over .csv files in directory. It takes all time series data from a given metric. It normalizes the data to a timeframe of 1 and puts them into a new DataFrame.
+
+
+    df_out: columns - [id_s, id_p, id_t, condition, side, time, omc, mmc]
+
+    csv_out: [metric]_normalized.csv [metric] stands for the metric used in the time series data.
+
+    :param dir_src:
+    :return:
+    """
+    dir_dst = os.path.join(dir_src, '01_normalized')
+    os.makedirs(dir_dst, exist_ok=True)
+
+    csv_appendix = '_dynamic_normalized.csv' if dynamic else '_normalized.csv'
+
+    metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
+               'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
+
+    dict_csvs_out = {}
+    dict_df_out = {}
+
+    for metric in metrics:
+        csv_out = os.path.join(dir_dst, f'{metric}{csv_appendix}')
+        df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'side', 'time_normalized', 'omc', 'mmc'])
+
+        dict_csvs_out[metric] = csv_out
+        dict_df_out[metric] = df_out
+
+    id_s_omc = 'S15133'
+
+    csvs_in = glob.glob(os.path.join(dir_src, '*.csv'))
+    list_csvs_in_mmc = sorted([csv for csv in csvs_in if id_s_omc not in os.path.basename(csv)])
+    list_csvs_in_omc = sorted([csv for csv in csvs_in if id_s_omc in os.path.basename(csv)])
+
+    if verbose >= 1:
+        progbar = tqdm(list_csvs_in_mmc, desc='Normalizing', leave=True)
+
+    for csv_mmc in list_csvs_in_mmc:
+        id_s = os.path.basename(csv_mmc).split('_')[0]
+        id_p = os.path.basename(csv_mmc).split('_')[1]
+        id_t = os.path.basename(csv_mmc).split('_')[2]
+        condition = os.path.basename(csv_mmc).split('_')[3]
+        side = os.path.basename(csv_mmc).split('_')[4]
+
+        if verbose >= 1:
+            progbar.set_description(f'Normalizing {id_s}_{id_p}_{id_t}')
+
+        try:
+            csv_omc = [csv for csv in list_csvs_in_omc if id_p in os.path.basename(csv) and id_t in os.path.basename(csv)][0]
+        except IndexError:
+            print(f"No OMC-File found for {id_s}_{id_p}_{id_t}")
+            if verbose >= 1:
+                progbar.update(1)
+            continue
+
+        df_mmc = pd.read_csv(csv_mmc, sep=';')
+        df_omc = pd.read_csv(csv_omc, sep=';')
+
+        time = df_mmc['time']
+        time_normalized = np.linspace(0, 1, num=len(time))
+
+        for metric in metrics:
+            omc = df_omc[metric]
+            mmc = df_mmc[metric]
+
+            df_temp = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'condition': condition, 'side': side,
+                                    'time_normalized': time_normalized, 'omc': omc, 'mmc': mmc})
+
+            dict_df_out[metric] = pd.concat([dict_df_out[metric], df_temp], ignore_index=True)
+
+        if verbose >= 1:
+            progbar.update(1)
+
+    if verbose >= 1:
+        progbar.close()
+
+    for metric in metrics:
+        dict_df_out[metric].to_csv(dict_csvs_out[metric], sep=';')
+
 
 if __name__ == '__main__':
     # this part is for Development and Debugging

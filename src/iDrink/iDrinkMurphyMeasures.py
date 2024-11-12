@@ -921,7 +921,7 @@ class MurphyMeasures:
                                    'shoulder_flex_pos': self.shoulder_flex_pos,
                                    'shoulder_abduction_pos': self.shoulder_abduction_pos})
                 if self.path_mov_data is None:
-                    self.path_mov_data = os.path.join(self.dir_trial, f'{self.identifier}_preprocessed_mov_data.csv')
+                    self.path_mov_data = os.path.join(self.dir_trial, f'{self.identifier}_filtered_mov_data.csv')
 
                 df.to_csv(self.path_mov_data, sep=';', index=False)
             except Exception as e:
@@ -948,9 +948,7 @@ class MurphyMeasures:
             csv containts only trials of single Participant and the trial number is in the form of TXXX.
             """
 
-            if self.id_p not in df['id_p'].values: # If Murphy Measures cannot be calculated, calculate velocities of recording and save them into .csv-file
-                self.read_files()
-
+            if self.id_p not in df['id_p'].values:
                 raise ValueError(f"Error in iDrinkMurphyMeasures.get_data: Participant {self.id_p} not in DataFrame.")
 
             for column in columns_of_interest:
