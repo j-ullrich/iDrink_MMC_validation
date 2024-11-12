@@ -645,6 +645,12 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
     metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
                'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
 
+    df_out_rom_temp = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'dynamic', 'normalized'] + [f'{metric}_omc' for metric in metrics] +
+                                       [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
+                                       [f'{metric}_rse' for metric in metrics])
+
+    csv_out_rom = os.path.join(dir_results, 'omc_mmc_rom.csv')
+
     for dir_src in list_dir_src:
         dir_dst = os.path.join(dir_results, '01_ts_error')
         os.makedirs(dir_dst, exist_ok=True)
@@ -657,7 +663,6 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
 
         # get all s_ids from list_csvs_in_mmc
         idx_s = sorted(list(set([os.path.basename(file).split('_')[0] for file in list_csvs_in_mmc])))
-
 
         progbar = tqdm(total=len(list_csvs_in_mmc), desc='Calculating Timeseries Error', disable=verbose<1)
 
@@ -705,6 +710,19 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
             df_out_norm_temp['id_s'] = id_s
             df_out_norm_temp['dynamic'] = dynamic
 
+            df_out_rom_temp['id_s'] = id_s
+            df_out_rom_temp['id_p'] = id_p
+            df_out_rom_temp['id_t'] = id_t
+            df_out_rom_temp['condition'] = condition
+            df_out_rom_temp['dynamic'] = dynamic
+
+            df_out_rom_temp_norm = df_out_rom_temp.copy()
+            df_out_rom_temp_norm['normalized'] = 'normalized'
+            df_out_rom_temp['normalized'] = 'original'
+
+
+
+
             # Get errors for all metrics and add to dataframes
             for metric in metrics:
                 omc = df_omc[metric]
@@ -723,27 +741,56 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
                 df_out_norm_temp[f'{metric}_error'] = error
                 df_out_norm_temp[f'{metric}_rse'] = rse
 
+                # Add rom values TODO: DEBUG
+                df_out_rom_temp[f'{metric}_min_omc'] = min(omc)
+                df_out_rom_temp[f'{metric}_max_omc'] = max(omc)
+                df_out_rom_temp[f'{metric}_rom_omc'] = max(omc) - min(omc)
+                df_out_rom_temp[f'{metric}_min_mmc'] = min(mmc)
+                df_out_rom_temp[f'{metric}_max_mmc'] = max(mmc)
+                df_out_rom_temp[f'{metric}_rom_mmc'] = max(mmc) - min(mmc)
+                df_out_rom_temp[f'{metric}_rom_error'] = (max(mmc) - min(mmc)) - (max(omc) - min(omc))
+
+                df_out_rom_temp_norm[f'{metric}_min_omc'] = min(omc)
+                df_out_rom_temp_norm[f'{metric}_max_omc'] = max(omc)
+                df_out_rom_temp_norm[f'{metric}_rom_omc'] = max(omc) - min(omc)
+                df_out_rom_temp_norm[f'{metric}_min_mmc'] = min(mmc)
+                df_out_rom_temp_norm[f'{metric}_max_mmc'] = max(mmc)
+                df_out_rom_temp_norm[f'{metric}_rom_mmc'] = max(mmc) - min(mmc)
+                df_out_rom_temp_norm[f'{metric}_rom_error'] = (max(mmc) - min(mmc)) - (max(omc) - min(omc))
+
+            def get_Dataframe(path, columns):
+                if os.path.isfile(path):
+                    return pd.read_csv(path, sep=';')
+                else:
+                    return pd.DataFrame(columns=columns)
+
+            columns = (['id_s', 'dynamic', 'time'] +
+                       [f'{metric}_omc' for metric in metrics] +
+                       [f'{metric}_mmc' for metric in metrics] +
+                       [f'{metric}_error' for metric in metrics] +
+                       [f'{metric}_rse' for metric in metrics])
+
+
+
 
             #write to .csv file
-            if os.path.isfile(csv_out):
-                df_out = pd.read_csv(csv_out, sep=';')
-            else:
-                df_out = pd.DataFrame(columns=['id_s', 'dynamic', 'time'] + [f'{metric}_omc' for metric in metrics] +
-                                       [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
-                                       [f'{metric}_rse' for metric in metrics])
+            df_out = get_Dataframe(csv_out, columns)
+            df_out_norm = get_Dataframe(csv_out_norm, columns)
 
-            if os.path.isfile(csv_out_norm):
-                df_out_norm = pd.read_csv(csv_out_norm, sep=';')
-            else:
-                df_out_norm = pd.DataFrame(columns=['id_s', 'dynamic', 'time'] + [f'{metric}_omc' for metric in metrics] +
-                                        [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
-                                        [f'{metric}_rse' for metric in metrics])
+            columns = columns=(['id_s', 'id_p', 'id_t', 'condition', 'dynamic', 'normalized'] +
+                               [f'{metric}_omc' for metric in metrics] +
+                               [f'{metric}_mmc' for metric in metrics] +
+                               [f'{metric}_error' for metric in metrics] +
+                               [f'{metric}_rse' for metric in metrics])
+            df_out_rom = get_Dataframe(csv_out_rom, columns)
 
             df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
             df_out_norm = pd.concat([df_out_norm, df_out_norm_temp], axis=0, ignore_index=True)
+            df_out_rom = pd.concat([df_out_rom, df_out_rom_temp, df_out_rom_temp_norm], axis=0, ignore_index=True)
 
             df_out.to_csv(csv_out, sep=';', index=False)
             df_out_norm.to_csv(csv_out_norm, sep=';', index=False)
+            df_out_rom.to_csv(csv_out_rom, sep=';', index=False)
 
 
 def get_error_mean_rmse(dir_results, verbose=1):
