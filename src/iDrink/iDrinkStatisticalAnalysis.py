@@ -645,7 +645,7 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
     metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
                'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
 
-    df_out_rom_temp = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'dynamic', 'normalized'] + [f'{metric}_omc' for metric in metrics] +
+    df_out_rom_temp = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'dynamic'] + [f'{metric}_omc' for metric in metrics] +
                                        [f'{metric}_mmc' for metric in metrics] + [f'{metric}_error' for metric in metrics] +
                                        [f'{metric}_rse' for metric in metrics])
 
@@ -716,12 +716,6 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
             df_out_rom_temp['condition'] = condition
             df_out_rom_temp['dynamic'] = dynamic
 
-            df_out_rom_temp_norm = df_out_rom_temp.copy()
-            df_out_rom_temp_norm['normalized'] = 'normalized'
-            df_out_rom_temp['normalized'] = 'original'
-
-
-
 
             # Get errors for all metrics and add to dataframes
             for metric in metrics:
@@ -750,14 +744,6 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
                 df_out_rom_temp[f'{metric}_rom_mmc'] = max(mmc) - min(mmc)
                 df_out_rom_temp[f'{metric}_rom_error'] = (max(mmc) - min(mmc)) - (max(omc) - min(omc))
 
-                df_out_rom_temp_norm[f'{metric}_min_omc'] = min(omc)
-                df_out_rom_temp_norm[f'{metric}_max_omc'] = max(omc)
-                df_out_rom_temp_norm[f'{metric}_rom_omc'] = max(omc) - min(omc)
-                df_out_rom_temp_norm[f'{metric}_min_mmc'] = min(mmc)
-                df_out_rom_temp_norm[f'{metric}_max_mmc'] = max(mmc)
-                df_out_rom_temp_norm[f'{metric}_rom_mmc'] = max(mmc) - min(mmc)
-                df_out_rom_temp_norm[f'{metric}_rom_error'] = (max(mmc) - min(mmc)) - (max(omc) - min(omc))
-
             def get_Dataframe(path, columns):
                 if os.path.isfile(path):
                     return pd.read_csv(path, sep=';')
@@ -777,7 +763,7 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
             df_out = get_Dataframe(csv_out, columns)
             df_out_norm = get_Dataframe(csv_out_norm, columns)
 
-            columns = columns=(['id_s', 'id_p', 'id_t', 'condition', 'dynamic', 'normalized'] +
+            columns = columns=(['id_s', 'id_p', 'id_t', 'condition', 'dynamic'] +
                                [f'{metric}_omc' for metric in metrics] +
                                [f'{metric}_mmc' for metric in metrics] +
                                [f'{metric}_error' for metric in metrics] +
