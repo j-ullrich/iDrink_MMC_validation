@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17" pages="3">
   <diagram name="root_val" id="zgt0ExfEEiG_xWLwjpGU">
-    <mxGraphModel dx="701" dy="1676" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
+    <mxGraphModel dx="1445" dy="2214" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="1" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -1074,6 +1074,15 @@
         </mxCell>
         <mxCell id="1FdEeKLBPzR-44CLlQdX-19" value="&lt;div&gt;&lt;span style=&quot;font-size: 11px; background-color: initial;&quot;&gt;Columns:&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 11px;&quot;&gt;{id_s, id_p, id_t, dynamic,&lt;/span&gt;&lt;span style=&quot;background-color: initial; font-size: 11px;&quot;&gt;&amp;nbsp;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 11px; background-color: initial;&quot;&gt;{metric}_&lt;/span&gt;&lt;span style=&quot;background-color: initial; font-size: 11px;&quot;&gt;cmc, {&lt;/span&gt;&lt;span style=&quot;font-size: 11px; background-color: initial;&quot;&gt;metric}_&lt;/span&gt;&lt;span style=&quot;background-color: initial; font-size: 11px;&quot;&gt;cmc_p]&lt;/span&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
           <mxGeometry x="1040" y="2475" width="240" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="1FdEeKLBPzR-44CLlQdX-22" value="" style="sketch=0;html=1;aspect=fixed;strokeColor=none;shadow=0;align=center;fillColor=#F4AF20;verticalAlign=top;labelPosition=center;verticalLabelPosition=bottom;shape=mxgraph.gcp2.check" vertex="1" parent="1">
+          <mxGeometry x="968.75" y="2360" width="62.5" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="1FdEeKLBPzR-44CLlQdX-23" value="&lt;font style=&quot;font-size: 23px;&quot;&gt;&lt;b&gt;If there is time left&lt;/b&gt;&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FF0000;strokeColor=#FF0000;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="680" y="2600" width="280" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="1FdEeKLBPzR-44CLlQdX-24" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.25;entryY=1;entryDx=0;entryDy=0;shape=arrow;strokeColor=none;fillColor=#FF0000;" edge="1" parent="1" source="1FdEeKLBPzR-44CLlQdX-23" target="1FdEeKLBPzR-44CLlQdX-18">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
