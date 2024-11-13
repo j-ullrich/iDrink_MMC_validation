@@ -1000,6 +1000,141 @@ def get_rom_rmse(dir_results, verbose=1):
 
 
 
+def get_timeseries_correlations(dir_processed, dir_results, verbose=1):
+    """
+    Uses normalized timeseries to calculate Pearson Correlation and CMC of mmc and omc for each kinematic metric
+
+
+    csv_path: time_series_correlation.csv
+
+    df_out: columns: [id_s, id_p, id_t, dynamic, {metric}_pearson , {metric}_pearson_p, {metric}_cmc, {metric}_cmc_p]
+
+
+    :param dir_results:
+    :param verbose:
+    :return:
+    """
+    from scipy.stats import pearsonr
+
+    metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
+               'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
+
+    dict_dir_src = {'fixed': os.path.join(dir_processed, '02_fully_preprocessed', '01_normalized'),
+                   'dynamic': os.path.join(dir_processed, '02_fully_preprocessed_dynamic', '01_normalized')}
+
+    csv_out = os.path.join(dir_results, 'time_series_correlation.csv')
+
+    if os.path.isfile(csv_out):
+        df_out = pd.read_csv(csv_out, sep=';')
+    else:
+        df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic'] + [f'{metric}_pearson' for metric in metrics] +
+                               [f'{metric}_pearson_p' for metric in metrics] )
+
+    for dynamic in ['fixed', 'dynamic']:
+
+        dir_src = dict_dir_src[dynamic]
+
+        if dynamic == 'dynamic':
+            appendix = '_dynamic_normalized.csv'
+        else:
+            appendix = '_normalized.csv'
+
+        for metric in metrics:
+
+            csv_in = os.path.join(dir_src, f'{metric}{appendix}.csv')
+
+            if not os.path.isfile(csv_in):
+                raise FileNotFoundError(f"File not found: {csv_in}")
+
+            df_in = pd.read_csv(csv_in, sep=';')
+
+
+            id_sets = list(set(tuple(row) for row in df_in[['ids', 'idp', 'idt']].to_records(index=False)))
+
+            for id_set in id_sets:
+                id_s = id_set[0]
+                id_p = id_set[1]
+                id_t = id_set[2]
+
+                df_temp = df_in[(df_in['ids'] == id_s) & (df_in['idp'] == id_p) & (df_in['idt'] == id_t)]
+
+                time = df_temp['time_normalized']
+                condition = df_temp['condition'].values[0]
+                side = df_temp['side'].values[0]
+
+                omc = df_temp['omc']
+                mmc = df_temp['mmc']
+
+                pearson = pearsonr(omc, mmc)[0]
+                pearson_p = pearsonr(omc, mmc)[1]
+
+                df_out_temp = pd.DataFrame({
+                    'id_s': id_s,
+                    'id_p': id_p,
+                    'id_t': id_t,
+                    'dynamic': dynamic,
+                    f'{metric}_pearson': pearson,
+                    f'{metric}_pearson_p': pearson_p
+                }, index=[0])
+
+                df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
+
+    df_out.to_csv(csv_out, sep=';', index=False)
+
+
+def get_multiple_correlations(dir_processed, dir_results, verbose=1):
+    """
+    Calculates Coefficient of multiple correlations (CMC) for all kinematic metrics.
+
+    csv_path: time_series_multiple_correlation.csv
+
+    df_out: columns: [id_s, id_p, id_t, dynamic, {metric}_pearson , {metric}_pearson_p, {metric}_cmc, {metric}_cmc_p]
+
+    :param dir_processed:
+    :param dir_results:
+    :param verbose:
+    :return:
+    """
+    metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
+               'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
+
+    dict_dir_src = {'fixed': os.path.join(dir_processed, '02_fully_preprocessed', '01_normalized'),
+                   'dynamic': os.path.join(dir_processed, '02_fully_preprocessed_dynamic', '01_normalized')}
+
+    csv_out = os.path.join(dir_results, 'time_series_multiple_correlation.csv')
+
+    if os.path.isfile(csv_out):
+        df_out = pd.read_csv(csv_out, sep=';')
+    else:
+        df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic'] + [f'{metric}_pearson' for metric in metrics] +
+                               [f'{metric}_pearson_p' for metric in metrics] )
+
+    for dynamic in ['fixed', 'dynamic']:
+        dir_src = dict_dir_src[dynamic]
+
+        if dynamic == 'dynamic':
+            appendix = '_dynamic_normalized.csv'
+        else:
+            appendix = '_normalized.csv'
+
+        for metric in metrics:
+
+            csv_in = os.path.join(dir_src, f'{metric}{appendix}.csv')
+
+            if not os.path.isfile(csv_in):
+                raise FileNotFoundError(f"File not found: {csv_in}")
+
+            df_in = pd.read_csv(csv_in, sep=';')
+
+
+            id_sets = list(set(tuple(row) for row in df_in[['ids', 'idp']].to_records(index=False)))
+
+            idx_s = df_in['ids'].unique()
+
+            # TODO: Write if there is enough time
+
+
+
 
 def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
                           joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False):
