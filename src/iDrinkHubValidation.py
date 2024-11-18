@@ -657,6 +657,14 @@ def run_triangulation(trial_list):
                 p2s_progress.update(1)
                 continue
 
+        if args.single_setting:
+            if type(args.single_setting) == str:
+                args.single_setting = [args.single_setting]
+
+            if trial.id_s not in args.single_setting:
+                p2s_progress.update(1)
+                continue
+
         # Get Pose method from settings dataframe
         pose = df_settings.loc[
             df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
@@ -778,6 +786,19 @@ def run_opensim(trial_list):
 
         if args.single_identifier:
             if trial.identifier != args.single_identifier:
+                opensim_progress.update(1)
+                continue
+
+        if args.single_patient:
+            if trial.id_p != args.single_patient:
+                opensim_progress.update(1)
+                continue
+
+        if args.single_setting:
+            if type(args.single_setting) == str:
+                args.single_setting = [args.single_setting]
+
+            if trial.id_s not in args.single_setting:
                 opensim_progress.update(1)
                 continue
 
@@ -952,16 +973,23 @@ if __name__ == '__main__':
              6: "statistics",
              7: "full"}
 
-    args.mode = modes[2]
+    args.mode = [modes[key] for key in [3, 4, 5]]
 
     args.poseback = ['metrabs_multi']
     args.verbose = 2
     args.only_single_cam_trials = False
-    #args.single_setting = 'S001'
-    args.single_identifier = 'S005_P15_T010'
+
+
+    patients = ['P08', 'P10', 'P11', 'P12']
+    args.single_patient = False
+
+    settings = ['S027', 'S028']
+    args.single_setting = settings
+
+    args.single_identifier = False
     args.run_again = False
 
-    args.mode = [modes[3]]
+
 
 
     if args.mode is not None:

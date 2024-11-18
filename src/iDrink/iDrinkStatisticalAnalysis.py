@@ -276,7 +276,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms
     save_plots_murphy(df_murphy, root_stat_cat, filetype=['.html'], verbose=verbose)
 
     # Create DataFrame for each trial
-    run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
+    #run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
 
 
 
@@ -1665,7 +1665,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = True
+    test_timeseries = False
     corrections = ['fixed', 'dynamic']
 
 

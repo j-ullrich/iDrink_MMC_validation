@@ -491,6 +491,9 @@ class MurphyMeasures:
                       f"Prominence: {prom}\n"
                       f"Iterations: {i}")
 
+            if i > 10:
+                raise TimeoutError("Could not find peaks in data.")
+
         return peaks, peaks_info
 
 
