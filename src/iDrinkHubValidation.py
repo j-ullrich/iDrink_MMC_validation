@@ -870,8 +870,7 @@ def run_murphy_measures(trial_list):
             continue
 
         try:
-            path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
-                                             f'{trial.identifier}_filtered.csv')
+            path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out')
 
             iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
                                                 csv_timestamps=path_csv_murphy_timestamps,
@@ -973,7 +972,7 @@ if __name__ == '__main__':
              6: "statistics",
              7: "full"}
 
-    args.mode = [modes[key] for key in [3, 4, 5]]
+    args.mode = [modes[key] for key in [5]]
 
     args.poseback = ['metrabs_multi']
     args.verbose = 2
@@ -984,7 +983,7 @@ if __name__ == '__main__':
     args.single_patient = False
 
     settings = ['S027', 'S028']
-    args.single_setting = settings
+    args.single_setting = False
 
     args.single_identifier = False
     args.run_again = False

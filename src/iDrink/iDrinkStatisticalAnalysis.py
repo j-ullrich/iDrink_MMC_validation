@@ -12,6 +12,7 @@ import platform
 import pandas as pd
 import numpy as np
 import scipy as sp
+from vtkmodules.numpy_interface.algorithms import condition
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from iDrinkOpenSim import read_opensim_file
@@ -1374,12 +1375,13 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
     # get all s_ids except 'S15133'
     s_ids = list(set([os.path.basename(file).split('_')[0] for file in os.listdir(dir_dat_in)]))
     s_ids.remove('S15133')
+
+    total_count = len(p_ids)
+
     if verbose >=1:
-        process = tqdm(p_ids, desc='Preprocessing', leave=True)
+        process = tqdm(total_count, desc='Preprocessing', leave=True)
 
     for id_p in p_ids:
-        if verbose >= 1:
-            process.set_description(f'Preprocessing {id_p}')
         omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
 
         t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
@@ -1391,6 +1393,12 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
         if len(found_files) == 0:
             continue
+
+        if verbose >= 1:
+            process.set_description(f'Preprocessing {id_p}')
+            total_count += len(t_ids)
+            process.total = total_count
+            process.refresh()
 
 
         for id_t in t_ids:
@@ -1405,6 +1413,9 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
             for mmc_csv in mmc_files:
                 id_s = os.path.basename(mmc_csv).split('_')[0]
+
+                condition = os.path.basename(mmc_csv).split('_')[3]
+                side = os.path.basename(mmc_csv).split('_')[4]
 
                 try:
                     df_omc = pd.read_csv(omc_csv, sep=';')
@@ -1533,8 +1544,8 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
                 appendix = '_dynamic_preprocessed.csv' if correct == 'dynamic' else '_preprocessed.csv'
 
-                path_omc_out = os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}_preprocessed.csv')
-                path_mmc_out = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_preprocessed.csv')
+                path_omc_out = os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}_{condition}_{side}_preprocessed.csv')
+                path_mmc_out = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_{condition}_{side}_preprocessed.csv')
 
                 df_omc.to_csv(path_omc_out, sep=';')
                 df_mmc.to_csv(path_mmc_out, sep=';')
@@ -1546,10 +1557,12 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                           f"OMC: {omc_nframes_before - omc_nframes_after}\n"
                           f"MMC: {mmc_nframes_before - mmc_nframes_after}")
 
+            if verbose >= 1:
+                process.update(1)
 
 
-        if verbose >= 1:
-            process.update(1)
+
+
 
     df_outliers.to_csv(csv_outliers, sep=';')
 
@@ -1665,19 +1678,31 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = False
+    test_timeseries = True
     corrections = ['fixed', 'dynamic']
 
+    dir_processed = os.path.join(root_data, 'preprocessed_data')
+    dir_results = os.path.join(root_stat, '01_continuous', '01_results')
 
     if test_timeseries:
 
         for correct in corrections:
 
-            preprocess_timeseries(root_val,
+            """preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= [],
                                   joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct,
-                                  verbose=1, plot_debug=False, print_able=False)
-            get_omc_mmc_error_old(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
+                                  verbose=1, plot_debug=False, print_able=False)"""
+            dir_src = os.path.join(root_data, 'preprocessed_data', '02_fully_preprocessed') if correct == 'fixed' else os.path.join(root_data, 'preprocessed_data', '03_fully_preprocessed_dynamic')
+            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
+
+        get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1)
+        get_error_mean_rmse(dir_results, verbose=1)
+        get_rom_rmse(dir_results, verbose=1)
+        get_timeseries_correlations(dir_processed, dir_results, verbose=1)
+            #get_multiple_correlations(dir_processed, dir_results, verbose=1) #TODO: Implement this function
+
+            #get_omc_mmc_error_old(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
+
 
 
     else:

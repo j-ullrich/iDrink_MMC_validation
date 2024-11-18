@@ -924,9 +924,11 @@ class MurphyMeasures:
                                    'shoulder_flex_pos': self.shoulder_flex_pos,
                                    'shoulder_abduction_pos': self.shoulder_abduction_pos})
                 if self.path_mov_data is None:
-                    self.path_mov_data = os.path.join(self.dir_trial, f'{self.identifier}_filtered_mov_data.csv')
+                    self.path_mov_data = os.path.join(self.dir_trial, 'movement_analysis', 'murphy_measures')
 
-                df.to_csv(self.path_mov_data, sep=';', index=False)
+                csv_out = os.path.join(self.path_mov_data, f'{self.identifier}_{self.condition}_{self.side.upper()}_murphymeasures.csv')
+
+                df.to_csv(csv_out, sep=';', index=False)
             except Exception as e:
                 print(f"Error in iDrinkMurphyMeasures.read_files: \n"
                       f"Error: {e}\n"
