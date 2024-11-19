@@ -106,8 +106,9 @@ def run_opensim_OMC(stabilize_hip=True):
         case _:  # Default case
             dict_p_list = {1: [],
                            2: [],
-                           3: []}
-            p_list_full = []
+                           3: ["P07", "P08", "P10", "P11", "P12"] # From hertenstein
+                           }
+            p_list_full = ["P07", "P08", "P10", "P11", "P12"]
 
     p_list = dict_p_list[3]
 

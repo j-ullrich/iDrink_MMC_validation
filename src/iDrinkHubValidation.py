@@ -978,7 +978,6 @@ if __name__ == '__main__':
     args.verbose = 2
     args.only_single_cam_trials = False
 
-
     patients = ['P08', 'P10', 'P11', 'P12']
     args.single_patient = False
 

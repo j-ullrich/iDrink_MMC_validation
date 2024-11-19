@@ -680,7 +680,7 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
             side = os.path.basename(csv_mmc).split('_')[4]
             dynamic = os.path.basename(csv_mmc).split('_')[5]
 
-            progbar.set_description(f'Calculating Timeseries Error for {id_s}_{id_p}_{id_t}')
+            progbar.set_description(f'Calculating Timeseries Error for {dynamic} {id_s}_{id_p}_{id_t}')
 
             try:
                 csv_omc = \
@@ -762,9 +762,6 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
                        [f'{metric}_error' for metric in metrics] +
                        [f'{metric}_rse' for metric in metrics])
 
-
-
-
             #write to .csv file
             df_out = get_Dataframe(csv_out, columns)
             df_out_norm = get_Dataframe(csv_out_norm, columns)
@@ -783,6 +780,12 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
             df_out.to_csv(csv_out, sep=';', index=False)
             df_out_norm.to_csv(csv_out_norm, sep=';', index=False)
             df_out_rom.to_csv(csv_out_rom, sep=';', index=False)
+
+            if verbose >= 1:
+                progbar.update(1)
+
+        if verbose >= 1:
+            progbar.close()
 
 
 def get_error_mean_rmse(dir_results, verbose=1):
@@ -1395,13 +1398,15 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
             continue
 
         if verbose >= 1:
-            process.set_description(f'Preprocessing {id_p}')
             total_count += len(t_ids)
             process.total = total_count
             process.refresh()
 
 
         for id_t in t_ids:
+            if verbose >= 1:
+                process.set_description(f'Preprocessing {id_p}_{id_t}')
+                process.update(1)
 
             omc_csv = glob.glob(os.path.join(dir_dat_in, f'S15133_{id_p}_{id_t}*.csv'))[0]
 
@@ -1542,10 +1547,8 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                 # Write to new csv
                 os.makedirs(dir_dat_out, exist_ok=True)
 
-                appendix = '_dynamic_preprocessed.csv' if correct == 'dynamic' else '_preprocessed.csv'
-
-                path_omc_out = os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}_{condition}_{side}_preprocessed.csv')
-                path_mmc_out = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_{condition}_{side}_preprocessed.csv')
+                path_omc_out = os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}_{condition}_{side}_{correct}_preprocessed.csv')
+                path_mmc_out = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_{condition}_{side}_{correct}_preprocessed.csv')
 
                 df_omc.to_csv(path_omc_out, sep=';')
                 df_mmc.to_csv(path_mmc_out, sep=';')
@@ -1556,9 +1559,6 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                           f"Dropped Frames:\n"
                           f"OMC: {omc_nframes_before - omc_nframes_after}\n"
                           f"MMC: {mmc_nframes_before - mmc_nframes_after}")
-
-            if verbose >= 1:
-                process.update(1)
 
 
 
@@ -1584,7 +1584,7 @@ def normalize_data(dir_src, dynamic=False, verbose=1):
     dir_dst = os.path.join(dir_src, '01_normalized')
     os.makedirs(dir_dst, exist_ok=True)
 
-    csv_appendix = '_dynamic_normalized.csv' if dynamic else '_normalized.csv'
+    csv_appendix = '_dynamic_normalized.csv' if dynamic else '_fixed_normalized.csv'
 
     metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
                'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
@@ -1593,7 +1593,7 @@ def normalize_data(dir_src, dynamic=False, verbose=1):
     dict_df_out = {}
 
     for metric in metrics:
-        csv_out = os.path.join(dir_dst, f'{metric}{csv_appendix}')
+        csv_out = os.path.join(dir_dst, f'{metric}_{csv_appendix}')
         df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'side', 'time_normalized', 'omc', 'mmc'])
 
         dict_csvs_out[metric] = csv_out
@@ -1604,6 +1604,8 @@ def normalize_data(dir_src, dynamic=False, verbose=1):
     csvs_in = glob.glob(os.path.join(dir_src, '*.csv'))
     list_csvs_in_mmc = sorted([csv for csv in csvs_in if id_s_omc not in os.path.basename(csv)])
     list_csvs_in_omc = sorted([csv for csv in csvs_in if id_s_omc in os.path.basename(csv)])
+
+    list_df_out = []
 
     if verbose >= 1:
         progbar = tqdm(list_csvs_in_mmc, desc='Normalizing', leave=True)
@@ -1629,8 +1631,13 @@ def normalize_data(dir_src, dynamic=False, verbose=1):
         df_mmc = pd.read_csv(csv_mmc, sep=';')
         df_omc = pd.read_csv(csv_omc, sep=';')
 
-        time = df_mmc['time']
-        time_normalized = np.linspace(0, 1, num=len(time))
+        maxtime = min(max(df_mmc['time']), max(df_omc['time'].values))
+
+
+        #cut dataframes to same timeframe
+        df_mmc = df_mmc[df_mmc['time'] <= maxtime]
+        df_omc = df_omc[df_omc['time'] <= maxtime]
+        time_normalized = np.linspace(0, 1, num=len(df_mmc['time']))
 
         for metric in metrics:
             omc = df_omc[metric]
@@ -1647,7 +1654,15 @@ def normalize_data(dir_src, dynamic=False, verbose=1):
     if verbose >= 1:
         progbar.close()
 
+    if verbose >=1:
+        progbar = tqdm(metrics, desc='Writing', leave=True)
+
     for metric in metrics:
+        if verbose>=1:
+            progbar.set_description(f'Writing {os.path.basename(dict_csvs_out[metric])}')
+
+            progbar.update(1)
+        df_debug = dict_df_out[metric]
         dict_df_out[metric].to_csv(dict_csvs_out[metric], sep=';')
 
 
@@ -1691,9 +1706,9 @@ if __name__ == '__main__':
             """preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= [],
                                   joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct,
-                                  verbose=1, plot_debug=False, print_able=False)"""
+                                  verbose=1, plot_debug=False, print_able=False)
             dir_src = os.path.join(root_data, 'preprocessed_data', '02_fully_preprocessed') if correct == 'fixed' else os.path.join(root_data, 'preprocessed_data', '03_fully_preprocessed_dynamic')
-            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
+            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)"""
 
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1)
         get_error_mean_rmse(dir_results, verbose=1)

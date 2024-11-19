@@ -78,8 +78,9 @@ def run(verbose=1):
             path_joint_acc = os.path.join(dir_jointkin, f'{identifier}_Kinematics_acc.csv')
 
             try:
-                path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
-                                                 f'{identifier}_filtered.csv')
+                path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out')
+
+                os.makedirs(path_preprocessed, exist_ok=True)
 
 
                 iDrinkMurphyMeasures.MurphyMeasures(trial_id=identifier, csv_timestamps=csv_timestamps,
