@@ -926,6 +926,8 @@ class MurphyMeasures:
                 if self.path_mov_data is None:
                     self.path_mov_data = os.path.join(self.dir_trial, 'movement_analysis', 'murphy_measures')
 
+                os.makedirs(self.path_mov_data, exist_ok=True)
+
                 csv_out = os.path.join(self.path_mov_data, f'{self.identifier}_{self.condition}_{self.side.upper()}_murphymeasures.csv')
 
                 df.to_csv(csv_out, sep=';', index=False)

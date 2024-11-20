@@ -620,7 +620,7 @@ def get_omc_mmc_error_old(dir_root, df_timestamps, correct='fixed', verbose=1):
         df_s_rse.to_csv(csv_s_rse, sep=';')
 
 
-def get_error_timeseries(dir_processed, dir_results, verbose = 1):
+def get_error_timeseries(dir_processed, dir_results, verbose = 1, debug=False):
     """
     Writes the .csv files with omc-mmc error for all trials and participants.
 
@@ -672,13 +672,16 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
 
         progbar = tqdm(total=len(list_csvs_in_mmc), desc='Calculating Timeseries Error', disable=verbose<1)
 
-        for csv_mmc in list_csvs_in_mmc:
+        for i, csv_mmc in enumerate(list_csvs_in_mmc):
             id_s = os.path.basename(csv_mmc).split('_')[0]
             id_p = os.path.basename(csv_mmc).split('_')[1]
             id_t = os.path.basename(csv_mmc).split('_')[2]
             condition = os.path.basename(csv_mmc).split('_')[3]
             side = os.path.basename(csv_mmc).split('_')[4]
             dynamic = os.path.basename(csv_mmc).split('_')[5]
+
+            if debug and i > 50:
+                break
 
             progbar.set_description(f'Calculating Timeseries Error for {dynamic} {id_s}_{id_p}_{id_t}')
 
@@ -716,11 +719,20 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1):
             df_out_norm_temp['id_s'] = id_s
             df_out_norm_temp['dynamic'] = dynamic
 
-            df_out_rom_temp['id_s'] = id_s
-            df_out_rom_temp['id_p'] = id_p
-            df_out_rom_temp['id_t'] = id_t
-            df_out_rom_temp['condition'] = condition
-            df_out_rom_temp['dynamic'] = dynamic
+            df_out_rom_temp = pd.DataFrame({
+                'id_s': id_s,
+                'id_p': id_p,
+                'id_t': id_t,
+                'condition': condition,
+                'dynamic': dynamic,
+                **{f'{metric}_min_omc': None for metric in metrics},
+                **{f'{metric}_max_omc': None for metric in metrics},
+                **{f'{metric}_rom_omc': None for metric in metrics},
+                **{f'{metric}_min_mmc': None for metric in metrics},
+                **{f'{metric}_max_mmc': None for metric in metrics},
+                **{f'{metric}_rom_mmc': None for metric in metrics},
+                **{f'{metric}_rom_error': None for metric in metrics},
+            }, index = [0])
 
 
             # Get errors for all metrics and add to dataframes
@@ -828,6 +840,10 @@ def get_error_mean_rmse(dir_results, verbose=1):
     csvs_in = glob.glob(os.path.join(dir_src, '*.csv'))
     list_csv = sorted([csv for csv in csvs_in if id_s_omc not in os.path.basename(csv)])
 
+    if verbose >= 1:
+        total_count = len(list_csv)
+        progbar = tqdm(total=total_count, desc='Calculating Mean and RMSE', disable=verbose<1)
+
     for csv in list_csv:
         id_p = os.path.basename(csv).split('_')[0]
         id_t = os.path.basename(csv).split('_')[1]
@@ -836,11 +852,34 @@ def get_error_mean_rmse(dir_results, verbose=1):
         normalized = 'normalized' if 'norm' in os.path.basename(csv) else 'original'
 
         df = pd.read_csv(csv, sep=';')
+
+
+        if verbose >= 1:
+            total_count += len(df['id_s'].unique())
+            progbar.total = total_count
+            progbar.refresh()
+
         for id_s in df['id_s'].unique():
             df_s = df[df['id_s'] == id_s]
             id = f'{id_s}_{id_p}_{id_t}'
 
+            if verbose >= 1:
+                progbar.set_description(f'Calculating Mean and RMSE: {id_s}_{id_p}_{id_t}')
+
             for dynamic in df_s['dynamic'].unique():
+
+                df_mean = pd.DataFrame({
+                        'id': id,
+                        'condition': condition,
+                        'dynamic': dynamic,
+                        'normalized': normalized,
+                        **{f'{metric}_mean': None for metric in metrics},
+                        **{f'{metric}_median': None for metric in metrics},
+                        **{f'{metric}_std': None for metric in metrics},
+                        **{f'{metric}_rmse': None for metric in metrics},
+                        **{f'{metric}_rmse_std': None for metric in metrics}
+                    }, index=[0])
+
                 for metric in metrics:
                     df_metric = df_s[[f'{metric}_error', f'{metric}_rse']]
                     mean = np.mean(df_metric[f'{metric}_error'])
@@ -849,19 +888,25 @@ def get_error_mean_rmse(dir_results, verbose=1):
                     rmse = np.sqrt(np.mean(df_metric[f'{metric}_error']**2))
                     rmse_std = np.std(df_metric[f'{metric}_rse'])
 
-                    df_mean = pd.DataFrame({
-                        'id': id,
-                        'condition': condition,
-                        'dynamic': dynamic,
-                        'normalized': normalized,
-                        f'{metric}_mean': mean,
-                        f'{metric}_median': median,
-                        f'{metric}_std': std,
-                        f'{metric}_rmse': rmse,
-                        f'{metric}_rmse_std': rmse_std
-                    }, index=[0])
 
-                    df_out = pd.concat([df_out, df_mean], axis=0, ignore_index=True)
+                    df_mean['id'] = id
+                    df_mean['condition'] = condition
+                    df_mean['dynamic'] = dynamic
+                    df_mean['normalized'] = normalized
+
+                    df_mean[f'{metric}_mean'] = mean
+                    df_mean[f'{metric}_median'] = median
+                    df_mean[f'{metric}_std'] = std
+                    df_mean[f'{metric}_rmse'] = rmse
+                    df_mean[f'{metric}_rmse_std'] = rmse_std
+
+                df_out = pd.concat([df_out, df_mean], axis=0, ignore_index=True)
+
+            if verbose >= 1:
+                progbar.update(1)
+
+    if verbose >= 1:
+        progbar.close()
 
     # safetysave
     df_out.to_csv(csv_out, sep=';', index=False)
@@ -1669,9 +1714,11 @@ def normalize_data(dir_src, dynamic=False, verbose=1):
 if __name__ == '__main__':
     # this part is for Development and Debugging
 
+    debug = False
     if sys.gettrace() is not None:
         print("Debug Mode is activated\n"
               "Starting debugging script.")
+        debug=True
 
     drive = iDrinkUtilities.get_drivepath()
 
@@ -1710,7 +1757,7 @@ if __name__ == '__main__':
             dir_src = os.path.join(root_data, 'preprocessed_data', '02_fully_preprocessed') if correct == 'fixed' else os.path.join(root_data, 'preprocessed_data', '03_fully_preprocessed_dynamic')
             normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)"""
 
-        get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1)
+        #get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results, verbose=1)
         get_rom_rmse(dir_results, verbose=1)
         get_timeseries_correlations(dir_processed, dir_results, verbose=1)
