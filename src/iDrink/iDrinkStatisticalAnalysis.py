@@ -800,7 +800,7 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1, debug=False):
             progbar.close()
 
 
-def get_error_mean_rmse(dir_results, verbose=1):
+def get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1):
     """
     Writes .csv file with mean and median error, std and rmse for each setting, participant and trial.
 
@@ -826,7 +826,7 @@ def get_error_mean_rmse(dir_results, verbose=1):
     metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
                'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
 
-    if os.path.isfile(csv_out):
+    if os.path.isfile(csv_out) and not overwrite_csvs:
         df_out = pd.read_csv(csv_out, sep=';')
     else:
         df_out = pd.DataFrame(columns=['id', 'condition', 'dynamic', 'normalized'] + [f'{metric}_mean' for metric in metrics] +
@@ -881,12 +881,12 @@ def get_error_mean_rmse(dir_results, verbose=1):
                     }, index=[0])
 
                 for metric in metrics:
-                    df_metric = df_s[[f'{metric}_error', f'{metric}_rse']]
-                    mean = np.mean(df_metric[f'{metric}_error'])
-                    median = np.median(df_metric[f'{metric}_error'])
-                    std = np.std(df_metric[f'{metric}_error'])
-                    rmse = np.sqrt(np.mean(df_metric[f'{metric}_error']**2))
-                    rmse_std = np.std(df_metric[f'{metric}_rse'])
+
+                    mean = np.nanmean(df_s[f'{metric}_error'])
+                    median = np.nanmedian(df_s[f'{metric}_error'])
+                    std = np.nanstd(df_s[f'{metric}_error'])
+                    rmse = np.sqrt(np.nanmean(df_s[f'{metric}_error']**2))
+                    rmse_std = np.nanstd(df_s[f'{metric}_rse'])
 
 
                     df_mean['id'] = id
@@ -914,8 +914,8 @@ def get_error_mean_rmse(dir_results, verbose=1):
     idx = df_out['id'].unique()
 
     # get sets for id_s and id_p
-    idx_s = sorted(list(set([id.split('_')[0] for id in idx])))
-    idx_p = sorted(list(set([id.split('_')[1] for id in idx])))
+    idx_s = sorted(list(set([id.split('_')[0] for id in idx if len(id.split('_')) == 3])))
+    idx_p = sorted(list(set([id.split('_')[1] for id in idx if len(id.split('_')) == 3])))
 
     df_mean_s = pd.DataFrame(columns=['id', 'condition', 'dynamic', 'normalized'] + [f'{metric}_mean' for metric in metrics] +
                                [f'{metric}_median' for metric in metrics] + [f'{metric}_std' for metric in metrics] +
@@ -925,39 +925,40 @@ def get_error_mean_rmse(dir_results, verbose=1):
                                [f'{metric}_median' for metric in metrics] + [f'{metric}_std' for metric in metrics] +
                                [f'{metric}_rmse' for metric in metrics] + [f'{metric}_rmse_std' for metric in metrics])
 
-    def get_mean_error_for_s_and_p(df_temp, df_mean, metrics, id ):
-        if df_temp.shape[0] == 0:
+    def get_mean_error_for_s_and_p(df_in, df_mean, metrics, id ):
+        if df_in.shape[0] == 0:
             return df_mean
 
-        for dynamic in df_temp['dynamic'].unique():
-            df_temp = df_temp[df_temp['dynamic'] == dynamic]
+        for dynamic in df_in['dynamic'].unique():
+            df_dyn = df_in[df_in['dynamic'] == dynamic]
 
-            for normalized in df_temp['normalized'].unique():
-                df_temp = df_temp[df_temp['normalized'] == normalized]
+            for normalized in df_dyn['normalized'].unique():
+                df_norm = df_dyn[df_dyn['normalized'] == normalized]
 
-                for condition in df_temp['condition'].unique():
-                    df_temp = df_temp[df_temp['condition'] == condition]
+                for condition in df_norm['condition'].unique():
+                    df_temp = df_norm[df_norm['condition'] == condition]
+
+                    df_t_out = pd.DataFrame(columns = df_mean.columns, index=[0])
+                    df_t_out['id'] = id
+                    df_t_out['condition'] = condition
+                    df_t_out['dynamic'] = dynamic
+                    df_t_out['normalized'] = normalized
 
                     for metric in metrics:
-                        df_metric = df_temp[[f'{metric}_mean', f'{metric}_median', f'{metric}_std', f'{metric}_rmse',
-                                             f'{metric}_rmse_std']]
-                        mean = np.mean(df_metric[f'{metric}_mean'])
-                        median = np.mean(df_metric[f'{metric}_median'])
-                        std = np.mean(df_metric[f'{metric}_std'])
-                        rmse = np.mean(df_metric[f'{metric}_rmse'])
-                        rmse_std = np.mean(df_metric[f'{metric}_rmse_std'])
+                        mean = np.nanmean(df_temp[f'{metric}_mean'])
+                        median = np.nanmean(df_temp[f'{metric}_median'])
+                        std = np.nanmean(df_temp[f'{metric}_std'])
+                        rmse = np.nanmean(df_temp[f'{metric}_rmse'])
+                        rmse_std = np.nanmean(df_temp[f'{metric}_rmse_std'])
 
-                        df_mean = pd.concat([df_mean, pd.DataFrame({
-                            'id': id,
-                            'condition': condition,
-                            'dynamic': dynamic,
-                            'normalized': normalized,
-                            f'{metric}_mean': mean,
-                            f'{metric}_median': median,
-                            f'{metric}_std': std,
-                            f'{metric}_rmse': rmse,
-                            f'{metric}_rmse_std': rmse_std
-                        }, index=[0])], axis=0, ignore_index=True)
+                        df_t_out[f'{metric}_mean'] = mean
+                        df_t_out[f'{metric}_median'] = median
+                        df_t_out[f'{metric}_std'] = std
+                        df_t_out[f'{metric}_rmse'] = rmse
+                        df_t_out[f'{metric}_rmse_std'] = rmse_std
+
+
+                    df_mean = pd.concat([df_mean, df_t_out], axis=0, ignore_index=True)
 
         return df_mean
 
@@ -977,7 +978,7 @@ def get_error_mean_rmse(dir_results, verbose=1):
         id_t = os.path.basename(csv_mmc).split('_')[2]
 
 
-def get_rom_rmse(dir_results, verbose=1):
+def get_rom_rmse(dir_results, overwrite_csvs=False, verbose=1):
     """
     Reads the .csv files with range of motion errors and writes rmse for following ids: '{id_s}', '{id_s}_{id_p}'
 
@@ -1000,46 +1001,47 @@ def get_rom_rmse(dir_results, verbose=1):
         raise FileNotFoundError(f"File not found: {csv_in}")
 
 
-    def get_mean_error_for_s_and_p(df_temp, df_mean, metrics, id ):
-        if df_temp.shape[0] == 0:
+    def get_mean_error_for_s_and_p(df_in, df_mean, metrics, id):
+        if df_in.shape[0] == 0:
             return df_mean
 
-        for dynamic in df_temp['dynamic'].unique():
-            df_temp = df_temp[df_temp['dynamic'] == dynamic]
+        for dynamic in df_in['dynamic'].unique():
+            df_dyn = df_in[df_in['dynamic'] == dynamic]
 
-            for condition in df_temp['condition'].unique():
-                df_temp = df_temp[df_temp['condition'] == condition]
+            for condition in df_dyn['condition'].unique():
+                df_con = df_dyn[df_dyn['condition'] == condition]
+
+                df_t_out = pd.DataFrame(columns=df_mean.columns, index=[0])
+                df_t_out['id'] = id
+                df_t_out['condition'] = condition
+                df_t_out['dynamic'] = dynamic
+
                 for metric in metrics:
-                    df_metric = df_temp[[f'{metric}_min_omc', f'{metric}_max_omc', f'{metric}_rom_omc', f'{metric}_min_mmc', f'{metric}_max_mmc', f'{metric}_rom_mmc', f'{metric}_rom_error']]
+                    error_max = df_con[f'{metric}_max_mmc'] - df_con[f'{metric}_max_omc']
+                    error_min = df_con[f'{metric}_min_mmc'] - df_con[f'{metric}_min_omc']
+                    error_rom = df_con[f'{metric}_rom_mmc'] - df_con[f'{metric}_rom_omc']
 
-                    error_max = df_metric[f'{metric}_max_mmc'] - df_metric[f'{metric}_max_omc']
-                    error_min = df_metric[f'{metric}_min_mmc'] - df_metric[f'{metric}_min_omc']
-                    error_rom = df_metric[f'{metric}_rom_mmc'] - df_metric[f'{metric}_rom_omc']
+                    df_t_out[f'{metric}_max_rmse'] = np.sqrt(np.nanmean( error_max**2))
+                    df_t_out[f'{metric}_min_rmse'] = np.sqrt(np.nanmean( error_min**2))
+                    df_t_out[f'{metric}_rom_rmse'] = np.sqrt(np.nanmean( error_rom**2))
 
-                    df_mean = pd.concat([df_mean, pd.DataFrame({
-                        'id': id,
-                        'condition': condition,
-                        'dynamic': dynamic,
-                        f'{metric}_max_rmse': np.sqrt(np.mean( error_max**2)),
-                        f'{metric}_min_rmse': np.sqrt(np.mean( error_min**2)),
-                        f'{metric}_rom_rmse': np.sqrt(np.mean( error_rom**2))
-                    }, index=[0])], axis=0, ignore_index=True)
+                df_mean = pd.concat([df_mean, df_t_out], axis=0, ignore_index=True)
 
         return df_mean
 
-    idx = df_in['id'].unique()
     # get sets for id_s and id_p
-    idx_s = sorted(list(set([id.split('_')[0] for id in idx])))
-    idx_p = sorted(list(set([id.split('_')[1] for id in idx])))
+    idx_s = sorted(df_in['id_s'].unique())
+    idx_p = sorted(df_in['id_p'].unique())
+
 
     for id_s in idx_s:
-        df_s_temp = get_mean_error_for_s_and_p(df_in[df_in['id'].str.contains(id_s)], df_s_temp, metrics, id_s)
+        df_s_temp = get_mean_error_for_s_and_p(df_in[df_in['id_s'] == id_s], df_s_temp, metrics, id_s)
 
         for id_p in idx_p:
-            df_p_temp = get_mean_error_for_s_and_p(df_in[df_in['id'].str.contains(id_p) & df_in['id'].str.contains(id_s)],
+            df_p_temp = get_mean_error_for_s_and_p(df_in[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) ],
                                                    df_p_temp, metrics, f'{id_s}_{id_p}')
 
-    if os.path.isfile(csv_out):
+    if os.path.isfile(csv_out) and not overwrite_csvs:
         df_out = pd.read_csv(csv_out, sep=';')
         df_out = pd.concat([df_out, df_s_temp, df_p_temp], axis=0, ignore_index=True)
     else:
@@ -1049,7 +1051,7 @@ def get_rom_rmse(dir_results, verbose=1):
 
 
 
-def get_timeseries_correlations(dir_processed, dir_results, verbose=1):
+def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False, verbose=1):
     """
     Uses normalized timeseries to calculate Pearson Correlation and CMC of mmc and omc for each kinematic metric
 
@@ -1065,19 +1067,84 @@ def get_timeseries_correlations(dir_processed, dir_results, verbose=1):
     """
     from scipy.stats import pearsonr
 
+    def join_metric_dataFrames(dir_src, metrics, appendix):
+        """
+        Read in all metric DataFrames and join them in a single Dataframe based on id_s, id_p and id_t
+
+        :param dir_src:
+        :param metrics:
+        :param appendix:
+        :return:
+        """
+
+        def check_if_columns_are_same(columns, df1, df2):
+            """
+            Check if all rows of all columns are identical in two DataFrames
+
+            :param columns:
+            :param df1:
+            :param df2:
+            :return:
+            """
+
+            for column in columns:
+                if not np.all(df1[column] == df2[column]):
+                    return False
+            return True
+
+        columns_to_check = ['id_s', 'id_p', 'id_t', 'condition', 'side', 'time_normalized']
+
+        df_out = pd.DataFrame(
+            columns=['id_s', 'id_p', 'id_t', 'condition', 'side', 'time_normalized'] +
+                    [f'{metric}_omc' for metric in metrics] +
+                    [f'{metric}_mmc' for metric in metrics])
+
+        df_old = None
+        for metric in metrics:
+            csv_in = os.path.join(dir_src, f'{metric}{appendix}')
+
+            if not os.path.isfile(csv_in):
+                raise FileNotFoundError(f"File not found: {csv_in}")
+
+            df_in = pd.read_csv(csv_in, sep=';')
+
+            df_out[f'{metric}_omc'] = df_in['omc'].values
+            df_out[f'{metric}_mmc'] = df_in['mmc'].values
+
+            df_out['time_normalized'] = df_in['time_normalized'].values
+            df_out['id_s'] = df_in['id_s'].values
+            df_out['id_p'] = df_in['id_p'].values
+            df_out['id_t'] = df_in['id_t'].values
+            df_out['condition'] = df_in['condition'].values
+            df_out['side'] = df_in['side'].values
+
+            if df_old is not None:
+                if not check_if_columns_are_same(columns_to_check, df_out, df_old):
+                    raise ValueError(f"Columns do not match: {columns_to_check}")
+            df_old = df_out
+
+        return df_out
+
+
+
+
     metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
                'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
 
     dict_dir_src = {'fixed': os.path.join(dir_processed, '02_fully_preprocessed', '01_normalized'),
-                   'dynamic': os.path.join(dir_processed, '02_fully_preprocessed_dynamic', '01_normalized')}
+                   'dynamic': os.path.join(dir_processed, '03_fully_preprocessed_dynamic', '01_normalized')}
 
     csv_out = os.path.join(dir_results, 'time_series_correlation.csv')
 
-    if os.path.isfile(csv_out):
+    if os.path.isfile(csv_out) and not overwrite_csvs:
         df_out = pd.read_csv(csv_out, sep=';')
     else:
         df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic'] + [f'{metric}_pearson' for metric in metrics] +
                                [f'{metric}_pearson_p' for metric in metrics] )
+
+    if verbose >= 1:
+        total_count = len(metrics) * 2
+        progbar = tqdm(total=total_count, desc=f'Calculating Correlations for', disable=verbose < 1)
 
     for dynamic in ['fixed', 'dynamic']:
 
@@ -1086,34 +1153,35 @@ def get_timeseries_correlations(dir_processed, dir_results, verbose=1):
         if dynamic == 'dynamic':
             appendix = '_dynamic_normalized.csv'
         else:
-            appendix = '_normalized.csv'
+            appendix = '_fixed_normalized.csv'
 
-        for metric in metrics:
+        df_in = join_metric_dataFrames(dir_src, metrics, appendix)
 
-            csv_in = os.path.join(dir_src, f'{metric}{appendix}.csv')
+        id_sets = list(set(tuple(row) for row in df_in[['id_s', 'id_p', 'id_t']].to_records(index=False)))
 
-            if not os.path.isfile(csv_in):
-                raise FileNotFoundError(f"File not found: {csv_in}")
+        if verbose >= 1:
+            total_count += len(id_sets)
+            progbar.total = total_count
+            progbar.refresh()
 
-            df_in = pd.read_csv(csv_in, sep=';')
+        for id_set in id_sets:
+            id_s = id_set[0]
+            id_p = id_set[1]
+            id_t = id_set[2]
 
+            for metric in metrics:
 
-            id_sets = list(set(tuple(row) for row in df_in[['ids', 'idp', 'idt']].to_records(index=False)))
+                if verbose >= 1:
+                    progbar.set_description(f'Calculating Correlations for {metric} {id_s}_{id_p}_{id_t}')
 
-            for id_set in id_sets:
-                id_s = id_set[0]
-                id_p = id_set[1]
-                id_t = id_set[2]
+                df_temp = df_in[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) & (df_in['id_t'] == id_t)]
 
-                df_temp = df_in[(df_in['ids'] == id_s) & (df_in['idp'] == id_p) & (df_in['idt'] == id_t)]
-
-                time = df_temp['time_normalized']
+                time = df_temp['time_normalized'].values.tolist()
                 condition = df_temp['condition'].values[0]
                 side = df_temp['side'].values[0]
 
-                omc = df_temp['omc']
-                mmc = df_temp['mmc']
-
+                omc = df_temp[f'{metric}_omc'].values.tolist()
+                mmc = df_temp[f'{metric}_mmc'].values.tolist()
                 pearson = pearsonr(omc, mmc)[0]
                 pearson_p = pearsonr(omc, mmc)[1]
 
@@ -1125,8 +1193,12 @@ def get_timeseries_correlations(dir_processed, dir_results, verbose=1):
                     f'{metric}_pearson': pearson,
                     f'{metric}_pearson_p': pearson_p
                 }, index=[0])
-
                 df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
+                if verbose >= 1:
+                    progbar.update(1)
+
+    if verbose >= 1:
+        progbar.close()
 
     df_out.to_csv(csv_out, sep=';', index=False)
 
@@ -1186,7 +1258,7 @@ def get_multiple_correlations(dir_processed, dir_results, verbose=1):
 
 
 def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
-                          joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False):
+                          joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False, empty_dst=False,  debug=False):
     """
     Preprocess timeseries data for statistical analysis.
 
@@ -1401,9 +1473,20 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
         return df_1_out, df_2_out
 
+    def delete_existing_files(dir):
+        """Deletes all files that are in the given directory"""
+        if not os.path.exists(dir):
+            return
+        for file in os.listdir(dir):
+            os.remove(os.path.join(dir, file))
+
+
     dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '01_murphy_out')
     dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic') if correct == 'dynamic' \
         else os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+
+    if empty_dst:
+        delete_existing_files(dir_dat_out)
 
 
     csv_outliers = os.path.join(dir_root, '05_logs', 'outliers.csv')
@@ -1443,15 +1526,27 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
             continue
 
         if verbose >= 1:
-            total_count += len(t_ids)
+            if debug:
+                total_count += 5
+            else:
+
+                total_count += len(t_ids)
+
             process.total = total_count
             process.refresh()
 
+        if debug:
+            debug_count = 0
 
         for id_t in t_ids:
             if verbose >= 1:
                 process.set_description(f'Preprocessing {id_p}_{id_t}')
                 process.update(1)
+
+            if debug:
+                debug_count += 1
+                if debug_count > 5:
+                    break
 
             omc_csv = glob.glob(os.path.join(dir_dat_in, f'S15133_{id_p}_{id_t}*.csv'))[0]
 
@@ -1638,7 +1733,7 @@ def normalize_data(dir_src, dynamic=False, verbose=1):
     dict_df_out = {}
 
     for metric in metrics:
-        csv_out = os.path.join(dir_dst, f'{metric}_{csv_appendix}')
+        csv_out = os.path.join(dir_dst, f'{metric}{csv_appendix}')
         df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'side', 'time_normalized', 'omc', 'mmc'])
 
         dict_csvs_out[metric] = csv_out
@@ -1748,18 +1843,19 @@ if __name__ == '__main__':
 
     if test_timeseries:
 
-        for correct in corrections:
+        """for correct in corrections:
 
-            """preprocess_timeseries(root_val,
+            preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= [],
                                   joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct,
-                                  verbose=1, plot_debug=False, print_able=False)
-            dir_src = os.path.join(root_data, 'preprocessed_data', '02_fully_preprocessed') if correct == 'fixed' else os.path.join(root_data, 'preprocessed_data', '03_fully_preprocessed_dynamic')
+                                  verbose=1, plot_debug=False, print_able=False, empty_dst=False, debug=debug)
+            dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
+            dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
             normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)"""
 
         #get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
-        get_error_mean_rmse(dir_results, verbose=1)
-        get_rom_rmse(dir_results, verbose=1)
+        #get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
+        get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
         get_timeseries_correlations(dir_processed, dir_results, verbose=1)
             #get_multiple_correlations(dir_processed, dir_results, verbose=1) #TODO: Implement this function
 

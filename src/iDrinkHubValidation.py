@@ -765,6 +765,29 @@ def run_triangulation(trial_list):
     p2s_progress.close()
     df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
 
+def write_txt_with_timestamps(directory, phase, identifier):
+    """
+    Writes a .txt file with the timestamp for debugging purposes.
+
+    if the file already exists it appends the line to the file.
+
+
+
+    :param directory:  string with the directory where the file should be saved
+    :param phase: string with the phase of the pipeline
+    :param identifier: identifier of trial
+    :return:
+    """
+
+    curr_time = time.localtime()
+    line = f"{identifier}\t {time.strftime('%d/%m/%Y %H:%M:%S', curr_time)}\t Phase: {phase}"
+
+    if "last_trial.txt" in os.listdir(directory):
+        with open(os.path.join(directory, "last_trial.txt"), 'a') as file:
+            file.write(f'\n{line}')
+    else:
+        with open(os.path.join(directory, "last_trial.txt"), 'w') as file:
+            file.write(line)
 
 def run_opensim(trial_list):
 
@@ -790,7 +813,10 @@ def run_opensim(trial_list):
                 continue
 
         if args.single_patient:
-            if trial.id_p != args.single_patient:
+            if type(args.single_patient) == str:
+                args.single_patient = [args.single_patient]
+
+            if trial.id_p not in args.single_patient:
                 opensim_progress.update(1)
                 continue
 
@@ -812,7 +838,7 @@ def run_opensim(trial_list):
 
         trial.OS_done = joint_kin_exist and chest_pos_exist
 
-
+        write_txt_with_timestamps(root_val, 'Opensim', trial.identifier)
 
         if trial.OS_done:
             if args.verbose >= 2:
@@ -978,7 +1004,8 @@ if __name__ == '__main__':
     args.verbose = 2
     args.only_single_cam_trials = False
 
-    patients = ['P08', 'P10', 'P11', 'P12']
+    # [patients[key] for key in [5]]
+    patients = ['P08', 'P10', 'P11', 'P12', 'P242', 'P251', 'P252'] # still needed 251 and 252
     args.single_patient = False
 
     settings = ['S027', 'S028']
