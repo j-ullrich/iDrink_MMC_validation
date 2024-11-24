@@ -1005,7 +1005,7 @@ if __name__ == '__main__':
     args.only_single_cam_trials = False
 
     # [patients[key] for key in [5]]
-    patients = ['P08', 'P10', 'P11', 'P12', 'P242', 'P251', 'P252'] # still needed 251 and 252
+    patients = ['P07', 'P08', 'P10', 'P11', 'P12', 'P241', 'P242', 'P251', 'P252'] # still needed 251 and 252
     args.single_patient = False
 
     settings = ['S027', 'S028']

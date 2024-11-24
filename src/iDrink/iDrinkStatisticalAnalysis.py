@@ -7,6 +7,8 @@ import sys
 import shutil
 import glob
 import re
+from operator import index
+
 from tqdm import tqdm
 import platform
 import pandas as pd
@@ -1142,9 +1144,7 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
         df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic'] + [f'{metric}_pearson' for metric in metrics] +
                                [f'{metric}_pearson_p' for metric in metrics] )
 
-    if verbose >= 1:
-        total_count = len(metrics) * 2
-        progbar = tqdm(total=total_count, desc=f'Calculating Correlations for', disable=verbose < 1)
+    progbar = None
 
     for dynamic in ['fixed', 'dynamic']:
 
@@ -1160,14 +1160,23 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
         id_sets = list(set(tuple(row) for row in df_in[['id_s', 'id_p', 'id_t']].to_records(index=False)))
 
         if verbose >= 1:
-            total_count += len(id_sets)
-            progbar.total = total_count
-            progbar.refresh()
+            if progbar is None:
+                progbar = tqdm(total=len(id_sets)*2, desc='Calculating Correlations', disable=verbose < 1)
 
         for id_set in id_sets:
             id_s = id_set[0]
             id_p = id_set[1]
             id_t = id_set[2]
+
+            df_out_temp = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic'] + [f'{metric}_pearson' for metric in metrics] +
+                                        [f'{metric}_pearson_p' for metric in metrics], index=[0])
+
+            df_out_temp['id_s'] = id_s
+            df_out_temp['id_p'] = id_p
+            df_out_temp['id_t'] = id_t
+            df_out_temp['dynamic'] = dynamic
+
+
 
             for metric in metrics:
 
@@ -1176,7 +1185,7 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
 
                 df_temp = df_in[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) & (df_in['id_t'] == id_t)]
 
-                time = df_temp['time_normalized'].values.tolist()
+
                 condition = df_temp['condition'].values[0]
                 side = df_temp['side'].values[0]
 
@@ -1185,17 +1194,12 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
                 pearson = pearsonr(omc, mmc)[0]
                 pearson_p = pearsonr(omc, mmc)[1]
 
-                df_out_temp = pd.DataFrame({
-                    'id_s': id_s,
-                    'id_p': id_p,
-                    'id_t': id_t,
-                    'dynamic': dynamic,
-                    f'{metric}_pearson': pearson,
-                    f'{metric}_pearson_p': pearson_p
-                }, index=[0])
-                df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
-                if verbose >= 1:
-                    progbar.update(1)
+                df_out_temp[f'{metric}_pearson'] = pearson
+                df_out_temp[f'{metric}_pearson_p'] = pearson_p
+
+            df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
+            if verbose >= 1:
+                progbar.update(1)
 
     if verbose >= 1:
         progbar.close()
@@ -1258,7 +1262,7 @@ def get_multiple_correlations(dir_processed, dir_results, verbose=1):
 
 
 def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
-                          joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False, empty_dst=False,  debug=False):
+                          joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False, empty_dst=False,  debug=False, debug_c=20):
     """
     Preprocess timeseries data for statistical analysis.
 
@@ -1527,7 +1531,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
         if verbose >= 1:
             if debug:
-                total_count += 5
+                total_count += debug_c
             else:
 
                 total_count += len(t_ids)
@@ -1545,7 +1549,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
             if debug:
                 debug_count += 1
-                if debug_count > 5:
+                if debug_count > debug_c:
                     break
 
             omc_csv = glob.glob(os.path.join(dir_dat_in, f'S15133_{id_p}_{id_t}*.csv'))[0]
@@ -1843,7 +1847,8 @@ if __name__ == '__main__':
 
     if test_timeseries:
 
-        """for correct in corrections:
+        for correct in corrections:
+            debug = True
 
             preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= [],
@@ -1851,10 +1856,10 @@ if __name__ == '__main__':
                                   verbose=1, plot_debug=False, print_able=False, empty_dst=False, debug=debug)
             dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
-            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)"""
+            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
 
-        #get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
-        #get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
+        get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
+        get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
         get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
         get_timeseries_correlations(dir_processed, dir_results, verbose=1)
             #get_multiple_correlations(dir_processed, dir_results, verbose=1) #TODO: Implement this function

@@ -224,10 +224,44 @@ def run_first_stage(dir_opensim_logs, id_s):
     :return:
     """
 
-    p_list = ['P08', 'P10', 'P12', 'P13', 'P14', 'P15', 'P17', 'P19', 'P24', 'P25', 'P27', 'P28', 'P30', 'P31', 'P34']
-    files = glob.glob(os.path.join(dir_opensim_logs, f"{id_s}*opensim.log"))
+    def update_csv(df_in, dict_new_row):
+        """
+        Checks if row if id_s, id_p and id_t of new_row is already in df_in.
+        If not, it appends new_row to df_in. Otherwise, the row is updated.
+
+        :param df_in:
+        :param df_newrow:
+        :return:
+        """
+        id_s = dict_new_row['id_s']
+        id_p = dict_new_row['id_p']
+        id_t = dict_new_row['id_t']
+
+        """if df_in.empty:
+            return df_new_row"""
+
+        if len(df_in[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) & (df_in['id_t'] == id_t)]) == 0:
+            return pd.concat([df_in, pd.DataFrame(dict_new_row, index=[0])], ignore_index=True)
+        else:
+
+            df_in.loc[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) & (df_in['id_t'] == id_t)] = list(dict_new_row.values())
+            return df_in
+
+
+
+    p_list = ['P07', 'P08', 'P10', 'P11' 'P12', 'P15', 'P19', 'P241', 'P242', 'P251', 'P252']
+    files = glob.glob(os.path.join(dir_opensim_logs, f"{id_s}_*opensim.log"))
     loglist = []
     prcss = tqdm(total=len(files), desc=f"Processing {id_s}", unit='files')
+
+    csv_outliers = os.path.realpath(os.path.join(dir_opensim_logs,'..', 'Opensim_outlier.csv'))
+
+    if os.path.isfile(csv_outliers):
+        df_outliers = pd.read_csv(csv_outliers, sep=';')
+    else:
+        df_outliers = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'reason', 'info'])  # reason is 'outlier' or 'failed'
+
+
     for file in files:
         id_p = os.path.basename(file).split('_')[1]
         id_t = os.path.basename(file).split('_')[2]
@@ -237,7 +271,7 @@ def run_first_stage(dir_opensim_logs, id_s):
             prcss.update(1)
             continue
 
-        prcss.set_description(f"Processing {id_s}_{id_p}_{id_t}")
+        prcss.set_description(f"Processing {os.path.basename(file)}")
         prcss.update(1)
 
         if glob.glob(os.path.join(dir_opensim_logs, f"{identifier}_opensim_inverse_kinematics_log.csv")):
@@ -249,15 +283,32 @@ def run_first_stage(dir_opensim_logs, id_s):
         else:
             opensim_log = OpensimLogReader(file, id_t, id_p)
             opensim_log.read()
+
+            if all(s in opensim_log.lines[-2] for s in ['error', 'Failed']):
+                print(f'{opensim_log.file} failed. \n'
+                      f'{opensim_log.lines[-2]}')
+                df_outliers = update_csv(df_outliers, {'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': 'failed', 'info': opensim_log.lines[-2]})
+                continue
+
             opensim_log.parselines()
             opensim_log.write_csv()
             opensim_log.write_means()
 
-        loglist.append(opensim_log)
+        if opensim_log.mean_rmse >= 0.04:
+            df_outliers = update_csv(df_outliers, {'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': 'failed', 'info': f'RMSE = {opensim_log.mean_rmse}, max_error = {opensim_log.mean_max_error}'})
+        else:
+            loglist.append(opensim_log)
     prcss.close()
 
-    prcss2 = tqdm(total=4, desc=f"Processing {id_s}", unit='files')
+    df_outliers.to_csv(csv_outliers, index=False, sep=';')
 
+
+
+    if len(loglist) == 0:
+        print(f"No valid files for {id_s}.")
+        return False
+
+    prcss2 = tqdm(total=4, desc=f"Processing {id_s}", unit='files')
     df_mean = pd.concat([log.df_mean for log in loglist], ignore_index=True)
     prcss2.set_description(f"Processing {id_s}: df_mean created")
     prcss2.update(1)
@@ -275,7 +326,9 @@ def run_first_stage(dir_opensim_logs, id_s):
     print(f"Stage 1 for {id_s} completed.")
     prcss2.close()
 
-def plot_means(dir_opensim_logs, dir_plots, id_s, showfig=False):
+    return True
+
+def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_settings=True, showfig=False):
     df = pd.read_csv(os.path.join(dir_opensim_logs, f"{id_s}_opensim_inverse_kinematics_log_means.csv"))
 
     legendnames_for_column_names = {'total_squared_error': 'Total Squared Error',
@@ -286,42 +339,42 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, showfig=False):
     columns_to_plot = ['total_squared_error', 'marker_rmse', 'marker_max_error']
     columns_to_plot = ['marker_rmse']
     os.makedirs(os.path.join(dir_plots, 'pat_mean'), exist_ok=True)
-    prog = tqdm(total=len(df['id_p'].unique())*len(columns_to_plot), desc=f"Processing {id_s}", unit='files')
-    for id_p in df['id_p'].unique():
+    if plot_patients:
+        prog = tqdm(total=len(df['id_p'].unique())*len(columns_to_plot), desc=f"Processing {id_s}", unit='files')
+        for id_p in df['id_p'].unique():
 
+            for column in columns_to_plot:
+                prog.set_description(f"Processing {id_s}_{id_p}_{column}")
+                fig = px.bar(df[df['id_p'] == id_p], x='id_t', y=column, title=f"{legendnames_for_column_names[column]} for {id_s}_{id_p}",)
+                fig.update_layout(xaxis_title=f'Trials',
+                                  yaxis_title=f'{legendnames_for_column_names[column]}'
+                                  )
 
+                if showfig:
+                    fig.show()
+                fig.write_html(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{id_p}_{column}_bar_mean.html"))
+                fig.write_image(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{id_p}_{column}_bar_mean.png"))
+                prog.update(1)
+        prog.close()
+
+    if plot_settings:
+        prog = tqdm(total=len(columns_to_plot), desc=f"Processing {id_s}", unit='files')
         for column in columns_to_plot:
-            prog.set_description(f"Processing {id_s}_{id_p}_{column}")
-            fig = px.bar(df[df['id_p'] == id_p], x='id_t', y=column, title=f"{legendnames_for_column_names[column]} for {id_p}",)
-            fig.update_layout(xaxis_title=f'Trials',
-                              yaxis_title=f'{legendnames_for_column_names[column]}'
+            prog.set_description(f"Processing {id_s}_{column}")
+
+            setting_name = 'OMC-data' if id_s == 'S15133' else id_s
+            fig = px.box(df, x='id_p', y=column, title=f"{legendnames_for_column_names[column]} for {setting_name}",)
+            fig.update_layout(xaxis_title=f'Participants',
+                              yaxis_title=f'{legendnames_for_column_names[column]} (m)'
                               )
 
             if showfig:
                 fig.show()
-            fig.write_html(os.path.join(dir_plots, 'pat_mean', f"{id_p}_{column}_bar_mean.html"))
-            fig.write_image(os.path.join(dir_plots, 'pat_mean', f"{id_p}_{column}_bar_mean.png"))
+            fig.write_html(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{column}_box_means.html"))
+            fig.write_image(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{column}_box_means.png"))
             prog.update(1)
 
-    prog.close()
-
-
-    prog = tqdm(total=len(columns_to_plot), desc=f"Processing {id_s}", unit='files')
-    for column in columns_to_plot:
-        prog.set_description(f"Processing {id_s}_{column}")
-
-        fig = px.box(df, x='id_p', y=column, title=f"{legendnames_for_column_names[column]} for {id_s}",)
-        fig.update_layout(xaxis_title=f'Participants',
-                          yaxis_title=f'{legendnames_for_column_names[column]}'
-                          )
-
-        if showfig:
-            fig.show()
-        fig.write_html(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{column}_box_means.html"))
-        fig.write_image(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{column}_box_means.png"))
-        prog.update(1)
-
-    prog.close()
+        prog.close()
 
 
 
@@ -414,9 +467,12 @@ if __name__ == '__main__':
     dir_opensim_logs = os.path.join(drive, 'iDrink', "validation_root", "05_logs", 'opensim')
     dir_plots = os.path.join(dir_opensim_logs, 'plots')
 
-    id_s = 'S15133'
+    setting_ints = np.arange(1, 27).tolist()
+    setting_ints.append(15133)
 
-    run_first_stage(dir_opensim_logs, id_s)
-    plot_means(dir_opensim_logs, dir_plots, id_s, showfig=False)
-    #run_third_stage(dir_opensim_logs, dir_plots, id_s, showfig=True)
-    #plot_means(dir_opensim_logs, dir_plots, id_s, showfig=False)
+    idx_s = [f"S{setting_int:03d}" for setting_int in setting_ints]
+
+    for id_s in idx_s:
+        success = run_first_stage(dir_opensim_logs, id_s)
+        if success:
+            plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=True, showfig=False)
