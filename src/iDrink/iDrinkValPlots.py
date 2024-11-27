@@ -5,15 +5,14 @@ import pandas as pd
 import os
 import ast
 import glob
+
 from tqdm import tqdm
 
 import plotly as py
 import plotly.express as px
 import plotly.graph_objects as go
-from PIL.ImageOps import scale
 
 import statsmodels.api as sm
-from matplotlib.pyplot import legend, title
 
 
 def plot_murphy_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.png', use_smoother=True,
@@ -202,7 +201,10 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
     dir_dst_scale = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
                                  '01_omc_mmc_error', '02_scale_location', subdir_dyn)
 
-    for dst in [dir_dst_bland, dir_dst_scale]:
+    dir_dst_time = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
+                                    '01_omc_mmc_error', '03_time_error', subdir_dyn)
+
+    for dst in [dir_dst_bland, dir_dst_scale, dir_dst_time]:
         os.makedirs(dst, exist_ok=True)
 
     list_files_full = glob.glob(os.path.join(dir_src, '*norm.csv'))
@@ -249,6 +251,7 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                 error = df[f'{kinematic}_error'].values
 
                 mean = np.mean([omc, mmc], axis=0)
+                time = df['time'].values
 
                 # add data to plot
                 fig_bland.add_trace(go.Scatter(x=mean, y=error, mode='markers', name=f'{id_s}', text=df['id_s'],
@@ -261,6 +264,7 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
 
                 # add line at 0
                 fig_bland.add_trace(go.Scatter(x=[min(mean), max(mean)], y=[0, 0], mode='lines', name='Zero', line=dict(color='grey', dash='dash')))
+
 
                 # add limits of agreement
                 std_diff = np.std(error)
@@ -283,10 +287,36 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                 fig_scale.add_trace(go.Scatter(x=[min(mmc), max(mmc)], y=[lower_limit, lower_limit], mode='lines',
                                             name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
 
-            # update the layout
+                # Error to time
+                fig_time = go.Figure()
+                fig_time.add_trace(go.Scatter(x=time, y=error, mode='lines', name=f'{id_s}', line=dict(color='red')))
+                fig_time.add_trace(go.Scatter(x=time, y=[0]*len(time), mode='lines', name='Zero', line=dict(color='grey', dash='dash')))
+                fig_time.add_trace(go.Scatter(x=time, y=mmc, mode='lines', name='MMC', line=dict(color='blue', dash='dash')))
+                fig_time.add_trace(go.Scatter(x=time, y=omc, mode='lines', name='OMC', line=dict(color='green', dash='dash')))
+
+
+                match kinematic:
+                    case 'hand_vel':
+                        unit = 'mm/s'
+                    case 'elbow_vel':
+                        unit = 'deg/s'
+                    case 'trunk_disp':
+                        unit = 'mm'
+                    case 'trunk_ang':
+                        unit = 'deg'
+                    case 'elbow_flex_pos':
+                        unit = 'deg'
+                    case 'shoulder_flex_pos':
+                        unit = 'deg'
+                    case 'shoulder_abduction_pos':
+                        unit = 'deg'
+                    case _:
+                        unit = ''
+
+                # update the layout
             fig_bland.update_layout(title=f'Bland Altman Plot for {kinematic} of {id_p}, {id_t}',
                                     xaxis_title=f'Mean of {kinematic}',
-                                    yaxis_title='Error',
+                                    yaxis_title=f'Error [{unit}]',
                                     legend=dict(
                                         orientation="h",
                                         x=0,
@@ -295,9 +325,9 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                                     )
 
 
-            fig_bland.update_layout(title=f'Bland Altman Plot for {kinematic} of {id_p}, {id_t}',
-                                xaxis_title=f'Mean of {kinematic}',
-                                yaxis_title='Error',
+            fig_scale.update_layout(title=f'Bland Altman Plot for {kinematic} of {id_p}, {id_t}',
+                                xaxis_title=f'MMC of {kinematic}',
+                                yaxis_title=f'Error [{unit}]',
                                 legend=dict(
                                     orientation="h",
                                     x=0,
@@ -305,15 +335,14 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                                 )
                                 )
 
-
-
+            fig_time.update_layout(title=f'Error over trial {kinematic} of {id_p}, {id_t}',
+                                xaxis_title='% of trial',
+                                yaxis_title=f'Error [{unit}]')
 
             if show_plots:
                 fig_bland.show()
                 fig_scale.show()
-
-                path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.html')
-                py.offline.plot(fig_bland, filename=path_bland, auto_open=False)
+                fig_time.show()
 
             if write_html:
                 path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.html')
@@ -322,6 +351,9 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                 path_scale = os.path.join(dir_dst_scale, f'{id_p}_{id_t}_{kinematic}.html')
                 py.offline.plot(fig_scale, filename=path_scale, auto_open=False)
 
+                path_time = os.path.join(dir_dst_time, f'{id_p}_{id_t}_{kinematic}_time.html')
+                py.offline.plot(fig_time, filename=path_time, auto_open=False)
+
             if write_png:
                 path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.png')
                 fig_bland.write_image(path_bland, scale=5)
@@ -329,13 +361,185 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                 path_scale = os.path.join(dir_dst_scale, f'{id_p}_{id_t}_{kinematic}.png')
                 fig_scale.write_image(path_scale, scale=5)
 
+                path_time = os.path.join(dir_dst_time, f'{id_p}_{id_t}_{kinematic}_time.png')
+                fig_time.write_image(path_time, scale=5)
+
+
+def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_png=True, verbose=1):
+    """
+    Prints boxplots based on the mean errors and RMSE of the timeseries.
+
+    Plots 2 plots (for now):
+        For each paatient:
+        - Boxplot of the mean errors of the timeseries x: error y: id_s
+        - Boxplot of the RMSE of the timeseries x: RMSE y: id_s
+
+    :param root_val:
+    :return:
+    """
+
+    dir_src = os.path.join(root_val, '04_statistics', '01_continuous', '01_results')
+
+    csv_in = os.path.join(root_val, '04_statistics', '01_continuous', '01_results', 'omc_mmc_error.csv')
+
+    df_error = pd.read_csv(csv_in, sep=';')
+
+    dir_dst_error_box = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
+                                 '01_omc_mmc_error', '03_boxplot', '01_error')
+    dir_dst_rmse_box = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
+                                 '01_omc_mmc_error', '03_boxplot', '02_rmse')
+    dir_dst_rmse_box_log = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
+                                 '01_omc_mmc_error', '03_boxplot', '03_rmse_log')
+
+    for dir in [dir_dst_error_box, dir_dst_rmse_box, dir_dst_rmse_box_log]:
+        os.makedirs(dir, exist_ok=True)
+
+    """subdir_dyn = '02_dynamic' if dynamic else '01_fixed'
+
+    dir_dst_error_box = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
+                                 '01_omc_mmc_error', '03_boxplot')
+    dir_dst_rmse_box = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
+                                 '01_omc_mmc_error', '03_boxplot')"""
+
+    list_idx = list(df_error['id'].unique())
+
+    idx_s = []
+    idx_p = []
+
+    list_idx_sp = [] # List of tuples containing setting and patient ids, that have been done.
+
+    if verbose >= 1:
+        prog = tqdm(list(df_error['id_p'].unique()), desc='Plotting Boxplots', unit='Patient')
+
+    for identifier in list_idx:
+
+        if len(identifier.split('_')) != 3:
+            continue
+
+        if verbose >= 1:
+            prog.set_description(f'Plotting Boxplots for {identifier}')
+
+        id_p = identifier.split('_')[1]
+        if id_p in idx_p:
+            continue
+
+        idx_p.append(id_p)
+
+
+        df = df_error[(df_error['id_p'] == id_p) & df_error['id'].str.contains('T')]
 
 
 
+        list_dynamic = list(df['dynamic'].unique())
+        list_normalized = list(df['normalized'].unique())
+
+        metrics = list(df['metric'].unique())
+
+        for dynamic in list_dynamic:
+            normal = 'original'
+
+            for metric in metrics:
+
+                df_to_plot = df[(df['dynamic'] == dynamic) & (df['normalized'] == normal) & (df['metric'] == metric)]
+
+                match metric:
+                    case 'hand_vel':
+                        unit = 'mm/s'
+                    case 'elbow_vel':
+                        unit = 'deg/s'
+                    case 'trunk_disp':
+                        unit = 'mm'
+                    case 'trunk_ang':
+                        unit = 'deg'
+                    case 'elbow_flex_pos':
+                        unit = 'deg'
+                    case 'shoulder_flex_pos':
+                        unit = 'deg'
+                    case 'shoulder_abduction_pos':
+                        unit = 'deg'
+                    case _:
+                        unit = ''
+
+                # Boxplot of the mean errors of the timeseries x: id_s y: mean
+
+                fig_err = px.box(df_to_plot, x='id_s', y='mean', color = 'condition',
+                             title=f'Mean Error for {metric} of {id_p} - {dynamic}',
+                             labels={'mean': f'Mean Error [{unit}]', 'id_s': 'Setting ID'})
+
+                fig_rmse = px.box(df_to_plot, x='id_s', y='rmse', color = 'condition',
+                                      title=f'Log(RMSE) for {metric} of {id_p} - {dynamic}',
+                                      labels={'rmse': f'RMSE [{unit}]', 'id_s': 'Setting ID'})
+
+                fig_log_rmse = px.box(df_to_plot, x='id_s', y='rmse', color = 'condition', log_y=True,
+                             title=f'Log(RMSE) for {metric} of {id_p} - {dynamic}',
+                             labels={'rmse': f'Log(RMSE) [{unit}]', 'id_s': 'Setting ID'})
 
 
 
+                if showfig:
+                    fig_err.show()
+                    fig_rmse.show()
+                    fig_log_rmse.show()
 
+
+                if write_html:
+                    path = os.path.join(dir_dst_error_box, f'{id_p}_{metric}_{dynamic}_{normal}_error_box.html')
+                    fig_err.write_html(path)
+
+                    path = os.path.join(dir_dst_rmse_box, f'{id_p}_{metric}_{dynamic}_{normal}_rmse_box.html')
+                    fig_rmse.write_html(path)
+
+                    path = os.path.join(dir_dst_rmse_box_log, f'{id_p}_{metric}_{dynamic}_{normal}_log_rmse_box.html')
+                    fig_log_rmse.write_html(path)
+
+                if write_png:
+                    path = os.path.join(dir_dst_error_box, f'{id_p}_{metric}_{dynamic}_{normal}_error_box.png')
+                    fig_err.write_image(path, scale=5)
+
+                    path = os.path.join(dir_dst_rmse_box, f'{id_p}_{metric}_{dynamic}_{normal}_rmse_box.png')
+                    fig_rmse.write_image(path, scale=5)
+
+                    path = os.path.join(dir_dst_rmse_box_log, f'{id_p}_{metric}_{dynamic}_{normal}_log_rmse_box.png')
+                    fig_log_rmse.write_image(path, scale=5)
+
+        if verbose >= 1:
+            prog.update(1)
+
+
+
+def plot_timeseries_barplot_error_rmse(root_val):
+    """
+    Creates barplot for each Patient with the mean error and RMSE of the timeseries.
+
+
+
+    :param root_val:
+    :return:
+    """
+
+    csv_in = os.path.join(root_val, '04_statistics', '01_continuous', '01_results', 'omc_mmc_error.csv')
+    if not os.path.isfile(csv_in):
+        print(f'File {csv_in} does not exist.')
+        return
+
+    df_error = pd.read_csv(csv_in, sep=';')
+
+    list_idx = list(df_error['id'].unique())
+
+    for identifier in list_idx:
+
+        if len(identifier.split('_')) != 2:
+            continue
+
+        id_s = identifier.split('_')[0]
+        id_p = identifier.split('_')[1]
+
+        df = df_error[df_error['id'] == identifier]
+
+        list_dynamic = list(df['dynamic'].unique())
+        list_normalized = list(df['normalized'].unique())
+
+        identifier
 
 
 
@@ -800,19 +1004,25 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
     # retrieve all p_ids and t_ids present in omc data.
     idx_p_omc = list(set([os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]))
 
-
-    progress = tqdm(total=len(idx_s), desc='Searching plottable Trials', disable=verbose < 1)
-
-
     idx_p_mmc = sorted(list(set([os.path.basename(file).split('_')[1] for file in os.listdir(dir_src)])))
     # get all p_ids present for mmc and omc data
     idx_p = sorted(list(set(idx_p_omc) & set(idx_p_mmc)))
+
+    total = len(idx_p)
+
+    progbar = tqdm(total=total, desc='Searching plottable Trials', disable=verbose < 1)
 
     for id_p in idx_p:
         idx_t_omc = [os.path.basename(omc_csv).split('_')[2].split('.')[0] for omc_csv in omc_csvs
                      if id_p in os.path.basename(omc_csv)]
         idx_t_mmc = [os.path.basename(file).split('_')[2].split('.')[0] for file in os.listdir(dir_src) if id_p in file]
         idx_t = sorted(list(set(idx_t_omc) & set(idx_t_mmc)))
+
+        total += len(idx_t)
+
+        progbar.total = total
+        progbar.refresh()
+
         for id_t in idx_t:
             idx_s = [os.path.basename(file).split('_')[0] for file in os.listdir(dir_src) if id_p in file and id_t in file and 'S15133' not in file]
             condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
@@ -827,6 +1037,8 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
                     df = pd.concat([df, df_new], ignore_index=True)
                 else:
                     continue
+
+            progbar.update(1)
 
     df.to_csv(path_csv, sep=';')
 
@@ -903,6 +1115,9 @@ if __name__ == "__main__":
         dynamic = False
         dynamic_str = 'fixed'
 
+
+    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_png=True, verbose=1)
+
     csv_plottable = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
 
@@ -913,6 +1128,7 @@ if __name__ == "__main__":
 
     kinematic = kinematics[4]
     # iterate over all plottable trials and create plots
+
     for i in range(len(df_plottable)):
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]

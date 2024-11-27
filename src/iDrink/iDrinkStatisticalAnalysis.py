@@ -828,12 +828,10 @@ def get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1):
     metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
                'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
 
-    if os.path.isfile(csv_out) and not overwrite_csvs:
-        df_out = pd.read_csv(csv_out, sep=';')
-    else:
-        df_out = pd.DataFrame(columns=['id', 'condition', 'dynamic', 'normalized'] + [f'{metric}_mean' for metric in metrics] +
-                               [f'{metric}_median' for metric in metrics] + [f'{metric}_std' for metric in metrics] +
-                               [f'{metric}_rmse' for metric in metrics] + [f'{metric}_rmse_std' for metric in metrics])
+    df_out = pd.DataFrame(columns=['id', 'id_s', 'id_p', 'id_t', 'condition', 'dynamic', 'normalized', 'metric', 'mean',
+                                   'median', 'std', 'rmse', 'rmse_std'])
+
+
 
     dir_dst = os.path.join(dir_results, '02_ts_error_mean_rmse')
     os.makedirs(dir_dst, exist_ok=True)
@@ -870,17 +868,7 @@ def get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1):
 
             for dynamic in df_s['dynamic'].unique():
 
-                df_mean = pd.DataFrame({
-                        'id': id,
-                        'condition': condition,
-                        'dynamic': dynamic,
-                        'normalized': normalized,
-                        **{f'{metric}_mean': None for metric in metrics},
-                        **{f'{metric}_median': None for metric in metrics},
-                        **{f'{metric}_std': None for metric in metrics},
-                        **{f'{metric}_rmse': None for metric in metrics},
-                        **{f'{metric}_rmse_std': None for metric in metrics}
-                    }, index=[0])
+
 
                 for metric in metrics:
 
@@ -890,19 +878,23 @@ def get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1):
                     rmse = np.sqrt(np.nanmean(df_s[f'{metric}_error']**2))
                     rmse_std = np.nanstd(df_s[f'{metric}_rse'])
 
+                    df_mean = pd.DataFrame({
+                        'id': id,
+                        'id_s': id_s,
+                        'id_p': id_p,
+                        'id_t': id_t,
+                        'condition': condition,
+                        'dynamic': dynamic,
+                        'normalized': normalized,
+                        'metric': metric,
+                        'mean': mean,
+                        'median': median,
+                        'std': std,
+                        'rmse': rmse,
+                        'rmse_std': rmse_std
+                    }, index=[0])
 
-                    df_mean['id'] = id
-                    df_mean['condition'] = condition
-                    df_mean['dynamic'] = dynamic
-                    df_mean['normalized'] = normalized
-
-                    df_mean[f'{metric}_mean'] = mean
-                    df_mean[f'{metric}_median'] = median
-                    df_mean[f'{metric}_std'] = std
-                    df_mean[f'{metric}_rmse'] = rmse
-                    df_mean[f'{metric}_rmse_std'] = rmse_std
-
-                df_out = pd.concat([df_out, df_mean], axis=0, ignore_index=True)
+                    df_out = pd.concat([df_out, df_mean], axis=0, ignore_index=True)
 
             if verbose >= 1:
                 progbar.update(1)
@@ -919,17 +911,24 @@ def get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1):
     idx_s = sorted(list(set([id.split('_')[0] for id in idx if len(id.split('_')) == 3])))
     idx_p = sorted(list(set([id.split('_')[1] for id in idx if len(id.split('_')) == 3])))
 
-    df_mean_s = pd.DataFrame(columns=['id', 'condition', 'dynamic', 'normalized'] + [f'{metric}_mean' for metric in metrics] +
-                               [f'{metric}_median' for metric in metrics] + [f'{metric}_std' for metric in metrics] +
-                               [f'{metric}_rmse' for metric in metrics] + [f'{metric}_rmse_std' for metric in metrics])
+    df_mean_s = pd.DataFrame(columns=['id', 'id_s', 'id_p', 'id_t', 'condition', 'dynamic', 'normalized', 'metric',
+                                      'mean', 'median', 'std', 'rmse', 'rmse_std'])
 
-    df_mean_p = pd.DataFrame(columns=['id', 'condition', 'dynamic', 'normalized'] + [f'{metric}_mean' for metric in metrics] +
-                               [f'{metric}_median' for metric in metrics] + [f'{metric}_std' for metric in metrics] +
-                               [f'{metric}_rmse' for metric in metrics] + [f'{metric}_rmse_std' for metric in metrics])
+    df_mean_p = pd.DataFrame(columns=['id', 'id_s', 'id_p', 'id_t', 'condition', 'dynamic', 'normalized', 'metric',
+                                      'mean', 'median', 'std', 'rmse', 'rmse_std'])
 
-    def get_mean_error_for_s_and_p(df_in, df_mean, metrics, id ):
+    def get_mean_error_for_s_and_p(df_in, df_mean, metrics, id):
         if df_in.shape[0] == 0:
             return df_mean
+
+        if len(id.split('_')) == 2:
+            id_s = id.split('_')[0]
+            id_p = id.split('_')[1]
+            id_t = None
+        else:
+            id_s = id
+            id_p = None
+            id_t = None
 
         for dynamic in df_in['dynamic'].unique():
             df_dyn = df_in[df_in['dynamic'] == dynamic]
@@ -940,27 +939,30 @@ def get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1):
                 for condition in df_norm['condition'].unique():
                     df_temp = df_norm[df_norm['condition'] == condition]
 
-                    df_t_out = pd.DataFrame(columns = df_mean.columns, index=[0])
-                    df_t_out['id'] = id
-                    df_t_out['condition'] = condition
-                    df_t_out['dynamic'] = dynamic
-                    df_t_out['normalized'] = normalized
-
                     for metric in metrics:
-                        mean = np.nanmean(df_temp[f'{metric}_mean'])
-                        median = np.nanmean(df_temp[f'{metric}_median'])
-                        std = np.nanmean(df_temp[f'{metric}_std'])
-                        rmse = np.nanmean(df_temp[f'{metric}_rmse'])
-                        rmse_std = np.nanmean(df_temp[f'{metric}_rmse_std'])
+                        df_temp_metric = df_temp[df_temp['metric'] == metric]
+                        mean = np.nanmean(df_temp_metric[f'mean'])
+                        median = np.nanmean(df_temp_metric[f'median'])
+                        std = np.nanmean(df_temp_metric[f'std'])
+                        rmse = np.nanmean(df_temp_metric[f'rmse'])
+                        rmse_std = np.nanmean(df_temp_metric[f'rmse_std'])
 
-                        df_t_out[f'{metric}_mean'] = mean
-                        df_t_out[f'{metric}_median'] = median
-                        df_t_out[f'{metric}_std'] = std
-                        df_t_out[f'{metric}_rmse'] = rmse
-                        df_t_out[f'{metric}_rmse_std'] = rmse_std
+                        df_t_out = pd.DataFrame(columns = df_mean.columns, index=[0])
+                        df_t_out['id'] = id
+                        df_t_out['id_s'] = id_s
+                        df_t_out['id_p'] = id_p
+                        df_t_out['id_t'] = id_t
+                        df_t_out['condition'] = condition
+                        df_t_out['dynamic'] = dynamic
+                        df_t_out['normalized'] = normalized
+                        df_t_out['metric'] = metric
+                        df_t_out['mean'] = mean
+                        df_t_out['median'] = median
+                        df_t_out['std'] = std
+                        df_t_out['rmse'] = rmse
+                        df_t_out['rmse_std'] = rmse_std
 
-
-                    df_mean = pd.concat([df_mean, df_t_out], axis=0, ignore_index=True)
+                        df_mean = pd.concat([df_mean, df_t_out], axis=0, ignore_index=True)
 
         return df_mean
 
