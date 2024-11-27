@@ -16,8 +16,8 @@ import statsmodels.api as sm
 from matplotlib.pyplot import legend, title
 
 
-def plot_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.png', use_smoother=True,
-                     colourcode = None, show_id_t=False, verbose=1, show_plots=True, customize_layout=False):
+def plot_murphy_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.png', use_smoother=True,
+                            colourcode = None, show_id_t=False, verbose=1, show_plots=True, customize_layout=False):
     """
     create bland altman plot.
 
@@ -178,6 +178,165 @@ def plot_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=Fal
                     fig.write_image(path, scale=5)
                 case _:
                     print(f'Filetype {extension} not supported. Please use .html, .png, .jpg or .jpeg')
+
+
+def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, idx_t=None, dynamic='dynamic', write_html=True, write_png=True, show_plots=True):
+    """
+    Prints all Bland altman and scale location plots and saves them into the correct folder.
+
+    Normalized errors are used for the plots.
+
+    #TODO: Implement settingwise if enough time is left.
+
+    :param root_val:
+    :return:
+    """
+
+
+
+    dir_src = os.path.join(root_val, '04_statistics', '01_continuous', '01_results', '01_ts_error')
+
+    subdir_dyn = '02_dynamic' if dynamic else '01_fixed'
+    dir_dst_bland = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
+                                 '01_omc_mmc_error', '01_bland_altman', subdir_dyn)
+    dir_dst_scale = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
+                                 '01_omc_mmc_error', '02_scale_location', subdir_dyn)
+
+    for dst in [dir_dst_bland, dir_dst_scale]:
+        os.makedirs(dst, exist_ok=True)
+
+    list_files_full = glob.glob(os.path.join(dir_src, '*norm.csv'))
+
+    if idx_p is None:
+        idx_p = list(set([os.path.basename(file).split('_')[1] for file in list_files_full]))
+    elif type(idx_p) is str:
+        idx_p = [idx_p]
+
+
+    for id_p in idx_p:
+        list_files_p = [file for file in list_files_full if id_p in file]
+
+        if idx_t is None:
+            idx_t = list(set([os.path.basename(file).split('_')[2].split('.')[0] for file in list_files_p]))
+        elif type(idx_t) is str:
+            idx_t = [idx_t]
+
+
+        for id_t in idx_t:
+            files = [file for file in list_files_p if id_t in file]
+            if files:
+                file = files[0]
+            else:
+                continue
+
+
+            df_pt = pd.read_csv(file, sep=';')
+            idx_s = list(set(df_pt['id_s'].values))
+
+            fig_bland = go.Figure()
+            fig_scale = go.Figure()
+
+            colours = px.colors.qualitative.Plotly
+
+            list_colours = [colours[i % len(colours)] for i in range(len(idx_s))]
+
+            for id_s in idx_s:
+                df = df_pt[(df_pt['id_s'] == id_s) & (df_pt['dynamic'] == dynamic)]
+
+                # Bland Altman Plot
+                omc = df[f'{kinematic}_omc'].values
+                mmc = df[f'{kinematic}_mmc'].values
+                error = df[f'{kinematic}_error'].values
+
+                mean = np.mean([omc, mmc], axis=0)
+
+                # add data to plot
+                fig_bland.add_trace(go.Scatter(x=mean, y=error, mode='markers', name=f'{id_s}', text=df['id_s'],
+                                               hoverinfo='text',
+                                               line=dict(color=list_colours[idx_s.index(id_s)])))
+
+                # add smoother
+                lowess = sm.nonparametric.lowess(error, mean, frac=0.6)
+                fig_bland.add_trace(go.Scatter(x=lowess[:, 0], y=lowess[:, 1], mode='lines', name=f'{id_s}', line=dict(color='red')))
+
+                # add line at 0
+                fig_bland.add_trace(go.Scatter(x=[min(mean), max(mean)], y=[0, 0], mode='lines', name='Zero', line=dict(color='grey', dash='dash')))
+
+                # add limits of agreement
+                std_diff = np.std(error)
+                sd = 1.96
+                upper_limit = + sd * std_diff
+                lower_limit = - sd * std_diff
+                fig_bland.add_trace(go.Scatter(x=[min(mean), max(mean)], y=[upper_limit, upper_limit], mode='lines',
+                                         name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
+                fig_bland.add_trace(go.Scatter(x=[min(mean), max(mean)], y=[lower_limit, lower_limit], mode='lines',
+                                         name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
+
+
+                # Scale Location Plot
+                fig_scale.add_trace(go.Scatter(x=mmc, y=error, mode='markers', name=f'{id_s}', text=df['id_s'], hoverinfo='text'))
+                fig_scale.add_trace(go.Scatter(x=mmc, y=error, mode='lines', name=f'{id_s}', line=dict(color='red')))
+                fig_scale.add_trace(go.Scatter(x=[min(mmc), max(mmc)], y=[0, 0], mode='lines', name='Zero',
+                                               line=dict(color='grey', dash='dash')))
+                fig_scale.add_trace(go.Scatter(x=[min(mmc), max(mmc)], y=[upper_limit, upper_limit], mode='lines',
+                                            name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
+                fig_scale.add_trace(go.Scatter(x=[min(mmc), max(mmc)], y=[lower_limit, lower_limit], mode='lines',
+                                            name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
+
+            # update the layout
+            fig_bland.update_layout(title=f'Bland Altman Plot for {kinematic} of {id_p}, {id_t}',
+                                    xaxis_title=f'Mean of {kinematic}',
+                                    yaxis_title='Error',
+                                    legend=dict(
+                                        orientation="h",
+                                        x=0,
+                                        y=-0.2  # Positionierung unterhalb der x-Achse
+                                    )
+                                    )
+
+
+            fig_bland.update_layout(title=f'Bland Altman Plot for {kinematic} of {id_p}, {id_t}',
+                                xaxis_title=f'Mean of {kinematic}',
+                                yaxis_title='Error',
+                                legend=dict(
+                                    orientation="h",
+                                    x=0,
+                                    y=-0.2  # Positionierung unterhalb der x-Achse
+                                )
+                                )
+
+
+
+
+            if show_plots:
+                fig_bland.show()
+                fig_scale.show()
+
+                path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.html')
+                py.offline.plot(fig_bland, filename=path_bland, auto_open=False)
+
+            if write_html:
+                path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.html')
+                py.offline.plot(fig_bland, filename=path_bland, auto_open=False)
+
+                path_scale = os.path.join(dir_dst_scale, f'{id_p}_{id_t}_{kinematic}.html')
+                py.offline.plot(fig_scale, filename=path_scale, auto_open=False)
+
+            if write_png:
+                path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.png')
+                fig_bland.write_image(path_bland, scale=5)
+
+                path_scale = os.path.join(dir_dst_scale, f'{id_p}_{id_t}_{kinematic}.png')
+                fig_scale.write_image(path_scale, scale=5)
+
+
+
+
+
+
+
+
+
 
 
 def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=None, path=None, verbose=1, show_plots=True):
@@ -383,7 +542,13 @@ def generate_plots_grouped_different_settings(dir_src, dir_dst, df_omc, id_p, id
 
     for i, id_s in enumerate(idx_s):
 
-        df_mmc = pd.read_csv(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}_preprocessed.csv'), sep=';')
+        files = glob.glob(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}*.csv'))
+        if files:
+            df_mmc = pd.read_csv(files[0], sep=';')
+        else:
+            continue
+
+        #df_mmc = pd.read_csv(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}_preprocessed.csv'), sep=';')
 
         #time = pd.to_timedelta(df_mmc['time']).apply(lambda x: x.total_seconds())
         time = df_omc['time']
@@ -638,7 +803,7 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
 
     progress = tqdm(total=len(idx_s), desc='Searching plottable Trials', disable=verbose < 1)
 
-    progress.update(1)
+
     idx_p_mmc = sorted(list(set([os.path.basename(file).split('_')[1] for file in os.listdir(dir_src)])))
     # get all p_ids present for mmc and omc data
     idx_p = sorted(list(set(idx_p_omc) & set(idx_p_mmc)))
@@ -717,11 +882,8 @@ if __name__ == "__main__":
     id_s = 'S001'
 
     """Set Root Paths for Processing"""
-    drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'I:']
-    if os.name == 'posix':  # Running on Linux
-        drive = '/media/devteam-dart/Extreme SSD'
-    else:
-        drive = drives[2] + '\\'
+    import iDrinkUtilities
+    drive = iDrinkUtilities.get_drivepath()
 
     root_iDrink = os.path.join(drive, 'iDrink')
     root_val = os.path.join(root_iDrink, "validation_root")
@@ -732,25 +894,34 @@ if __name__ == "__main__":
 
 
     dir_processed = os.path.join(root_val, '03_data', 'preprocessed_data', '02_fully_preprocessed')
-    dir_processed = os.path.join(root_val, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic')
+    #dir_processed = os.path.join(root_val, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic')
 
     if 'dynamic' in dir_processed:
         dynamic = True
+        dynamic_str = 'dynamic'
     else:
         dynamic = False
+        dynamic_str = 'fixed'
 
     csv_plottable = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
 
-    df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='affected', verbose=1)
+    df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='unaffected', verbose=1)
 
+    kinematics =['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos',
+                 'shoulder_abduction_pos']
+
+    kinematic = kinematics[4]
     # iterate over all plottable trials and create plots
     for i in range(len(df_plottable)):
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]
+        for kinematic in kinematics:
+            plot_timeseries_blandaltman_scale_location(root_val, kinematic=kinematic, idx_p=id_p, idx_t=id_t, dynamic=dynamic_str, write_html=False, write_png=True, show_plots=False)
+            pass
 
         generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
-                                      showfig = False, write_html=True, write_png=False)
+                                      showfig = False, write_html=False, write_png=True)
 
     #plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True, id_p=None,  verbose=1)
     #plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)

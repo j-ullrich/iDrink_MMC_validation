@@ -925,6 +925,31 @@ def run_statistics():
     # iDrinkStatisticalAnalysis.preprocess_timeseries(dir_root=root_val, detect_outliers=False, verbose=args.verbose)
     iDrinkStatisticalAnalysis.get_omc_mmc_error_old(dir_root=root_val, df_timestamps=df_timestamps, verbose=args.verbose)
 
+    corrections = ['fixed', 'dynamic']
+
+    dir_processed = os.path.join(root_data, 'preprocessed_data')
+    dir_results = os.path.join(root_stat, '01_continuous', '01_results')
+
+    for correct in corrections:
+        debug = True
+        iDrinkStatisticalAnalysis.preprocess_timeseries(root_val,
+                              downsample=True, drop_last_rows=False, detect_outliers= [],
+                              joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct, fancy_offset=False,
+                              verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug)
+        dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
+        dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
+        iDrinkStatisticalAnalysis.normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
+    iDrinkStatisticalAnalysis.get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
+    iDrinkStatisticalAnalysis.get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
+    iDrinkStatisticalAnalysis.get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
+    iDrinkStatisticalAnalysis.get_timeseries_correlations(dir_processed, dir_results, verbose=1)
+        #iDrinkStatisticalAnalysis.get_multiple_correlations(dir_processed, dir_results, verbose=1) #TODO: Implement this function
+        #iDrinkStatisticalAnalysis.get_omc_mmc_error_old(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
+
+
+
+    iDrinkStatisticalAnalysis.runs_statistics_discrete(path_csv_murphy_measures, root_stat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)
+
     # generate Plots
 
 def run_mode(no_calib = False):

@@ -166,23 +166,23 @@ def save_plots_murphy(df_murphy, root_stat_cat, filetype = '.png', verbose=1):
 
             for measure in murphy_measures:
                 filename = os.path.join(root_plots,  f'bland_altman_{id_s}_{id_p}_{measure}')
-                iDrinkVP.plot_blandaltman(df_murphy, measure, id_s, id_p, filename=filename,
-                                          filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
+                iDrinkVP.plot_murphy_blandaltman(df_murphy, measure, id_s, id_p, filename=filename,
+                                                 filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
 
                 filename = os.path.join(root_plots, f'residuals_vs_mmc_{id_s}_{id_p}_{measure}')
-                iDrinkVP.plot_blandaltman(df_murphy, measure, id_s, id_p,
-                                          plot_to_val=True, filename=filename, show_id_t=False, verbose=verbose,
-                                          filetype=filetype, show_plots=False)
+                iDrinkVP.plot_murphy_blandaltman(df_murphy, measure, id_s, id_p,
+                                                 plot_to_val=True, filename=filename, show_id_t=False, verbose=verbose,
+                                                 filetype=filetype, show_plots=False)
 
                 if not fullsettingplotted:
                     filename = os.path.join(root_plots,  f'bland_altman_all_{id_s}_{measure}')
-                    iDrinkVP.plot_blandaltman(df_murphy, measure, id_s, filename=filename,
-                                              filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
+                    iDrinkVP.plot_murphy_blandaltman(df_murphy, measure, id_s, filename=filename,
+                                                     filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
 
                     filename = os.path.join(root_plots, f'residuals_vs_mmc_all_{id_s}_{measure}')
-                    iDrinkVP.plot_blandaltman(df_murphy, measure, id_s, filename=filename,
-                                              filetype=filetype, plot_to_val=True, show_id_t=False, verbose=verbose,
-                                              show_plots=False)
+                    iDrinkVP.plot_murphy_blandaltman(df_murphy, measure, id_s, filename=filename,
+                                                     filetype=filetype, plot_to_val=True, show_id_t=False, verbose=verbose,
+                                                     show_plots=False)
 
             fullsettingplotted = True
 
@@ -1262,7 +1262,9 @@ def get_multiple_correlations(dir_processed, dir_results, verbose=1):
 
 
 def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
-                          joint_vel_thresh = 5, hand_vel_thresh = 3000, verbose=1, plot_debug=False, print_able=False, empty_dst=False,  debug=False, debug_c=20):
+                          joint_vel_thresh = 5, hand_vel_thresh = 3000, fancy_offset = True,
+                          verbose=1, plot_debug=False, print_able=False,
+                          empty_dst=False,  debug=False, debug_c=20):
     """
     Preprocess timeseries data for statistical analysis.
 
@@ -1336,13 +1338,12 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
         if print_able:
             if offset:
-                print(
-                    f"Those are the optimal delay time {optimal_delay_time} and offset {optimal_offset_val} for trial {trial_identifier} ")
+                print(f"Those are the optimal delay time {optimal_delay_time} and offset {optimal_offset_val} for trial {trial_identifier} ")
             else:
                 print(f"This is the optimal delay time {optimal_delay_time} for trial {trial_identifier} ")
 
         if not (offset):
-            ## We try the method of just taking ou the mean of sys_2 and adding by the mean of the reference system
+            ## We try the method of just taking out the mean of sys_2 and adding by the mean of the reference system
             mean_omc = np.mean(work_df_omc[kinematic_val])
             mean_mmc = np.mean(work_df_mmc[kinematic_val])
             val_work_mmc = work_df_mmc[kinematic_val] - mean_mmc + mean_omc
@@ -1357,6 +1358,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
             plt.xlabel("Time (s)")
             plt.ylabel(f"{kinematic_val} (Unit of kinematic)")
             plt.title(f"Optimisation of the time delay for trial {trial_identifier}")
+            plt.legend(["Reference system", "System to optimise"])
             plt.show()
 
         if offset:
@@ -1364,7 +1366,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
         else:
             return optimal_delay_time
 
-    def handling_vertical_offset(df_omc, df_mmc):
+    def handling_vertical_offset(df_omc, df_mmc, fancy=False):
         '''
         Taken and adapted from Marwen Moknis Masterthesis:
 
@@ -1375,6 +1377,38 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
         Reference system : df_omc
 
         '''
+        def do_it_fancy(work_df_mmc, work_df_omc, kinematics, dict_offsets):
+            from scipy.optimize import curve_fit
+
+            def reference_function(time, delay_time, offset):
+                return np.interp(time + delay_time, work_df_omc['time'], work_df_omc[kinematic] + offset)
+
+            for kinematic in kinematics:
+                try:
+                    popt, _ = curve_fit(reference_function, work_df_mmc['time'], work_df_mmc[kinematic], maxfev=5000)
+
+                    ## Getting the value we did the optimisation on
+                    optimal_delay_time = popt[0]
+                    offset_val = popt[1]
+
+                    dict_offsets[kinematic] = offset_val
+                except Exception as e:
+                    print(f"Error in curve_fit: {e}")
+
+                    # If curve_fit fails, use unfancy_method
+                    val_omc = work_df_omc[kinematic]
+                    val_mmc = work_df_mmc[kinematic]
+
+                    mean_omc = np.mean(val_omc)
+                    mean_mmc = np.mean(val_mmc)
+
+                    dict_offsets[kinematic] = mean_mmc + mean_omc
+
+                work_df_mmc[kinematic] = work_df_mmc[kinematic] + offset_val
+
+            return work_df_mmc, dict_offsets
+
+
         ##Copy of both DataFrames
         df_omc_cp = df_omc.copy()
         df_mmc_cp = df_mmc.copy()
@@ -1382,16 +1416,23 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
         ##Getting only the kinematic labels
         kinematics = list(df_mmc_cp.columns)[1:] # TODO check that kinematics list is correct
 
-        for kinematic in kinematics:
-            val_omc = df_omc_cp[kinematic]
-            val_mmc = df_mmc_cp[kinematic]
+        dict_offsets = {key: None for key in kinematics}
 
-            mean_omc = np.mean(val_omc)
-            mean_mmc = np.mean(val_mmc)
+        if fancy:
+            df_mmc_cp, dict_offsets = do_it_fancy(df_mmc_cp, df_omc, kinematics, dict_offsets)
+        else:
+            for kinematic in kinematics:
+                val_omc = df_omc_cp[kinematic]
+                val_mmc = df_mmc_cp[kinematic]
 
-            df_mmc_cp[kinematic] = df_mmc_cp[kinematic] - mean_mmc + mean_omc
+                mean_omc = np.mean(val_omc)
+                mean_mmc = np.mean(val_mmc)
 
-        return df_mmc_cp
+                df_mmc_cp[kinematic] = df_mmc_cp[kinematic] - mean_mmc + mean_omc
+
+                dict_offsets[kinematic] = mean_mmc + mean_omc
+
+        return df_mmc_cp, dict_offsets
 
 
     def downsample_dataframe(df_, fps=60):
@@ -1482,7 +1523,38 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
         if not os.path.exists(dir):
             return
         for file in os.listdir(dir):
-            os.remove(os.path.join(dir, file))
+            path = os.path.join(dir, file)
+            if os.path.isfile(path):
+                os.remove(os.path.join(dir, file))
+
+    def update_offset_csv(csv_offset, id_s, id_p, id_t, dict_offsets):
+        """
+        Updates or writes csv file with offsets for each trial and kinematic
+
+        :param csv_offset:
+        :param id_s:
+        :param id_p:
+        :param id_t:
+        :param dict_offsets:
+        :return:
+        """
+        kinematics = list(dict_offsets.keys())
+
+        if os.path.isfile(csv_offset):
+            df_offset = pd.read_csv(csv_offset, sep=';')
+        else:
+            df_offset = pd.DataFrame(columns=['id_s', 'id_p', 'id_t'] + kinematics)
+
+        dict_new_row = {'id_s': id_s, 'id_p': id_p, 'id_t': id_t, **dict_offsets}
+
+        if len(df_offset[(df_offset['id_s'] == id_s) & (df_offset['id_p'] == id_p) & (df_offset['id_t'] == id_t)]) == 0:
+            df_offset = pd.concat([df_offset, pd.DataFrame(dict_new_row, index=[0])], ignore_index=True)
+        else:
+            #df_offset.loc[(df_offset['id_s'] == id_s) & (df_offset['id_p'] == id_p) & (df_offset['id_t'] == id_t)] = list(dict_new_row.values())
+            for key in dict_new_row.keys():
+                df_offset.loc[(df_offset['id_s'] == id_s) & (df_offset['id_p'] == id_p) & (df_offset['id_t'] == id_t), key] = dict_new_row[key]
+
+        df_offset.to_csv(csv_offset, sep=';', index=False)
 
 
     dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '01_murphy_out')
@@ -1494,8 +1566,14 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
 
     csv_outliers = os.path.join(dir_root, '05_logs', 'outliers.csv')
+    csv_offset = os.path.join(dir_root, '03_data', 'preprocessed_data', 'offset.csv')
 
-    df_outliers = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'reason'])
+    if os.path.isfile(csv_outliers):
+        df_outliers = pd.read_csv(csv_outliers, sep=';')
+    else:
+        df_outliers = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic', 'detect_on', 'value_endeff',
+                                            'value_elbow', 'thresh_endeff_vel', 'thresh_elbow_vel', 'reason_endeff',
+                                            'reason_elbow'])
 
     if type(detect_outliers) is str:
         detect_outliers = [detect_outliers]
@@ -1514,7 +1592,21 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
     total_count = len(p_ids)
 
     if verbose >=1:
-        process = tqdm(total_count, desc='Preprocessing', leave=True)
+        def get_total_for_process():
+            total = 0
+            for id_p in p_ids:
+                omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
+                t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
+                total += len(t_ids)
+            return total
+
+        if debug:
+            total_count = len(p_ids) * debug_c
+        else:
+
+            total_count = get_total_for_process()
+
+        process = tqdm(range(total_count), desc='Preprocessing', leave=True)
 
     for id_p in p_ids:
         omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
@@ -1528,16 +1620,6 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
         if len(found_files) == 0:
             continue
-
-        if verbose >= 1:
-            if debug:
-                total_count += debug_c
-            else:
-
-                total_count += len(t_ids)
-
-            process.total = total_count
-            process.refresh()
 
         if debug:
             debug_count = 0
@@ -1595,7 +1677,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                     kinematic_value = "elbow_flex_pos"
                     delay_time = fixing_decay_and_offset_trial_by_trial(df_omc, df_mmc,
                                                                         kinematic_value, trial_identifier = f'{id_s}_{id_p}_{id_t}',print_able=print_able,
-                                                                        plot_debug=plot_debug)
+                                                                        plot_debug=plot_debug, offset=False)
 
                 # Taken from Marwen Moknis Masterthesis
                 df_omc['time'] = np.around(
@@ -1607,7 +1689,6 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                     ## shifting the values of kinematics by the nb frames needed
                     time_step = df_omc["time"].iloc[1] - df_omc["time"].iloc[0]
                     frames = int(delay_time / time_step)
-
                     if frames < 0:
                         nb_frames = -frames
                         df_omc = df_omc[:-nb_frames]
@@ -1619,9 +1700,11 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                         df_omc = df_omc[nb_frames:]
                         df_omc["time"] = np.array(df_mmc["time"])
 
-                    ## Function that handle the offset
-                    df_mmc = handling_vertical_offset(df_omc, df_mmc)
+                    ## Function that handles the offset
+                    df_mmc, dict_offsets = handling_vertical_offset(df_omc, df_mmc, fancy=fancy_offset)
                     # df_mmc = df_mmc
+
+                    update_offset_csv(csv_offset, id_s, id_p, id_t, dict_offsets)
 
                 else:
                     df_mmc = df_mmc
@@ -1630,39 +1713,80 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                 df_omc, df_mmc = cut_to_same_timeframe(df_omc, df_mmc)"""
 
                 # Detect Outliers
-                for detect in  detect_outliers:
-                    if detect == 'elbow':
-                        max_omc = max(df_omc['elbow_vel'])
-                        max_mmc = max(df_mmc['elbow_vel'])
-                        if max_omc > max_mmc:
-                            reason = 'omc'
-                            max_val = max_omc
+                if detect_outliers:
+                    def update_outlier(df_outliers, dict_new_row):
+                        """Updates the outlier DataFrame based on id_s, id_p, and id_t
+
+                        If row with the Ids exists, it is overwritten, else a new row is added to the DataFrame
+
+                        """
+                        id_s = dict_new_row['id_s']
+                        id_p = dict_new_row['id_p']
+                        id_t = dict_new_row['id_t']
+                        dynamic = dict_new_row['dynamic']
+
+                        keys = ['value_endeff', 'value_elbow', 'thresh_endeff_vel', 'thresh_elbow_vel',
+                                'reason_endeff', 'reason_elbow']
+
+                        if len(df_outliers[(df_outliers['id_s'] == id_s) & (df_outliers['id_p'] == id_p) &
+                                           (df_outliers['id_t'] == id_t) & (df_outliers['dynamic'] == dynamic)]) == 0:
+                            df_outliers = pd.concat([df_outliers, pd.DataFrame(dict_new_row, index=[0])], ignore_index=True)
                         else:
-                            reason = 'mmc'
-                            max_val = max_mmc
+                            for key in dict_new_row.keys():
+                                df_outliers.loc[(df_outliers['id_s'] == id_s) & (df_outliers['id_p'] == id_p) &
+                                           (df_outliers['id_t'] == id_t) & (df_outliers['dynamic'] == dynamic), key] = dict_new_row[key]
 
-                        if max_val > joint_vel_thresh:
-                            print(f"Trial {id_s}_{id_p}_{id_t} is an outlier due to high elbow velocity.")
-                            df = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': f'elbow_vel of {reason} {max_val} > {joint_vel_thresh}'}, index=[0])
-                            pd.concat([df_outliers, df], ignore_index=True)
-                            continue
+                        return df_outliers
 
-                    if detect == 'endeff':
-                        max_omc = max(df_omc['hand_vel'])
-                        max_mmc = max(df_mmc['hand_vel'])
+                    max_omc = max(df_omc['elbow_vel'])
+                    max_mmc = max(df_mmc['elbow_vel'])
+                    if max_omc > max_mmc:
+                        reason_elbow = 'omc'
+                        max_val_elbow = max_omc
+                    elif max_omc < max_mmc:
+                        reason_elbow = 'mmc'
+                        max_val_elbow = max_mmc
 
-                        if max_omc > max_mmc:
-                            reason = 'omc'
-                            max_val = max_omc
-                        else:
-                            reason = 'mmc'
-                            max_val = max_mmc
+                    if max_omc > max_mmc:
+                        reason_endeff = 'omc'
+                        max_val_endeff = max_omc
+                    else:
+                        reason_endeff = 'mmc'
+                        max_val_endeff = max_mmc
 
-                        if max_val > hand_vel_thresh:
-                            print(f"Trial {id_s}_{id_p}_{id_t} is an outlier due to high endeffector velocity.")
-                            df = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'reason': f'hand_vel {reason} {max_val} > {hand_vel_thresh}'}, index = [0])
-                            pd.concat([df_outliers, df], ignore_index=True)
-                            continue
+                    if 'elbow' in detect_outliers and 'endeff' in detect_outliers:
+                        if max_val_elbow > joint_vel_thresh and max_val_endeff > hand_vel_thresh:
+                            print(f"Trial {id_s}_{id_p}_{id_t} is an outlier due to high elbow and endeffector velocity.\n"
+                                  f"Elbow:\tMax Value: {max_val_elbow} deg/s\tThreshold: {joint_vel_thresh} deg/s\n"
+                                  f"Endeffector\tMax Value: {max_val_endeff} mm/s\tThreshold: {hand_vel_thresh} mm/s")
+                            dict_new_row = {'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'dynamic': correct,
+                                            'detect_on': 'elbow and endeffector', 'value_endeff': max_val_endeff,
+                                            'value_elbow': max_val_elbow, 'thresh_endeff_vel': hand_vel_thresh,
+                                            'thresh_elbow_vel': joint_vel_thresh, 'reason_endeff': reason_endeff,
+                                            'reason_elbow': reason_elbow}
+                            df_outliers = update_outlier(df_outliers, dict_new_row)
+
+                    if 'elbow' in detect_outliers:
+                        if max_val_elbow > joint_vel_thresh:
+                            print(f"Trial {id_s}_{id_p}_{id_t} is an outlier due to high elbow velocity.\n"
+                                  f"Max. Elbow Velocity: {max_val_elbow} deg/s\tThreshold: {joint_vel_thresh} deg/s")
+                            dict_new_row = {'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'dynamic': correct,
+                                            'detect_on': 'elbow', 'value_endeff': max_val_endeff,
+                                            'value_elbow': max_val_elbow, 'thresh_endeff_vel': hand_vel_thresh,
+                                            'thresh_elbow_vel': joint_vel_thresh, 'reason_endeff': '',
+                                            'reason_elbow': reason_elbow}
+                            df_outliers = update_outlier(df_outliers, dict_new_row)
+
+                    if 'endeff' in detect_outliers:
+                        if max_val_endeff > hand_vel_thresh:
+                            print(f"Trial {id_s}_{id_p}_{id_t} is an outlier due to high endeffector velocity.\n"
+                                  f"Max Value: {max_val_endeff} mm/s\tThreshold: {hand_vel_thresh} mm/s")
+                            dict_new_row = {'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'dynamic': correct,
+                                            'detect_on': 'endeffector', 'value_endeff': max_val_endeff,
+                                            'value_elbow': max_val_elbow, 'thresh_endeff_vel': hand_vel_thresh,
+                                            'thresh_elbow_vel': joint_vel_thresh, 'reason_endeff': reason_endeff,
+                                            'reason_elbow': ''}
+                            df_outliers = update_outlier(df_outliers, dict_new_row)
 
                 if plot_debug:
                     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(12, 4))
@@ -1844,6 +1968,7 @@ if __name__ == '__main__':
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
     dir_results = os.path.join(root_stat, '01_continuous', '01_results')
+    det_outliers = ['elbow', 'endeff']
 
     if test_timeseries:
 
@@ -1851,9 +1976,9 @@ if __name__ == '__main__':
             debug = True
 
             preprocess_timeseries(root_val,
-                                  downsample=True, drop_last_rows=False, detect_outliers= [],
-                                  joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct,
-                                  verbose=1, plot_debug=False, print_able=False, empty_dst=False, debug=debug)
+                                  downsample=True, drop_last_rows=False, detect_outliers= det_outliers,
+                                  joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct, fancy_offset=False,
+                                  verbose=1, plot_debug=False, print_able=False, empty_dst=False, debug=debug, debug_c=50)
             dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
             normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
