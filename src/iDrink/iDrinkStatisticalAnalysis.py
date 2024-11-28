@@ -1975,7 +1975,7 @@ if __name__ == '__main__':
     if test_timeseries:
 
         for correct in corrections:
-            debug = True
+            debug = False
 
             preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= det_outliers,
@@ -1988,7 +1988,7 @@ if __name__ == '__main__':
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
         get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
-        get_timeseries_correlations(dir_processed, dir_results, verbose=1)
+        #get_timeseries_correlations(dir_processed, dir_results, verbose=1)
             #get_multiple_correlations(dir_processed, dir_results, verbose=1) #TODO: Implement this function
 
             #get_omc_mmc_error_old(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
