@@ -17,6 +17,20 @@ from plotly.subplots import make_subplots
 
 import statsmodels.api as sm
 
+murphy_measures = ["PeakVelocity_mms",
+                   "elbowVelocity",
+                   "tTopeakV_s",
+                   "tToFirstpeakV_s",
+                   "tTopeakV_rel",
+                   "tToFirstpeakV_rel",
+                   "NumberMovementUnits",
+                   "InterjointCoordination",
+                   "trunkDisplacementMM",
+                   "trunkDisplacementDEG",
+                   "ShoulderFlexionReaching",
+                   "ElbowExtension",
+                   "shoulderAbduction"]
+
 
 def get_unit(kin):
     match kin:
@@ -201,6 +215,46 @@ def plot_murphy_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_
                     fig.write_image(path, scale=5)
                 case _:
                     print(f'Filetype {extension} not supported. Please use .html, .png, .jpg or .jpeg')
+
+
+def plot_murphy_error_rmse_boxplot(dir_root, showfig=False, write_html=False, write_png=True, verbose=1):
+    """
+    PLots boxplots for errors and rmse of Murphy measures.
+
+    One plot per Measure and Patient.
+
+
+    y-axis: error or rmse
+    x-axis: id_s
+    color: condition
+
+
+    Figure_filenames have pattern: {id_p}_{kinematic}_{dynamic}_box_error.png
+
+    :return:
+    """
+
+    dir_in = os.path.join(dir_root, '04_statistics', '02_categorical')
+    dir_out_box = os.path.join(dir_root, '04_statistics', '02_categorical', '02_plots', '02_box')
+    pass
+
+    for dir in [dir_out_box]:
+        os.makedirs(dir, exist_ok=True)
+
+    csv_in = os.path.join(dir_in, 'murphy_error.csv')
+
+    if not os.path.isfile(csv_in):
+        print(f'File {csv_in} does not exist.')
+        return
+
+    df_error = pd.read_csv(csv_in, sep=';')
+    df_murphy_measures = pd.read_csv(os.path.join(dir_in, 'murphy_measures.csv'), sep=';')
+
+    df = df_murphy_measures[df_murphy_measures['id_s'] == 'S15133']
+
+    set(df['id_p'].unique)
+
+
 
 
 def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, idx_t=None, dynamic='dynamic', write_html=True, write_png=True, show_plots=True):
@@ -702,6 +756,7 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                 path = os.path.join(dir_out_aff, f'{id_s}_{id_p}_{kinematic}_{side_aff}_affected_averaged.png')
                 fig_aff.write_image(path, scale=5)
 
+        # TODO: Debug subplots --> legen is doubled
         if fig_unaff and fig_aff:
             # get both plots in one figure side by side
             fig = make_subplots(rows=1, cols=2, subplot_titles=(f'Unaffected - {side_unaff}', f'Affected - {side_aff}'),
@@ -1291,6 +1346,8 @@ if __name__ == "__main__":
     else:
         dynamic = False
         dynamic_str = 'fixed'
+
+    plot_murphy_error_rmse_boxplot(root_val)
 
     plot_timeseries_averaged(root_val, 'S001', 'P07', dynamic=dynamic)
 

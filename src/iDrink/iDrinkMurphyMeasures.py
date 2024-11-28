@@ -592,8 +592,13 @@ class MurphyMeasures:
         else:
             # Add new row to dataframe
             new_row = pd.DataFrame([{column: self.__getattribute__(column) for column in murphy_measures}])
-            self.df_measures = pd.concat([self.df_measures, new_row], ignore_index=True)
 
+            #check if row if id_s, id_p, id_t is already in the dataframe
+            if len(self.df_measures[(self.df_measures['id_s'] == self.id_s) & (self.df_measures['id_p'] == self.id_p) & (self.df_measures['id_t'] == self.id_t)]) == 0:
+                self.df_measures = pd.concat([self.df_measures, new_row], ignore_index=True)
+            else:
+                for column in murphy_measures:
+                    self.df_measures.loc[(self.df_measures['id_s'] == self.id_s) & (self.df_measures['id_p'] == self.id_p) & (self.df_measures['id_t'] == self.id_t), column] = self.__getattribute__(column)
 
         self.df_measures.to_csv(self.csv_measures, sep=';', index=False)
 
