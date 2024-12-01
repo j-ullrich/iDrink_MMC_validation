@@ -1,3 +1,5 @@
+from logging import disable
+
 import numpy as np
 import pandas
 import pandas as pd
@@ -53,7 +55,7 @@ def get_unit(kin):
 
     return unit
 
-def plot_murphy_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.png', use_smoother=True,
+def plot_murphy_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.svg', use_smoother=True,
                             colourcode = None, show_id_t=False, verbose=1, show_plots=True, customize_layout=False):
     """
     create bland altman plot.
@@ -206,18 +208,18 @@ def plot_murphy_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_
             path = filename + extension
             match extension:
                 case '.html':
-                    py.offline.plot(fig, filename=path, auto_open=False)
-                case '.png':
+                    fig.write_html(path)
+                case '.svg':
                     fig.write_image(path, scale=5)
                 case '.jpg':
                     fig.write_image(path, scale=5)
                 case '.jpeg':
                     fig.write_image(path, scale=5)
                 case _:
-                    print(f'Filetype {extension} not supported. Please use .html, .png, .jpg or .jpeg')
+                    print(f'Filetype {extension} not supported. Please use .html, .svg, .jpg or .jpeg')
 
 
-def plot_murphy_error_rmse_boxplot(dir_root, showfig=False, write_html=False, write_png=True, verbose=1):
+def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = True, showfig=False, write_html=False, write_svg=True, verbose=1):
     """
     PLots boxplots for errors and rmse of Murphy measures.
 
@@ -229,35 +231,224 @@ def plot_murphy_error_rmse_boxplot(dir_root, showfig=False, write_html=False, wr
     color: condition
 
 
-    Figure_filenames have pattern: {id_p}_{kinematic}_{dynamic}_box_error.png
+    Figure_filenames have pattern: {id_p}_{kinematic}_{dynamic}_box_error.svg
 
     :return:
     """
 
     dir_in = os.path.join(dir_root, '04_statistics', '02_categorical')
     dir_out_box = os.path.join(dir_root, '04_statistics', '02_categorical', '02_plots', '02_box')
-    pass
+    dir_out_bar = os.path.join(dir_root, '04_statistics', '02_categorical', '02_plots', '03_bar')
 
-    for dir in [dir_out_box]:
+    dir_out_box_error = os.path.join(dir_out_box, f'01_error')
+    dir_out_box_rmse = os.path.join(dir_out_box, f'02_rmse')
+
+    dir_out_bar_error = os.path.join(dir_out_bar, f'01_error')
+    dir_out_bar_rmse = os.path.join(dir_out_bar, f'02_rmse')
+
+    for dir in [dir_out_box_error, dir_out_box_rmse, dir_out_bar_error, dir_out_bar_rmse]:
         os.makedirs(dir, exist_ok=True)
 
-    csv_in = os.path.join(dir_in, 'murphy_error.csv')
+    if outlier_corrected:
+        csv_rmse = os.path.join(dir_in, 'stat_murphy_rmse_outlier_corrected.csv')
+        csv_error = os.path.join(dir_in, 'stat_murphy_diff_outlier_corrected.csv')
+        outlier_str = '_outlier_corrected'
+    else:
+        csv_rmse = os.path.join(dir_in, 'stat_murphy_rmse.csv')
+        csv_error = os.path.join(dir_in, 'stat_murphy_diff.csv')
+        outlier_str = ''
+    csv_cad = os.path.join(dir_in, 'clinically_acceptable_difference.csv')
 
-    if not os.path.isfile(csv_in):
-        print(f'File {csv_in} does not exist.')
+    def files_exist(files):
+        for file in files:
+            if not os.path.isfile(file):
+                print(f'File {file} does not exist.')
+                return False
+        return True
+
+    if not files_exist([csv_rmse, csv_error, csv_cad, os.path.join(dir_in, 'murphy_measures.csv')]):
         return
 
-    df_error = pd.read_csv(csv_in, sep=';')
+    df_rmse = pd.read_csv(csv_rmse, sep=';')
+    df_error = pd.read_csv(csv_error, sep=';')
     df_murphy_measures = pd.read_csv(os.path.join(dir_in, 'murphy_measures.csv'), sep=';')
+    df_cad = pd.read_csv(csv_cad, sep=',')
 
-    df = df_murphy_measures[df_murphy_measures['id_s'] == 'S15133']
+    for df in [df_rmse, df_error, df_cad]:
+        if 'Unnamed: 0' in df.columns:
+            df.drop(columns='Unnamed: 0', inplace=True)
 
-    set(df['id_p'].unique)
+    df_rmse_nonan = df_rmse.dropna()
+    df_rmse_mean = df_rmse[df_rmse['id_p'].isna()]
+
+    def get_cad(df, measure):
+
+        match measure:
+            case 'PeakVelocity_mms':
+                measure_name = 'peak_V'
+
+            case 'elbowVelocity':
+                measure_name = 'peak_V_elb'
+
+            case 'tTopeakV_s':
+                measure_name = 't_to_PV'
+
+            case 'tToFirstpeakV_s':
+                measure_name = 't_first_PV'
+
+            case 'tTopeakV_rel':
+                measure_name = 't_PV_rel'
+
+            case 'tToFirstpeakV_rel':
+                measure_name = 't_first_PV_rel'
+
+            case 'NumberMovementUnits':
+                measure_name = 'n_mov_units'
+
+            case 'InterjointCoordination':
+                measure_name = 'interj_coord'
+
+            case 'trunkDisplacementMM':
+                measure_name = 'trunk_disp'
+
+            case 'trunkDisplacementDEG':
+                return None
+
+            case 'ShoulderFlexionReaching':
+                measure_name = 'arm_flex_reach'
+
+            case 'ElbowExtension':
+                measure_name = 'elb_ext'
+
+            case 'shoulderAbduction':
+                measure_name = 'arm_abd'
+
+            case 'shoulderFlexionDrinking':
+                measure_name = 'arm_flex_drink'
+
+            case _:
+                return
+
+
+        return df.loc[0, measure_name]
+
+    progbar = tqdm(murphy_measures, desc='Plotting for ', unit='Measure', disable=verbose<1)
+
+    for measure in murphy_measures:
+        progbar.set_description(f'Plotting for {measure}')
+
+        cad = get_cad(df_cad, measure)
+
+        # fig_rmse = px.box(df_rmse_nonan, x='id_s', y = measure, color='condition')
+
+        fig_box = go.Figure()
+        fig_box_error = go.Figure()
+        fig_bar = go.Figure()
+        for condition, group in df_rmse_nonan.groupby('condition'):
+            offset = 1 if condition == 'affected' else 0
+            fig_box.add_trace(go.Box(x=group['id_s'], y=group[measure], name=condition, offsetgroup=offset))
+
+        for condition, group in df_rmse_mean.groupby('condition'):
+            fig_bar.add_trace(go.Bar(x=group['id_s'], y=group[measure], name=condition))
+
+        # add horicontal line for cad
+        if cad is not None:
+            fig_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+            fig_bar.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+
+
+        fig_box.update_layout(title=f'RMSE for {measure} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
+        fig_bar.update_layout(title=f'RMSE for {measure} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
+
+        if showfig:
+            fig_box.show()
+            fig_bar.show()
+
+        if write_html:
+            path = os.path.join(dir_out_box_rmse, f'murphy_box_{measure}_rmse{outlier_str}.html')
+            fig_box.write_html(path)
+            path = os.path.join(dir_out_bar_rmse, f'murphy_bar_{measure}_rmse{outlier_str}.html')
+            fig_bar.write_html(path)
+
+        if write_svg:
+            path = os.path.join(dir_out_box_rmse, f'murphy_box_{measure}_rmse{outlier_str}.svg')
+            fig_box.write_image(path, scale=5)
+            path = os.path.join(dir_out_bar_rmse, f'murphy_bar_{measure}_rmse{outlier_str}.svg')
+            fig_bar.write_image(path, scale=5)
+
+        for id_p in df_rmse_nonan['id_p'].unique():
+
+            progbar.set_description(f'Plotting Boxplots for {measure} of {id_p}')
+            fig_box = go.Figure()
+            fig_bar = go.Figure()
+            for condition, group in df_rmse_nonan[df_rmse_nonan['id_p'] == id_p].groupby('condition'):
+                offset  = 1 if condition == 'affected' else 0
+                fig_box.add_trace(go.Box(x=group['id_s'], y=group[measure], name=condition, offsetgroup=offset))
+
+            for condition, group in df_rmse_nonan[df_rmse_nonan['id_p'] == id_p].groupby('condition'):
+                fig_bar.add_trace(go.Bar(x=group['id_s'], y=group[measure], name=condition))
+
+            fig_box_error = px.box(df_error[df_error['id_p'] == id_p], x='id_s', y=measure, color='condition',
+                                   title=f'Error for {measure} of {id_p}',
+                                   labels={'condition': 'Condition', 'id_s': 'Setting ID', 'value': 'Error'})
+
+            # add horicontal line for cad
+            if cad is not None:
+                fig_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+                fig_bar.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+                fig_box_error.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+                fig_box_error.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
+
+            fig_box.update_layout(title=f'RMSE for {measure} of {id_p} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
+            fig_bar.update_layout(title=f'RMSE for {measure} of {id_p} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
+
+            if showfig:
+                fig_box.show()
+                fig_bar.show()
+                fig_box_error.show()
+
+            if write_html:
+                path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.html')
+                fig_box.write_html(path)
+                path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.html')
+                fig_bar.write_html(path)
+                path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.html')
+                fig_box_error.write_html(path)
+
+            if write_svg:
+                path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.svg')
+                fig_box.write_image(path, scale=5)
+                path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.svg')
+                fig_bar.write_image(path, scale=5)
+                path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.svg')
+                fig_box_error.write_image(path, scale=5)
+
+        # Error
+        fig_error_box = px.box(df_error, x='id_s', y=measure, color='condition', title=f'Error for {measure}',
+                               labels={'condition': 'Condition', 'id_s': 'Setting ID', 'value': 'Error'})
+
+        if cad is not None:
+            fig_error_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+            fig_error_box.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
+
+        if showfig:
+            fig_error_box.show()
+
+        if write_html:
+            path = os.path.join(dir_out_box_error, f'murphy_box_{measure}_error{outlier_str}.html')
+            fig_error_box.write_html(path)
+
+        if write_svg:
+            path = os.path.join(dir_out_box_error, f'murphy_box_{measure}_error{outlier_str}.svg')
+            fig_error_box.write_image(path, scale=5)
 
 
 
 
-def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, idx_t=None, dynamic='dynamic', write_html=True, write_png=True, show_plots=True):
+        progbar.update(1)
+
+
+def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, idx_t=None, dynamic='dynamic', write_html=True, write_svg=True, show_plots=True):
     """
     Prints all Bland altman and scale location plots and saves them into the correct folder.
 
@@ -340,34 +531,32 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                 fig_bland.add_trace(go.Scatter(x=lowess[:, 0], y=lowess[:, 1], mode='lines', name=f'{id_s}', line=dict(color='red')))
 
                 # add line at 0
-                fig_bland.add_trace(go.Scatter(x=[min(mean), max(mean)], y=[0, 0], mode='lines', name='Zero', line=dict(color='grey', dash='dash')))
-
+                fig_bland.add_hline(y=0, line_dash='dash', line_color='grey', name='Zero')
 
                 # add limits of agreement
                 std_diff = np.std(error)
                 sd = 1.96
                 upper_limit = + sd * std_diff
                 lower_limit = - sd * std_diff
-                fig_bland.add_trace(go.Scatter(x=[min(mean), max(mean)], y=[upper_limit, upper_limit], mode='lines',
-                                         name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
-                fig_bland.add_trace(go.Scatter(x=[min(mean), max(mean)], y=[lower_limit, lower_limit], mode='lines',
-                                         name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
 
+                fig_bland.add_hline(y=upper_limit, line_dash='dash', line_color='red', name=f'Upper Limit ({sd} SD)')
+                fig_bland.add_hline(y=lower_limit, line_dash='dash', line_color='red', name=f'Lower Limit ({sd} SD)')
 
                 # Scale Location Plot
                 fig_scale.add_trace(go.Scatter(x=mmc, y=error, mode='markers', name=f'{id_s}', text=df['id_s'], hoverinfo='text'))
                 fig_scale.add_trace(go.Scatter(x=mmc, y=error, mode='lines', name=f'{id_s}', line=dict(color='red')))
-                fig_scale.add_trace(go.Scatter(x=[min(mmc), max(mmc)], y=[0, 0], mode='lines', name='Zero',
-                                               line=dict(color='grey', dash='dash')))
-                fig_scale.add_trace(go.Scatter(x=[min(mmc), max(mmc)], y=[upper_limit, upper_limit], mode='lines',
-                                            name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
-                fig_scale.add_trace(go.Scatter(x=[min(mmc), max(mmc)], y=[lower_limit, lower_limit], mode='lines',
-                                            name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
+                # add line at 0
+                fig_scale.add_hline(y=0, line_dash='dash', line_color='grey', name='Zero')
+                # add limits of agreement
+                fig_scale.add_hline(y=upper_limit, line_dash='dash', line_color='red', name=f'Upper Limit ({sd} SD)')
+                fig_scale.add_hline(y=lower_limit, line_dash='dash', line_color='red', name=f'Lower Limit ({sd} SD)')
 
                 # Error to time
                 fig_time = go.Figure()
                 fig_time.add_trace(go.Scatter(x=time, y=error, mode='lines', name=f'{id_s}', line=dict(color='red')))
-                fig_time.add_trace(go.Scatter(x=time, y=[0]*len(time), mode='lines', name='Zero', line=dict(color='grey', dash='dash')))
+                # add line at 0
+                fig_time.add_hline(y=0, line_dash='dash', line_color='grey', name='Zero')
+
                 fig_time.add_trace(go.Scatter(x=time, y=mmc, mode='lines', name='MMC', line=dict(color='blue', dash='dash')))
                 fig_time.add_trace(go.Scatter(x=time, y=omc, mode='lines', name='OMC', line=dict(color='green', dash='dash')))
 
@@ -406,26 +595,26 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
 
             if write_html:
                 path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.html')
-                py.offline.plot(fig_bland, filename=path_bland, auto_open=False)
+                fig_bland.write_html(path_bland)
 
                 path_scale = os.path.join(dir_dst_scale, f'{id_p}_{id_t}_{kinematic}.html')
-                py.offline.plot(fig_scale, filename=path_scale, auto_open=False)
+                fig_scale.write_html(path_scale)
 
                 path_time = os.path.join(dir_dst_time, f'{id_p}_{id_t}_{kinematic}_time.html')
-                py.offline.plot(fig_time, filename=path_time, auto_open=False)
+                fig_time.write_html(path_time)
 
-            if write_png:
-                path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.png')
+            if write_svg:
+                path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.svg')
                 fig_bland.write_image(path_bland, scale=5)
 
-                path_scale = os.path.join(dir_dst_scale, f'{id_p}_{id_t}_{kinematic}.png')
+                path_scale = os.path.join(dir_dst_scale, f'{id_p}_{id_t}_{kinematic}.svg')
                 fig_scale.write_image(path_scale, scale=5)
 
-                path_time = os.path.join(dir_dst_time, f'{id_p}_{id_t}_{kinematic}_time.png')
+                path_time = os.path.join(dir_dst_time, f'{id_p}_{id_t}_{kinematic}_time.svg')
                 fig_time.write_image(path_time, scale=5)
 
 
-def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_png=True, verbose=1):
+def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, verbose=1):
     """
     Prints boxplots based on the mean errors and RMSE of the timeseries.
 
@@ -536,14 +725,14 @@ def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False
                     path = os.path.join(dir_dst_rmse_box_log, f'{id_p}_{metric}_{dynamic}_{normal}_log_rmse_box.html')
                     fig_log_rmse.write_html(path)
 
-                if write_png:
-                    path = os.path.join(dir_dst_error_box, f'{id_p}_{metric}_{dynamic}_{normal}_error_box.png')
+                if write_svg:
+                    path = os.path.join(dir_dst_error_box, f'{id_p}_{metric}_{dynamic}_{normal}_error_box.svg')
                     fig_err.write_image(path, scale=5)
 
-                    path = os.path.join(dir_dst_rmse_box, f'{id_p}_{metric}_{dynamic}_{normal}_rmse_box.png')
+                    path = os.path.join(dir_dst_rmse_box, f'{id_p}_{metric}_{dynamic}_{normal}_rmse_box.svg')
                     fig_rmse.write_image(path, scale=5)
 
-                    path = os.path.join(dir_dst_rmse_box_log, f'{id_p}_{metric}_{dynamic}_{normal}_log_rmse_box.png')
+                    path = os.path.join(dir_dst_rmse_box_log, f'{id_p}_{metric}_{dynamic}_{normal}_log_rmse_box.svg')
                     fig_log_rmse.write_image(path, scale=5)
 
         if verbose >= 1:
@@ -585,7 +774,8 @@ def plot_timeseries_barplot_error_rmse(root_val):
 
         identifier
 
-def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False, write_html=False, write_png=True):
+def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False, write_html=False, write_svg=True,
+                             verbose = 1):
     """
     Plots averaged timeseries of all trials for a given setting and participant.
 
@@ -628,7 +818,12 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
     files = [file for file in glob.glob(os.path.join(dir_in, '*.csv')) if any(kin in file for kin in kinematics)]
 
+
+    progbar = tqdm(files, desc='Plotting Averaged Timeseries', unit='File', disable=verbose<1)
+
     for file in files:
+
+        progbar.set_description(f'Plotting Averaged Timeseries for {os.path.basename(file)}')
 
         df_in_full = pd.read_csv(file, sep=';')
 
@@ -711,10 +906,10 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
             if write_html:
                 path = os.path.join(dir_out_unaff, f'{id_s}_{id_p}_{kinematic}_{side_unaff}_affected_averaged.html')
-                py.offline.plot(fig_unaff, filename=path, auto_open=False)
+                fig_unaff.write_html(path)
 
-            if write_png:
-                path = os.path.join(dir_out_unaff, f'{id_s}_{id_p}_{kinematic}_{side_unaff}_affected_averaged.png')
+            if write_svg:
+                path = os.path.join(dir_out_unaff, f'{id_s}_{id_p}_{kinematic}_{side_unaff}_affected_averaged.svg')
                 fig_unaff.write_image(path, scale=5)
 
         if interpolated_mmc_aff and interpolated_omc_aff:
@@ -750,13 +945,12 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
             if write_html:
                 path = os.path.join(dir_out_aff, f'{id_s}_{id_p}_{kinematic}_{side_aff}_affected_averaged.html')
-                py.offline.plot(fig_aff, filename=path, auto_open=False)
+                fig_aff.write_html(path)
 
-            if write_png:
-                path = os.path.join(dir_out_aff, f'{id_s}_{id_p}_{kinematic}_{side_aff}_affected_averaged.png')
+            if write_svg:
+                path = os.path.join(dir_out_aff, f'{id_s}_{id_p}_{kinematic}_{side_aff}_affected_averaged.svg')
                 fig_aff.write_image(path, scale=5)
 
-        # TODO: Debug subplots --> legen is doubled
         if fig_unaff and fig_aff:
             # get both plots in one figure side by side
             fig = make_subplots(rows=1, cols=2, subplot_titles=(f'Unaffected - {side_unaff}', f'Affected - {side_aff}'),
@@ -764,6 +958,7 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
             for i in range(len(fig_unaff.data)):
                 fig.add_trace(fig_unaff.data[i], row=1, col=1)
+                fig_aff.data[i].showlegend = False
                 fig.add_trace(fig_aff.data[i], row=1, col=2)
 
             fig.update_layout(title=f'Averaged Timeseries for {kinematic} of {id_s}_{id_p}',)
@@ -773,13 +968,14 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
             if write_html:
                 path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_averaged.html')
-                py.offline.plot(fig, filename=path, auto_open=False)
+                fig.write_html(path)
 
-            if write_png:
-                path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_averaged.png')
+            if write_svg:
+                path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_averaged.svg')
                 fig.write_image(path, scale=5)
 
-    pass
+        progbar.update(1)
+    progbar.close()
 
 
 
@@ -812,9 +1008,7 @@ def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=No
     # creating plot
     fig = go.Figure()
 
-    # Add horicontal line at 0
-    fig.add_trace(go.Scatter(x=[min(dat_measured), max(dat_measured)], y=[0, 0], mode='lines', name='Zero Difference',
-                             line=dict(color='grey', dash='dash')))
+
 
     # Scatter-Plot of dat_measured against differences
     fig.add_trace(go.Scatter(x=dat_measured, y=diff, mode='markers', name='Differences'))
@@ -822,11 +1016,12 @@ def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=No
     # mean of differences
     fig.add_trace(go.Scatter(x=dat_measured, y=[mean_diff]*len(dat_measured), mode='lines', name='Mean of Differences'))
 
+    # Add horicontal line at 0
+    fig.add_hline(y=0, line_dash='dash', line_color='grey', name='Zero')
+
     # limits of agreement
-    fig.add_trace(go.Scatter(x=dat_measured, y=[upper_limit]*len(dat_measured), mode='lines',
-                             name=f'Upper Limit ({sd} SD)', line=dict(dash='dash')))
-    fig.add_trace(go.Scatter(x=dat_measured, y=[lower_limit]*len(dat_measured), mode='lines',
-                             name=f'Lower Limit ({sd} SD)', line=dict(dash='dash')))
+    fig.add_hline(y=upper_limit, line_dash='dash', line_color='red', name=f'Upper Limit ({sd} SD)')
+    fig.add_hline(y=lower_limit, line_dash='dash', line_color='red', name=f'Lower Limit ({sd} SD)')
 
     # smoother
     fig.add_trace(
@@ -859,8 +1054,8 @@ def plot_measured_vs_errors(dat_ref, dat_measured, measured_value, id_s, id_p=No
 
     if path is not None:
         if path.endswith('.html'):
-            py.offline.plot(fig, filename=path)
-        elif path.endswith('.png') or path.endswith('.jpg') or path.endswith('.jpeg'):
+            fig.write_html(path)
+        elif path.endswith('.svg') or path.endswith('.jpg') or path.endswith('.jpeg'):
             fig.write_image(path)
 
 
@@ -950,12 +1145,12 @@ def calibration_boxplot(csv_calib_errors, dir_dst, verbose=1, show_fig=False):
     # save plot
 
     os.makedirs(dir_dst, exist_ok=True)
-    path = os.path.join(dir_dst, f'CalibrationErrors.png')
+    path = os.path.join(dir_dst, f'CalibrationErrors.svg')
     fig.write_image(path, scale=5)
 
 
 def generate_plots_grouped_different_settings(dir_src, dir_dst, df_omc, id_p, id_t, condition, value, y_label,
-                                              write_html=True, write_png=True,
+                                              write_html=True, write_svg=True,
                                               showfig = False, verbose=1):
     """
     Iterates over .csv files of processed data and creates plots for all files.
@@ -1000,14 +1195,14 @@ def generate_plots_grouped_different_settings(dir_src, dir_dst, df_omc, id_p, id
     if write_html:
         path = os.path.join(dir_dst, f'{id_p}_{id_t}_{condition}_{value}.html')
         fig.write_html(path)
-    if write_png:
-        path = os.path.join(dir_dst, f'{id_p}_{id_t}_{condition}_{value}.png')
+    if write_svg:
+        path = os.path.join(dir_dst, f'{id_p}_{id_t}_{condition}_{value}.svg')
         fig.write_image(path, scale=5)
 
 
 
 def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None, id_p_in=None, id_t_in=None,
-                                  write_html=True, write_png=True, gen_plots_diff_settings=True, dynamic=False,
+                                  write_html=True, write_svg=True, gen_plots_diff_settings=True, dynamic=False,
                                   showfig = True, verbose=1):
     """
     Iterates over .csv files of processed data and creates plots for all files.
@@ -1030,7 +1225,7 @@ def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None, id_p_in=
 
     :param dir_processed:
 
-    :param write_png:
+    :param write_svg:
     :param write_html:
     :param values:
     :param id_s:
@@ -1163,8 +1358,6 @@ def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None, id_p_in=
                     else:
                         continue
 
-
-                    print('make plot 1')
                     # plot t_plot
 
                     #time = pd.to_timedelta(df_omc['time']).apply(lambda x: x.total_seconds())
@@ -1176,19 +1369,15 @@ def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None, id_p_in=
 
                     if showfig:
                         fig.show()
-                    print('make plot 2')
+                    
                     if write_html:
                         path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{condition}_{value}.html')
                         fig.write_html(path)
 
-                    if write_png:
-                        path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{condition}_{value}.png')
+                    if write_svg:
+                        path = os.path.join(dir_dst_single, f'{id_s}_{id_p}_{id_t}_{condition}_{value}.svg')
                         fig.write_image(path, scale=5)
 
-                    print('make plot 3')
-
-
-                    print('make plot 4')
                     if gen_plots_diff_settings and multi_id_s:
                         progress.set_description(f'Creating Plots for {value}_{id_s}_{id_p}_{id_t} - Grouped by S')
 
@@ -1196,7 +1385,7 @@ def generate_plots_for_timeseries(dir_root_val, values=None, id_s=None, id_p_in=
                         generate_plots_grouped_different_settings(dir_processed, dir_dst_grouped_by_s,
                                                                   df_omc, id_p, id_t, condition,
                                                                   value, y_label,
-                                                                  write_html=write_html, write_png=write_png,
+                                                                  write_html=write_html, write_svg=write_svg,
                                                                   showfig=showfig, verbose=1)
 
         progress.update(1)
@@ -1346,12 +1535,12 @@ if __name__ == "__main__":
     else:
         dynamic = False
         dynamic_str = 'fixed'
-
-    plot_murphy_error_rmse_boxplot(root_val)
+    for corr in [True, False]:
+        plot_murphy_error_rmse_box_bar_plot(root_val, outlier_corrected=corr)
 
     plot_timeseries_averaged(root_val, 'S001', 'P07', dynamic=dynamic)
 
-    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_png=True, verbose=1)
+    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, verbose=1)
 
     csv_plottable = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
@@ -1369,11 +1558,11 @@ if __name__ == "__main__":
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]
         for kinematic in kinematics:
-            plot_timeseries_blandaltman_scale_location(root_val, kinematic=kinematic, idx_p=id_p, idx_t=id_t, dynamic=dynamic_str, write_html=False, write_png=True, show_plots=False)
+            plot_timeseries_blandaltman_scale_location(root_val, kinematic=kinematic, idx_p=id_p, idx_t=id_t, dynamic=dynamic_str, write_html=False, write_svg=True, show_plots=False)
             pass
 
         generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
-                                      showfig = False, write_html=False, write_png=True)
+                                      showfig = False, write_html=False, write_svg=True)
 
     #plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True, id_p=None,  verbose=1)
     #plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)

@@ -49,9 +49,39 @@ from importlib_metadata import metadata
 from keras.src.utils.file_utils import exists
 from sympy.logic.algorithms.dpll import find_pure_symbol
 
+from src.iDrink.iDrinkStatisticalAnalysis import murphy_measures
+
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial
 
+col_measures = ["identifier",
+                "id_s",
+                "id_p",
+                "id_t",
+                "side",
+                "valid",
+                "ReachingStart",
+                "ForwardStart",
+                "DrinkingStart",
+                "BackStart",
+                "ReturningStart",
+                "RestStart",
+                "TotalMovementTime",
+                "condition",
+                "PeakVelocity_mms",
+                "elbowVelocity",
+                "tTopeakV_s",
+                "tToFirstpeakV_s",
+                "tTopeakV_rel",
+                "tToFirstpeakV_rel",
+                "NumberMovementUnits",
+                "InterjointCoordination",
+                "trunkDisplacementMM",
+                "trunkDisplacementDEG",
+                "ShoulderFlexionReaching",
+                "ElbowExtension",
+                "shoulderAbduction",
+                "shoulderFlexionDrinking"]
 
 class MurphyMeasures:
     """
@@ -69,6 +99,7 @@ class MurphyMeasures:
     3. We give the object a trial_object
 
     """
+
     def __init__(self, trial_id = None, csv_timestamps=None, csv_measures=None,
                  filt_fps=None, filt_cutoff_vel=None, filt_cutoff_pos=None, filt_order_pos=None, filt_order_vel=None,
                  verbose=0, write_mov_data=False,
@@ -152,6 +183,7 @@ class MurphyMeasures:
         self.ShoulderFlexionReaching = None
         self.ElbowExtension = None
         self.shoulderAbduction = None
+        self.shoulderFlexionDrinking = None
 
         """Other useful variables"""
         self.id_s = self.trial_id.split('_')[0]
@@ -163,15 +195,7 @@ class MurphyMeasures:
         if self.csv_measures is not None and os.path.isfile(self.csv_measures):
             self.df_measures = pd.read_csv(self.csv_measures, sep=';')
         else:
-            self.df_measures = pd.DataFrame(columns = ['identifier', 'id_p', 'id_t', 'valid', 'side', 'condition',
-                                              'ReachingStart','ForwardStart', 'DrinkingStart', 'BackStart',
-                                              'ReturningStart','RestStart', 'TotalMovementTime',
-                                              'PeakVelocity_mms',  'elbowVelocity', 'tTopeakV_s',
-                                              'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel',
-                                              'NumberMovementUnits', 'InterjointCoordination', 'trunkDisplacementMM',
-                                              'trunkDisplacementDEG','ShoulderFlexionReaching', 'ElbowExtension',
-                                              'shoulderAbduction']
-                                   )
+            self.df_measures = pd.DataFrame(columns = col_measures)
 
         if self.csv_timestamps is not None and os.path.isfile(self.csv_timestamps):
             self.df_timestamps = pd.read_csv(self.csv_timestamps, sep=';')
@@ -496,6 +520,14 @@ class MurphyMeasures:
 
         return peaks, peaks_info
 
+    def get_max_shoulder_flexion_drink(self):
+        """
+        Calculate the shoulder flexion during drinking phase.
+        """
+        id_start, id_end = self.get_phase_ids("drinking")
+
+        return round(np.max(self.shoulder_flex_pos[id_start:id_end]), 4)
+
 
     def get_measures(self, ):
         """
@@ -516,14 +548,14 @@ class MurphyMeasures:
             self.PeakVelocity_mms = None
         else:
             peak_vel_hand = np.max([self.hand_vel[peak] for peak in peak_ids_hand])
-            self.PeakVelocity_mms = round(peak_vel_hand, 3)
+            self.PeakVelocity_mms = round(peak_vel_hand, 4)
 
         # max elbow velocity deg/s
         if len(peak_ids_elbow) == 0:
             self.elbowVelocity = None
         else:
             peak_vel_elbow = np.max([self.elbow_vel[peak] for peak in peak_ids_elbow])
-            self.elbowVelocity = round(peak_vel_elbow, 3)
+            self.elbowVelocity = round(peak_vel_elbow, 4)
 
         # time to peak hand velocity
         peak_id = np.where(self.hand_vel == self.hand_vel.flat[np.abs(self.hand_vel - peak_vel_hand).argmin()])[0][0]
@@ -553,51 +585,27 @@ class MurphyMeasures:
 
         self.shoulderAbduction = self.get_max_shoulder_abd_drink_reach()
 
+        self.shoulderFlexionDrinking = self.get_max_shoulder_flexion_drink()
+
     def write_measures(self):
         """
         This function adds the calculated measures to the .csv file.
         """
-        murphy_measures = ["identifier",
-                           "id_s",
-                           "id_p",
-                           "id_t",
-                           "side",
-                           "valid",
-                           "ReachingStart",
-                           "ForwardStart",
-                           "DrinkingStart",
-                           "BackStart",
-                           "ReturningStart",
-                           "RestStart",
-                           "TotalMovementTime",
-                           "condition",
-                           "PeakVelocity_mms",
-                           "elbowVelocity",
-                           "tTopeakV_s",
-                           "tToFirstpeakV_s",
-                           "tTopeakV_rel",
-                           "tToFirstpeakV_rel",
-                           "NumberMovementUnits",
-                           "InterjointCoordination",
-                           "trunkDisplacementMM",
-                           "trunkDisplacementDEG",
-                           "ShoulderFlexionReaching",
-                           "ElbowExtension",
-                           "shoulderAbduction"]
+
 
         if self.identifier in list(self.df_measures['identifier']):
-            for column in murphy_measures:
+            for column in col_measures:
                 self.df_measures.loc[self.df_measures['identifier'] == self.identifier, column] = self.__getattribute__(
                     column)
         else:
             # Add new row to dataframe
-            new_row = pd.DataFrame([{column: self.__getattribute__(column) for column in murphy_measures}])
+            new_row = pd.DataFrame([{column: self.__getattribute__(column) for column in col_measures}])
 
             #check if row if id_s, id_p, id_t is already in the dataframe
             if len(self.df_measures[(self.df_measures['id_s'] == self.id_s) & (self.df_measures['id_p'] == self.id_p) & (self.df_measures['id_t'] == self.id_t)]) == 0:
                 self.df_measures = pd.concat([self.df_measures, new_row], ignore_index=True)
             else:
-                for column in murphy_measures:
+                for column in col_measures:
                     self.df_measures.loc[(self.df_measures['id_s'] == self.id_s) & (self.df_measures['id_p'] == self.id_p) & (self.df_measures['id_t'] == self.id_t), column] = self.__getattribute__(column)
 
         self.df_measures.to_csv(self.csv_measures, sep=';', index=False)

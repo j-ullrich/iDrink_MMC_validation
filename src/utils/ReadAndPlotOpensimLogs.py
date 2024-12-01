@@ -16,10 +16,14 @@ from iDrink import iDrinkUtilities
 
 
 class OpensimLogReader:
-    def __init__(self, file = None, id_t=None, id_p=None):
+    def __init__(self, file = None, dir_csv=None, id_t=None, id_p=None):
         self.file = file
+        self.dir_csv = dir_csv
         if os.path.isfile(self.file):
-            self.csv_path = self.file.replace('_opensim.log', '_opensim_inverse_kinematics_log.csv')
+            if self.dir_csv is None:
+                self.csv_path = self.file.replace('_opensim.log', '_opensim_inverse_kinematics_log.csv')
+            else:
+                self.csv_path = os.path.join(self.dir_csv, os.path.basename(self.file).replace('_opensim.log', '_opensim_inverse_kinematics_log.csv'))
         else:
             self.file = None
             self.csv_path = None
@@ -215,7 +219,7 @@ class OpensimLogReader:
 
 
 
-def run_first_stage(dir_opensim_logs, id_s):
+def run_first_stage(dir_opensim_logs, dir_opensim_results, id_s):
     """
     runs the pipeline to read all opensimlogs of a given id_s and then plot the retrieved errors.
 
@@ -243,7 +247,6 @@ def run_first_stage(dir_opensim_logs, id_s):
         if len(df_in[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) & (df_in['id_t'] == id_t)]) == 0:
             return pd.concat([df_in, pd.DataFrame(dict_new_row, index=[0])], ignore_index=True)
         else:
-
             df_in.loc[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) & (df_in['id_t'] == id_t)] = list(dict_new_row.values())
             return df_in
 
@@ -274,14 +277,14 @@ def run_first_stage(dir_opensim_logs, id_s):
         prcss.set_description(f"Processing {os.path.basename(file)}")
         prcss.update(1)
 
-        if glob.glob(os.path.join(dir_opensim_logs, f"{identifier}_opensim_inverse_kinematics_log.csv")):
-            csv_file = glob.glob(os.path.join(dir_opensim_logs, f"{identifier}_opensim_inverse_kinematics_log.csv"))[0]
-            opensim_log = OpensimLogReader(file, id_t, id_p)
+        if glob.glob(os.path.join(dir_opensim_results, f"{identifier}_opensim_inverse_kinematics_log.csv")):
+            csv_file = glob.glob(os.path.join(dir_opensim_results, f"{identifier}_opensim_inverse_kinematics_log.csv"))[0]
+            opensim_log = OpensimLogReader(file, dir_csv=dir_opensim_results, id_t=id_t, id_p=id_p)
             opensim_log.csv_path = csv_file
             opensim_log.read_csv()
 
         else:
-            opensim_log = OpensimLogReader(file, id_t, id_p)
+            opensim_log = OpensimLogReader(file=file, dir_csv=dir_opensim_results, id_t=id_t, id_p=id_p)
             opensim_log.read()
 
             if all(s in opensim_log.lines[-2] for s in ['error', 'Failed']):
@@ -328,7 +331,7 @@ def run_first_stage(dir_opensim_logs, id_s):
 
     return True
 
-def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_settings=True, showfig=False):
+def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_settings=True, plot_thresh=True, log_y=False, showfig=False):
     df = pd.read_csv(os.path.join(dir_opensim_logs, f"{id_s}_opensim_inverse_kinematics_log_means.csv"))
 
     legendnames_for_column_names = {'total_squared_error': 'Total Squared Error',
@@ -338,7 +341,18 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
 
     columns_to_plot = ['total_squared_error', 'marker_rmse', 'marker_max_error']
     columns_to_plot = ['marker_rmse']
-    os.makedirs(os.path.join(dir_plots, 'pat_mean'), exist_ok=True)
+
+
+
+
+    dir_plots_mean = os.path.join(dir_plots, 'pat_mean')
+
+    dir_svg = os.path.join(dir_plots_mean, f"01_svg")
+    dir_html = os.path.join(dir_plots_mean, f"02_html")
+
+    for dir in [dir_svg, dir_html]:
+        os.makedirs(dir, exist_ok=True)
+
     if plot_patients:
         prog = tqdm(total=len(df['id_p'].unique())*len(columns_to_plot), desc=f"Processing {id_s}", unit='files')
         for id_p in df['id_p'].unique():
@@ -346,14 +360,22 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
             for column in columns_to_plot:
                 prog.set_description(f"Processing {id_s}_{id_p}_{column}")
                 fig = px.bar(df[df['id_p'] == id_p], x='id_t', y=column, title=f"{legendnames_for_column_names[column]} for {id_s}_{id_p}",)
+
+                if plot_thresh:
+                    # add horizontal line for threshold at 0.04
+                    fig.add_hline(y=0.04, line_width=1, line_dash='dash', line_color='red')
+                    # add horizontal line for threshold at 0.02
+                    fig.add_hline(y=0.02, line_width=1, line_dash='dash', line_color='orange')
+
                 fig.update_layout(xaxis_title=f'Trials',
                                   yaxis_title=f'{legendnames_for_column_names[column]}'
                                   )
 
                 if showfig:
                     fig.show()
-                fig.write_html(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{id_p}_{column}_bar_mean.html"))
-                fig.write_image(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{id_p}_{column}_bar_mean.png"))
+
+                fig.write_image(os.path.join(dir_svg, f"{id_s}_{id_p}_{column}_bar_mean.svg"))
+                fig.write_html(os.path.join(dir_html, f"{id_s}_{id_p}_{column}_bar_mean.html"))
                 prog.update(1)
         prog.close()
 
@@ -363,24 +385,36 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
             prog.set_description(f"Processing {id_s}_{column}")
 
             setting_name = 'OMC-data' if id_s == 'S15133' else id_s
-            fig = px.box(df, x='id_p', y=column, title=f"{legendnames_for_column_names[column]} for {setting_name}",)
+
+            if log_y:
+                title = f"log({legendnames_for_column_names[column]}) for {setting_name}"
+
+            else:
+                title = f"{legendnames_for_column_names[column]} for {setting_name}"
+
+            fig = px.box(df, x='id_p', y=column, title=title, log_y=log_y)
+
+            if plot_thresh:
+                # add horizontal line for threshold at 0.04
+                fig.add_hline(y=0.04, line_width=1, line_dash='dash', line_color='red')
+                # add horizontal line for threshold at 0.02
+                fig.add_hline(y=0.02, line_width=1, line_dash='dash', line_color='orange')
+
+
             fig.update_layout(xaxis_title=f'Participants',
                               yaxis_title=f'{legendnames_for_column_names[column]} (m)'
                               )
 
             if showfig:
                 fig.show()
-            fig.write_html(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{column}_box_means.html"))
-            fig.write_image(os.path.join(dir_plots, 'pat_mean', f"{id_s}_{column}_box_means.png"))
+
+            fig.write_image(os.path.join(dir_svg, f"{id_s}_{column}_box_means.svg"))
+            fig.write_html(os.path.join(dir_html, f"{id_s}_{column}_box_means.html"))
+
             prog.update(1)
 
         prog.close()
 
-
-
-
-
-    pass
 
 def consolidate_csvs(dir_opensim_logs, id_s):
     """
@@ -459,13 +493,28 @@ def plot_individual_trial(dir_opensim_logs, dir_plots, id_s, showfig=False):
 
             if showfig:
                 fig.show()
-            fig.write_html(os.path.join(dir_plots, f"{os.path.basename(file).replace('.csv', f'_{column}.html')}"))
+
+            dir_svg = os.path.join(dir_plots, f"01_svg")
+            dir_html = os.path.join(dir_plots, f"02_html")
+
+            os.makedirs(dir_svg, exist_ok=True)
+            os.makedirs(dir_html, exist_ok=True)
+
+            fig.write_html(os.path.join(dir_html, f"{os.path.basename(file).replace('.csv', f'_{column}.html')}"))
+            fig.write_image(os.path.join(dir_svg, f"{os.path.basename(file).replace('.csv', f'_{column}.svg')}"))
 
 if __name__ == '__main__':
 
     drive = iDrinkUtilities.get_drivepath()
     dir_opensim_logs = os.path.join(drive, 'iDrink', "validation_root", "05_logs", 'opensim')
+
     dir_plots = os.path.join(dir_opensim_logs, 'plots')
+    dir_opensim_results = os.path.join(drive, 'iDrink', "validation_root", '04_statistics', '03_opensim', '01_results')
+    dir_plots = os.path.join(drive, 'iDrink', "validation_root", '04_statistics', '03_opensim', '02_plots')
+
+    for dir in [dir_plots, dir_opensim_results]:
+        os.makedirs(dir, exist_ok=True)
+
 
     setting_ints = np.arange(1, 27).tolist()
     setting_ints.append(15133)
@@ -473,6 +522,6 @@ if __name__ == '__main__':
     idx_s = [f"S{setting_int:03d}" for setting_int in setting_ints]
 
     for id_s in idx_s:
-        success = run_first_stage(dir_opensim_logs, id_s)
+        success = run_first_stage(dir_opensim_logs, dir_opensim_results, id_s)
         if success:
             plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=True, showfig=False)

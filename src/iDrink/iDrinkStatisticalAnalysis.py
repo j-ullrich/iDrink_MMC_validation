@@ -9,6 +9,7 @@ import glob
 import re
 from operator import index
 
+from sympy.physics.units import sidereal_year
 from tqdm import tqdm
 import platform
 import pandas as pd
@@ -80,17 +81,25 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
     """
     global murphy_measures
 
-    df_diff = pd.DataFrame(columns=['identifier', 'id_s', 'id_p', 'id_t'] + murphy_measures)
+    df_diff = pd.DataFrame(columns=['identifier', 'id_s', 'id_p', 'id_t', 'condition', 'side'] + murphy_measures)
 
     id_s_omc = 'S15133'
     idx_s = sorted(df['id_s'].unique())
+
+
+    progbar = tqdm(total=sum(len(sublist) for sublist in list(df[df['id_s'] == id_s]['id_p'].unique() for id_s in idx_s)), desc="Calculating Differences", disable=verbose<1)
+
     for id_s in idx_s:
         idx_p = sorted(list(df[df['id_s'] == id_s]['id_p'].unique()))
         for id_p in idx_p:
             idx_t = sorted(list(df[(df['id_p'] == id_p) & (df['id_s'] == id_s)]['id_t'].unique()))
 
+            progbar.set_description(f'Calculating Differences for {id_s}_{id_p}')
+
             for id_t in idx_t:
                 identifier = f"{id_s}_{id_p}_{id_t}"
+                condition = df.loc[df['identifier'] == identifier, 'condition'].values[0]
+                side = df.loc[df['identifier'] == identifier, 'side'].values[0]
 
                 path_trial_stat_csv = os.path.join(root_stat_cat, id_s, f'{identifier}_stat.csv')
                 got_mmc = False
@@ -127,13 +136,17 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
 
                 diff = row_mmc - row_omc
 
-                row_diff = [identifier, id_s, id_p, id_t] + list(diff)
+                row_diff = [identifier, id_s, id_p, id_t, condition, side] + list(diff)
 
                 df_diff.loc[df_diff.shape[0]] = row_diff
 
+            progbar.update(1)
+
+    progbar.close()
+
     return df_diff
 
-def save_plots_murphy(df_murphy, root_stat_cat, filetype = '.png', verbose=1):
+def save_plots_murphy(df_murphy, root_stat_cat, filetype = '.svg', verbose=1):
     """
     Creates plots for the Murphy Measures of the MMC and OMC and saves them in the Statistics Folder.
 
@@ -196,7 +209,9 @@ def save_plots_murphy(df_murphy, root_stat_cat, filetype = '.png', verbose=1):
 
     pass
 
-def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms = None, thresh_elbowVelocity=None, verbose=1):
+def runs_statistics_discrete(path_csv_murphy, root_stat,
+                             thresh_PeakVelocity_mms = None, thresh_elbowVelocity=None,
+                             make_plots = False, verbose=1):
     """
     Takes Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
     :param df_mmc:
@@ -217,10 +232,22 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms
     if thresh_elbowVelocity is not None:
         df_murphy = df_murphy[df_murphy['elbowVelocity'] < thresh_elbowVelocity]
 
+    if thresh_elbowVelocity or thresh_PeakVelocity_mms:
+        outlier_corrected = '_outlier_corrected'
+    else:
+        outlier_corrected = ''
+
 
     # Create subset of DataFrame containing all trials that are also in OMC
     df = pd.DataFrame(columns=df_murphy.columns)
+
+    if verbose >= 1:
+        progbar = tqdm(total=len(idx_s_mmc), desc='Calculating Differences')
     for id_s in idx_s_mmc:
+
+        if verbose >= 1:
+            progbar.set_description(f'Calculating Differences for {id_s}')
+
 
         df_s = df_murphy[df_murphy['id_s'] == id_s]
         df_omc = df_murphy[df_murphy['id_s'] == 'S15133']
@@ -232,54 +259,106 @@ def runs_statistics_discrete(path_csv_murphy, root_stat, thresh_PeakVelocity_mms
                 df = pd.concat([df, df_omc[(df_omc['id_p'] == id_p) & (df_omc['id_t'] == id_t)]])
 
         df = pd.concat([df_s, df])
+        if verbose >= 1:
+            progbar.update(1)
+
+    if verbose >= 1:
+        progbar.close()
+
+    # Create DataFrame containing the differences between MMC and OMC
     df_diff = get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=thresh_PeakVelocity_mms, verbose=verbose)
+
+
+
+    # Create DataFrame and calculate mean of each column
+    col_identity = ['id_s', 'id_p', 'condition', 'side']
+    id_first_measure = len(col_identity)
 
     # Create DataFrame containing absolute values of the differences
     df_abs_diff = df_diff.copy()
-    df_abs_diff.iloc[:, 4:] = np.abs(df_abs_diff.iloc[:, 4:])
+    df_abs_diff.iloc[:, id_first_measure+2:] = np.abs(df_abs_diff.iloc[:, id_first_measure+2:])
 
-    # Create DataFrame and calculate mean of each column
-    df_mean = pd.DataFrame(columns=['id_s', 'id_p'] + murphy_measures)
-    df_rmse = pd.DataFrame(columns=['id_s', 'id_p'] + murphy_measures)
+    df_mean = pd.DataFrame(columns=col_identity + murphy_measures)
+    df_rmse = pd.DataFrame(columns=col_identity + murphy_measures)
+
+
+    if verbose >= 1:
+        progbar = tqdm(total=len(idx_s_mmc), desc='Calculating Means')
+
+
     for id_s in idx_s_mmc:
+
+        if verbose >= 1:
+            progbar.set_description(f'Calculating Means for {id_s}')
+
         idx_p = sorted(list(df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique()))
 
         for id_p in idx_p:
             # mean Error
+            for condition in ['affected', 'unaffected']:
+                df_diff_temp = df_diff.loc[(df_diff['id_s'] == id_s) & (df_diff['id_p'] == id_p) & (df_diff['condition']==condition)]
+                df_diff_temp_measures = df_diff_temp.iloc[:, id_first_measure+2:]
+
+                side = df_murphy.loc[(df_murphy['id_s'] == id_s) & (df_murphy['id_p'] == id_p), 'side'].values[0]
+
+                # mean for setting over all trials
+                df_mean.loc[len(df_mean), 'id_s'] = id_s
+                df_mean.loc[len(df_mean)-1, 'id_p'] = id_p
+                df_mean.loc[len(df_mean)-1, 'condition'] = condition
+                df_mean.loc[len(df_mean)-1, 'side'] = side
+                df_mean.iloc[len(df_mean)-1, id_first_measure:] = np.mean(df_diff_temp_measures, axis=0)
+
+
+
+                # Root Mean Squared Error
+                df_rmse.loc[len(df_rmse), 'id_s'] = id_s
+                df_rmse.loc[len(df_rmse) - 1, 'id_p'] = id_p
+                df_rmse.loc[len(df_rmse) - 1, 'condition'] = condition
+                df_rmse.loc[len(df_rmse) - 1, 'side'] = side
+                df_rmse.iloc[len(df_rmse) - 1, id_first_measure:] = np.sqrt(np.mean(df_diff_temp_measures**2, axis=0))
+
+        for condition in ['affected', 'unaffected']:
+            df_diff_temp = df_diff.loc[(df_diff['id_s'] == id_s)  & (df_diff['condition'] == condition)]
+            df_diff_temp_measures = df_diff_temp.iloc[:, id_first_measure+2:]
+
+            # mean for setting over all participants
             df_mean.loc[len(df_mean), 'id_s'] = id_s
-            df_mean.loc[len(df_mean)-1, 'id_p'] = id_p
-            df_mean.iloc[len(df_mean)-1, 2:] = np.mean(df_diff.loc[(df_diff['id_s'] == id_s) & (df_diff['id_p'] == id_p), df_diff.columns[4:]], axis=0)
+            df_mean.loc[len(df_mean) - 1, 'id_p'] = ''
+            df_mean.loc[len(df_mean) - 1, 'condition'] = condition
+            df_mean.loc[len(df_mean) - 1, 'side'] = ''
+            df_mean.iloc[len(df_mean) - 1, id_first_measure:] = np.mean(df_diff_temp_measures, axis=0)
 
-
-            # Root Mean Squared Error
             df_rmse.loc[len(df_rmse), 'id_s'] = id_s
-            df_rmse.loc[len(df_rmse) - 1, 'id_p'] = id_p
-            df_rmse.iloc[len(df_rmse) - 1, 2:] = np.sqrt(np.mean(df_diff.loc[(df_diff['id_s'] == id_s) & (df_diff['id_p'] == id_p), df_diff.columns[4:]]**2, axis=0))
+            df_rmse.loc[len(df_rmse) - 1, 'id_p'] = ''
+            df_rmse.loc[len(df_rmse) - 1, 'condition'] = condition
+            df_rmse.loc[len(df_rmse) - 1, 'side'] = ''
+            df_rmse.iloc[len(df_rmse) - 1, id_first_measure:] = np.sqrt(np.mean(df_diff_temp_measures**2, axis=0))
 
-        # mean for setting over all participants
-        df_mean.loc[len(df_mean), 'id_s'] = id_s
-        df_mean.loc[len(df_mean) - 1, 'id_p'] = ''
-        df_mean.iloc[len(df_mean) - 1, 2:] = np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]], axis=0)
+            if verbose >= 1:
+                progbar.update(1)
 
-        df_rmse.loc[len(df_rmse), 'id_s'] = id_s
-        df_rmse.loc[len(df_rmse) - 1, 'id_p'] = ''
-        df_rmse.iloc[len(df_rmse) - 1, 2:] = np.sqrt(np.mean(df_diff.loc[df_diff['id_s'] == id_s, df_diff.columns[4:]]**2, axis=0))
+    if verbose >= 1:
+        progbar.close()
 
     # Write to  csv
-    path_csv_murphy_diff = os.path.join(root_stat_cat, f'stat_murphy_diff.csv')
-    path_csv_murphy_abs_diff = os.path.join(root_stat_cat, f'stat_murphy_abs_diff.csv')
-    path_csv_murphy_mean = os.path.join(root_stat_cat, f'stat_murphy_mean.csv')
-    path_csv_murphy_rmse = os.path.join(root_stat_cat, f'stat_murphy_rmse.csv')
+    path_csv_murphy_diff = os.path.join(root_stat_cat, f'stat_murphy_diff{outlier_corrected}.csv')
+    path_csv_murphy_abs_diff = os.path.join(root_stat_cat, f'stat_murphy_abs_diff{outlier_corrected}.csv')
+    path_csv_murphy_mean = os.path.join(root_stat_cat, f'stat_murphy_mean{outlier_corrected}.csv')
+    path_csv_murphy_rmse = os.path.join(root_stat_cat, f'stat_murphy_rmse{outlier_corrected}.csv')
 
     df_diff.to_csv(path_csv_murphy_diff, sep=';')
     df_abs_diff.to_csv(path_csv_murphy_abs_diff, sep=';')
     df_mean.to_csv(path_csv_murphy_mean, sep=';')
     df_rmse.to_csv(path_csv_murphy_rmse, sep=';')
 
-    save_plots_murphy(df_murphy, root_stat_cat, filetype=['.html'], verbose=verbose)
+
+    if make_plots:
+        save_plots_murphy(df_murphy, root_stat_cat, filetype=['.html'], verbose=verbose)
 
     # Create DataFrame for each trial
     #run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
+
+
 
 
 
@@ -1971,6 +2050,8 @@ if __name__ == '__main__':
     dir_processed = os.path.join(root_data, 'preprocessed_data')
     dir_results = os.path.join(root_stat, '01_continuous', '01_results')
     det_outliers = ['elbow', 'endeff']
+    hand_vel_thresh = 3000
+    thresh_elbowVelocity = 5
 
     if test_timeseries:
 
@@ -1979,7 +2060,7 @@ if __name__ == '__main__':
 
             preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= det_outliers,
-                                  joint_vel_thresh=5, hand_vel_thresh=3000, correct=correct, fancy_offset=False,
+                                  joint_vel_thresh=thresh_elbowVelocity, hand_vel_thresh=hand_vel_thresh, correct=correct, fancy_offset=False,
                                   verbose=1, plot_debug=False, print_able=False, empty_dst=False, debug=debug, debug_c=50)
             dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
@@ -1988,7 +2069,7 @@ if __name__ == '__main__':
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
         get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
-        #get_timeseries_correlations(dir_processed, dir_results, verbose=1)
+        get_timeseries_correlations(dir_processed, dir_results, verbose=1)
             #get_multiple_correlations(dir_processed, dir_results, verbose=1) #TODO: Implement this function
 
             #get_omc_mmc_error_old(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
@@ -1998,3 +2079,5 @@ if __name__ == '__main__':
     else:
 
         runs_statistics_discrete(path_csv_murphy_measures, root_stat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)
+        runs_statistics_discrete(path_csv_murphy_measures, root_stat, thresh_PeakVelocity_mms=hand_vel_thresh,
+                                 thresh_elbowVelocity=thresh_elbowVelocity)
