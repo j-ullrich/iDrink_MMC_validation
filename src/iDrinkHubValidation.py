@@ -930,7 +930,7 @@ def run_statistics():
     dir_processed = os.path.join(root_data, 'preprocessed_data')
     dir_results = os.path.join(root_stat, '01_continuous', '01_results')
 
-    for correct in corrections:
+    """for correct in corrections:
         debug = True
         iDrinkStatisticalAnalysis.preprocess_timeseries(root_val,
                               downsample=True, drop_last_rows=False, detect_outliers= [],
@@ -939,7 +939,7 @@ def run_statistics():
         dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
         dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
         iDrinkStatisticalAnalysis.normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
-    iDrinkStatisticalAnalysis.get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
+    iDrinkStatisticalAnalysis.get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)"""
     iDrinkStatisticalAnalysis.get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
     iDrinkStatisticalAnalysis.get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
     iDrinkStatisticalAnalysis.get_timeseries_correlations(dir_processed, dir_results, verbose=1)

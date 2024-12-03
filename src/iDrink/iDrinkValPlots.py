@@ -808,10 +808,10 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
     if dynamic:
         dir_in = os.path.join(root_val, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic', '01_normalized')
-        dir_out = os.path.join(dir_out, '02_dynamic')
+        dir_out = os.path.join(dir_out, '02_dynamic', f'{id_s}_{id_p}')
     else:
         dir_in = os.path.join(root_val, '03_data', 'preprocessed_data', '02_fully_preprocessed', '01_normalized')
-        dir_out = os.path.join(dir_out, '01_fixed')
+        dir_out = os.path.join(dir_out, '01_fixed', f'{id_s}_{id_p}')
 
     dir_out_aff = os.path.join(dir_out, '01_affected')
     dir_out_unaff = os.path.join(dir_out, '02_unaffected')
@@ -826,7 +826,7 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
     for file in files:
 
-        progbar.set_description(f'Plotting Averaged Timeseries for {os.path.basename(file)}')
+        progbar.set_description(f'Plotting Averaged Timeseries for {id_s}_{id_p} - {os.path.basename(file)}')
 
         df_in_full = pd.read_csv(file, sep=';')
 
@@ -842,11 +842,60 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
         df_aff = df_in_red[df_in_red['condition'] == 'affected']
         df_unaff = df_in_red[df_in_red['condition'] == 'unaffected']
 
-        side_aff = df_aff['side'].values[0]
-        side_unaff = df_unaff['side'].values[0]
+
+        side_aff = df_aff['side'].values[0] if len(df_aff) > 0 else None
+
+        side_unaff = df_unaff['side'].values[0] if len(df_unaff) > 0 else None
 
         normalized_time = np.linspace(0, 1, 300)
         #get unaffected data
+
+        def make_figure(mmc, omc, time, side, affected, dir_out, kinematic):
+            mean_mmc = np.mean(mmc, axis=0)
+            std_mmc = np.std(mmc, axis=0)
+            mean_omc = np.mean(omc, axis=0)
+            std_omc = np.std(omc, axis=0)
+
+            unit = get_unit(kinematic)
+
+            fig = go.Figure()
+
+            fig.add_trace(go.Scatter(x=time, y=mean_mmc, mode='lines', name='MMC',
+                                     line=dict(color=f'rgba({rgba_mmc}, 1)')))
+            fig.add_trace(
+                go.Scatter(x=time, y=mean_mmc + std_mmc, mode='lines', name='MMC + std',
+                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
+            fig.add_trace(
+                go.Scatter(x=time, y=mean_mmc - std_mmc, mode='lines', name='MMC - std',
+                           fill='tonexty', fillcolor=f'rgba({rgba_mmc}, 0.3)',
+                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
+
+            fig.add_trace(go.Scatter(x=time, y=mean_omc, mode='lines', name='OMC',
+                                     line=dict(color=f'rgba({rgba_omc}, 1)')))
+            fig.add_trace(
+                go.Scatter(x=time, y=mean_omc + std_omc, mode='lines', name='OMC + std',
+                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
+            fig.add_trace(
+                go.Scatter(x=time, y=mean_omc - std_omc, mode='lines', name='OMC - std',
+                           fill='tonexty', fillcolor=f'rgba({rgba_omc}, 0.3)',
+                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
+
+            fig.update_layout(title=f'Averaged Timeseries for {kinematic} of {id_s}_{id_p} - {side} - {affected}',
+                              xaxis_title='Normalized Time',
+                              yaxis_title=f'{kinematic} [{unit}]', )
+
+            if fig_show:
+                fig.show()
+
+            if write_html:
+                path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_{side}_{affected}_averaged.html')
+                fig.write_html(path)
+
+            if write_svg:
+                path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_{side}_{affected}_averaged.svg')
+                fig.write_image(path, scale=5)
+
+            return fig
 
 
         def interpolate_trial(df, idx_t, normalized_time, data):
@@ -862,96 +911,32 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
             return df_interp
 
-        idx_t_unaff = df_unaff['id_t'].unique()
-        interpolated_mmc_unaff = interpolate_trial(df_unaff, idx_t_unaff, normalized_time, 'mmc')
-        interpolated_omc_unaff = interpolate_trial(df_unaff, idx_t_unaff, normalized_time, 'omc')
-        idx_t_aff = df_aff['id_t'].unique()
-        interpolated_mmc_aff = interpolate_trial(df_aff, idx_t_aff, normalized_time, 'mmc')
-        interpolated_omc_aff = interpolate_trial(df_aff, idx_t_aff, normalized_time, 'omc')
-
-
-        unit = get_unit(kinematic)
-
+        interpolated_mmc_unaff = None
+        interpolated_omc_unaff = None
+        interpolated_mmc_aff = None
+        interpolated_omc_aff = None
         fig_unaff = None
         fig_aff = None
 
+        if side_unaff is not None:
+            idx_t_unaff = df_unaff['id_t'].unique()
+            interpolated_mmc_unaff = interpolate_trial(df_unaff, idx_t_unaff, normalized_time, 'mmc')
+            interpolated_omc_unaff = interpolate_trial(df_unaff, idx_t_unaff, normalized_time, 'omc')
+
+        if side_aff is not None:
+            idx_t_aff = df_aff['id_t'].unique()
+            interpolated_mmc_aff = interpolate_trial(df_aff, idx_t_aff, normalized_time, 'mmc')
+            interpolated_omc_aff = interpolate_trial(df_aff, idx_t_aff, normalized_time, 'omc')
+
+
+
         if interpolated_mmc_unaff and interpolated_omc_unaff:
-            mean_mmc_unaff = np.mean(interpolated_mmc_unaff, axis=0)
-            std_mmc_unaff = np.std(interpolated_mmc_unaff, axis=0)
-            mean_omc_unaff = np.mean(interpolated_omc_unaff, axis=0)
-            std_omc_unaff = np.std(interpolated_omc_unaff, axis=0)
-
-            fig_unaff = go.Figure()
-
-            fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_unaff, mode='lines', name='MMC',
-                                           line = dict(color=f'rgba({rgba_mmc}, 1)')))
-            fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_unaff + std_mmc_unaff, mode='lines', name='MMC + std',
-                                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
-            fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_unaff - std_mmc_unaff, mode='lines', name='MMC - std',
-                                           fill='tonexty', fillcolor=f'rgba({rgba_mmc}, 0.3)',
-                                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
-
-            fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_unaff, mode='lines', name='OMC',
-                                           line = dict(color=f'rgba({rgba_omc}, 1)')))
-            fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_unaff + std_omc_unaff, mode='lines', name='OMC + std',
-                                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
-            fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_unaff - std_omc_unaff, mode='lines', name='OMC - std',
-                                           fill='tonexty', fillcolor=f'rgba({rgba_omc}, 0.3)',
-                                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
-
-            fig_unaff.update_layout(title=f'Averaged Timeseries for {kinematic} of {id_s}_{id_p} - {side_unaff} - Unaffected',
-                                    xaxis_title='Normalized Time',
-                                    yaxis_title=f'{kinematic} [{unit}]',)
-
-            if fig_show:
-                fig_unaff.show()
-
-            if write_html:
-                path = os.path.join(dir_out_unaff, f'{id_s}_{id_p}_{kinematic}_{side_unaff}_affected_averaged.html')
-                fig_unaff.write_html(path)
-
-            if write_svg:
-                path = os.path.join(dir_out_unaff, f'{id_s}_{id_p}_{kinematic}_{side_unaff}_affected_averaged.svg')
-                fig_unaff.write_image(path, scale=5)
+            fig_unaff = make_figure(interpolated_mmc_unaff, interpolated_omc_unaff, normalized_time,
+                                    side_unaff, 'unaffected', dir_out_unaff, kinematic)
 
         if interpolated_mmc_aff and interpolated_omc_aff:
-            mean_mmc_aff = np.mean(interpolated_mmc_aff, axis=0)
-            std_mmc_aff = np.std(interpolated_mmc_aff, axis=0)
-            mean_omc_aff = np.mean(interpolated_omc_aff, axis=0)
-            std_omc_aff = np.std(interpolated_omc_aff, axis=0)
-
-            fig_aff = go.Figure()
-
-            fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_aff, mode='lines', name='MMC',
-                                           line = dict(color=f'rgba({rgba_mmc}, 1)')))
-            fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_aff + std_mmc_aff, mode='lines', name='MMC + std',
-                                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
-            fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_aff - std_mmc_aff, mode='lines', name='MMC - std',
-                                           fill='tonexty', fillcolor=f'rgba({rgba_mmc}, 0.3)',
-                                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
-
-            fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_aff, mode='lines', name='OMC',
-                                           line = dict(color=f'rgba({rgba_omc}, 1)')))
-            fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_aff + std_omc_aff, mode='lines', name='OMC + std',
-                                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
-            fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_aff - std_omc_aff, mode='lines', name='OMC - std',
-                                           fill='tonexty', fillcolor=f'rgba({rgba_omc}, 0.3)',
-                                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
-
-            fig_aff.update_layout(title=f'Averaged Timeseries for {kinematic} of {id_s}_{id_p} - {side_aff} - affected',
-                                    xaxis_title='Normalized Time',
-                                    yaxis_title=f'{kinematic} [{unit}]',)
-
-            if fig_show:
-                fig_aff.show()
-
-            if write_html:
-                path = os.path.join(dir_out_aff, f'{id_s}_{id_p}_{kinematic}_{side_aff}_affected_averaged.html')
-                fig_aff.write_html(path)
-
-            if write_svg:
-                path = os.path.join(dir_out_aff, f'{id_s}_{id_p}_{kinematic}_{side_aff}_affected_averaged.svg')
-                fig_aff.write_image(path, scale=5)
+            fig_aff = make_figure(interpolated_mmc_aff, interpolated_omc_aff, normalized_time,
+                                  side_aff, 'affected', dir_out_aff, kinematic)
 
         if fig_unaff and fig_aff:
             # get both plots in one figure side by side
@@ -1435,6 +1420,8 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
 
     progbar = tqdm(total=total, desc='Searching plottable Trials', disable=verbose < 1)
 
+    set_sp_tuples = set()
+
     for id_p in idx_p:
         idx_t_omc = [os.path.basename(omc_csv).split('_')[2].split('.')[0] for omc_csv in omc_csvs
                      if id_p in os.path.basename(omc_csv)]
@@ -1459,7 +1446,10 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
                 omc_files = glob.glob(os.path.join(dir_src, f'{id_s_omc}_{id_p}_{id_t}*.csv'))
                 mmc_files = glob.glob(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}*.csv'))
 
+
+
                 if omc_files and mmc_files:
+                    set_sp_tuples.add((id_s, id_p))
                     df_new = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'condition': condition, 'side': side, 'to_plot': to_plot}, index = [0])
                     df_temp = pd.concat([df_temp, df_new], ignore_index=True)
                 else:
@@ -1472,7 +1462,9 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
 
     df.to_csv(path_csv, sep=';')
 
-    return path_csv
+
+
+    return path_csv, set_sp_tuples
 
 
 
@@ -1492,6 +1484,7 @@ def get_plottable_timeseries_kinematics(plottable_csv, min_n_ids, affected=None,
     df = pd.read_csv(plottable_csv, sep=';')
 
     df_out = pd.DataFrame(columns=['id_p', 'id_t', 'n_s_ids'])
+
 
     if affected == 'affected':
         df = df[df['condition'] == 'affected']
@@ -1544,15 +1537,28 @@ if __name__ == "__main__":
     else:
         dynamic = False
         dynamic_str = 'fixed'
-    for corr in [True, False]:
-        plot_murphy_error_rmse_box_bar_plot(root_val, outlier_corrected=corr)
 
-    plot_timeseries_averaged(root_val, 'S001', 'P07', dynamic=dynamic)
+    verbose = 1
 
-    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, verbose=1)
+    """for corr in [True, False]:
+        plot_murphy_error_rmse_box_bar_plot(root_val, outlier_corrected=corr)"""
 
-    csv_plottable = write_plottable_identifier(root_val, dir_processed,
+    #plot_timeseries_averaged(root_val, 'S001', 'P07', dynamic=dynamic)
+
+    #plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, verbose=1)
+
+    csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
+
+    for tuple in set_sp_tuples:
+        progbar_tuple = tqdm(total=1, desc=f'Plotting {tuple}', unit='Tuple', disable=verbose < 1)
+        progbar_tuple.set_description(f'Plotting {tuple}')
+        id_s = tuple[0]
+        id_p = tuple[1]
+        plot_timeseries_averaged(root_val, id_s, id_p, dynamic=dynamic)
+        progbar_tuple.update(1)
+
+    progbar_tuple.close()
 
     df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='unaffected', verbose=1)
 
@@ -1564,14 +1570,12 @@ if __name__ == "__main__":
     kinematic = kinematics[4]
     # iterate over all plottable trials and create plots
 
-    list_sp_tuples = []
-
     for i in range(len(df_plottable)):
-        id_s = df_plottable['id_s'][i]
+        #id_s = df_plottable['id_s'][i]
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]
 
-        list_sp_tuples.append((id_s, id_p))
+
         for kinematic in kinematics:
             plot_timeseries_blandaltman_scale_location(root_val, kinematic=kinematic, idx_p=id_p, idx_t=id_t, dynamic=dynamic_str, write_html=False, write_svg=True, show_plots=False)
             pass
@@ -1579,12 +1583,7 @@ if __name__ == "__main__":
         generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
                                       showfig = False, write_html=False, write_svg=True)
 
-    set_dp_tuples = set(list_sp_tuples)
 
-    for tuple in set_dp_tuples:
-        id_s = tuple[0]
-        id_p = tuple[1]
-        plot_timeseries_averaged(root_val, id_s, id_p, dynamic=dynamic)
 
     #plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True, id_p=None,  verbose=1)
     #plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)

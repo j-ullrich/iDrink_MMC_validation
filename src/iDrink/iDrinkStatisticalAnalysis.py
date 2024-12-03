@@ -970,7 +970,7 @@ def get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1):
                     mean = np.nanmean(df_s[f'{metric}_error'])
                     median = np.nanmedian(df_s[f'{metric}_error'])
                     std = np.nanstd(df_s[f'{metric}_error'])
-                    rmse = np.sqrt(np.nanmean(df_s[f'{metric}_error']**2))
+                    rmse = np.sqrt(np.nanmean(np.square(df_s[f'{metric}_error'])))
                     rmse_std = np.nanstd(df_s[f'{metric}_rse'])
 
                     df_mean = pd.DataFrame({
@@ -1714,7 +1714,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
         for id_t in t_ids:
             if verbose >= 1:
-                process.set_description(f'Preprocessing {id_p}_{id_t}')
+                process.set_description(f'Preprocessing {correct} - {id_p}_{id_t}')
                 process.update(1)
 
             if debug:
@@ -2071,7 +2071,7 @@ if __name__ == '__main__':
                                   verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug, debug_c=50)
             dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
-            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
+            #normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
 
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=True, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
