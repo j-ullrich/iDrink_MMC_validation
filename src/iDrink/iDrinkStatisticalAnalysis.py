@@ -36,6 +36,16 @@ murphy_measures = ["PeakVelocity_mms",
                    "ElbowExtension",
                    "shoulderAbduction"]
 
+
+def delete_existing_files(dir):
+    """Deletes all files that are in the given directory"""
+    if not os.path.exists(dir):
+        return
+    for file in os.listdir(dir):
+        path = os.path.join(dir, file)
+        if os.path.isfile(path):
+            os.remove(os.path.join(dir, file))
+
 def run_stat_murphy(df, id_s, root_stat_cat, verbose=1):
     """
     Calculates statistical measures for the given DataFrame.
@@ -701,7 +711,7 @@ def get_omc_mmc_error_old(dir_root, df_timestamps, correct='fixed', verbose=1):
         df_s_rse.to_csv(csv_s_rse, sep=';')
 
 
-def get_error_timeseries(dir_processed, dir_results, verbose = 1, debug=False):
+def get_error_timeseries(dir_processed, dir_results, empty_dst=False, verbose = 1, debug=False):
     """
     Writes the .csv files with omc-mmc error for all trials and participants.
 
@@ -738,9 +748,15 @@ def get_error_timeseries(dir_processed, dir_results, verbose = 1, debug=False):
 
     csv_out_rom = os.path.join(dir_results, 'omc_mmc_rom.csv')
 
+    if empty_dst:
+        delete_existing_files(dir_results)
+
     for dir_src in list_dir_src:
         dir_dst = os.path.join(dir_results, '01_ts_error')
         os.makedirs(dir_dst, exist_ok=True)
+
+        if empty_dst:
+            delete_existing_files(dir_dst)
 
         id_s_omc = 'S15133'
 
@@ -1599,15 +1615,6 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
         return df_1_out, df_2_out
 
-    def delete_existing_files(dir):
-        """Deletes all files that are in the given directory"""
-        if not os.path.exists(dir):
-            return
-        for file in os.listdir(dir):
-            path = os.path.join(dir, file)
-            if os.path.isfile(path):
-                os.remove(os.path.join(dir, file))
-
     def update_offset_csv(csv_offset, id_s, id_p, id_t, dict_offsets):
         """
         Updates or writes csv file with offsets for each trial and kinematic
@@ -2044,14 +2051,14 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = False
+    test_timeseries = True
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
     dir_results = os.path.join(root_stat, '01_continuous', '01_results')
     det_outliers = ['elbow', 'endeff']
     hand_vel_thresh = 3000
-    thresh_elbowVelocity = 5
+    thresh_elbowVelocity = 200
 
     if test_timeseries:
 
@@ -2060,13 +2067,13 @@ if __name__ == '__main__':
 
             preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= det_outliers,
-                                  joint_vel_thresh=thresh_elbowVelocity, hand_vel_thresh=hand_vel_thresh, correct=correct, fancy_offset=False,
-                                  verbose=1, plot_debug=False, print_able=False, empty_dst=False, debug=debug, debug_c=50)
+                                  joint_vel_thresh=thresh_elbowVelocity, hand_vel_thresh=hand_vel_thresh, correct=correct, fancy_offset=True,
+                                  verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug, debug_c=50)
             dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
             normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
 
-        get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, verbose=1, debug=debug)
+        get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=True, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
         get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
         get_timeseries_correlations(dir_processed, dir_results, verbose=1)

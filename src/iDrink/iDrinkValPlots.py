@@ -33,6 +33,9 @@ murphy_measures = ["PeakVelocity_mms",
                    "ElbowExtension",
                    "shoulderAbduction"]
 
+rgba_mmc = '100, 149, 237'
+rgba_omc = '255, 165, 0'
+
 
 def get_unit(kin):
     match kin:
@@ -866,8 +869,7 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
         interpolated_mmc_aff = interpolate_trial(df_aff, idx_t_aff, normalized_time, 'mmc')
         interpolated_omc_aff = interpolate_trial(df_aff, idx_t_aff, normalized_time, 'omc')
 
-        blue = '100, 149, 237'
-        orange = '255, 165, 0'
+
         unit = get_unit(kinematic)
 
         fig_unaff = None
@@ -882,20 +884,20 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
             fig_unaff = go.Figure()
 
             fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_unaff, mode='lines', name='MMC',
-                                           line = dict(color=f'rgba({blue}, 1)')))
+                                           line = dict(color=f'rgba({rgba_mmc}, 1)')))
             fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_unaff + std_mmc_unaff, mode='lines', name='MMC + std',
-                                           line=dict(color=f'rgba({blue}, 0.4)'), showlegend=False))
+                                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
             fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_unaff - std_mmc_unaff, mode='lines', name='MMC - std',
-                                           fill='tonexty', fillcolor=f'rgba({blue}, 0.3)',
-                                           line=dict(color=f'rgba({blue}, 0.4)'), showlegend=False))
+                                           fill='tonexty', fillcolor=f'rgba({rgba_mmc}, 0.3)',
+                                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
 
             fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_unaff, mode='lines', name='OMC',
-                                           line = dict(color=f'rgba({orange}, 1)')))
+                                           line = dict(color=f'rgba({rgba_omc}, 1)')))
             fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_unaff + std_omc_unaff, mode='lines', name='OMC + std',
-                                           line=dict(color=f'rgba({orange}, 0.4)'), showlegend=False))
+                                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
             fig_unaff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_unaff - std_omc_unaff, mode='lines', name='OMC - std',
-                                           fill='tonexty', fillcolor=f'rgba({orange}, 0.3)',
-                                           line=dict(color=f'rgba({orange}, 0.4)'), showlegend=False))
+                                           fill='tonexty', fillcolor=f'rgba({rgba_omc}, 0.3)',
+                                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
 
             fig_unaff.update_layout(title=f'Averaged Timeseries for {kinematic} of {id_s}_{id_p} - {side_unaff} - Unaffected',
                                     xaxis_title='Normalized Time',
@@ -921,20 +923,20 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
             fig_aff = go.Figure()
 
             fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_aff, mode='lines', name='MMC',
-                                           line = dict(color=f'rgba({blue}, 1)')))
+                                           line = dict(color=f'rgba({rgba_mmc}, 1)')))
             fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_aff + std_mmc_aff, mode='lines', name='MMC + std',
-                                           line=dict(color=f'rgba({blue}, 0.4)'), showlegend=False))
+                                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
             fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_mmc_aff - std_mmc_aff, mode='lines', name='MMC - std',
-                                           fill='tonexty', fillcolor=f'rgba({blue}, 0.3)',
-                                           line=dict(color=f'rgba({blue}, 0.4)'), showlegend=False))
+                                           fill='tonexty', fillcolor=f'rgba({rgba_mmc}, 0.3)',
+                                           line=dict(color=f'rgba({rgba_mmc}, 0.4)'), showlegend=False))
 
             fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_aff, mode='lines', name='OMC',
-                                           line = dict(color=f'rgba({orange}, 1)')))
+                                           line = dict(color=f'rgba({rgba_omc}, 1)')))
             fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_aff + std_omc_aff, mode='lines', name='OMC + std',
-                                           line=dict(color=f'rgba({orange}, 0.4)'), showlegend=False))
+                                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
             fig_aff.add_trace(go.Scatter(x=normalized_time, y=mean_omc_aff - std_omc_aff, mode='lines', name='OMC - std',
-                                           fill='tonexty', fillcolor=f'rgba({orange}, 0.3)',
-                                           line=dict(color=f'rgba({orange}, 0.4)'), showlegend=False))
+                                           fill='tonexty', fillcolor=f'rgba({rgba_omc}, 0.3)',
+                                           line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
 
             fig_aff.update_layout(title=f'Averaged Timeseries for {kinematic} of {id_s}_{id_p} - {side_aff} - affected',
                                     xaxis_title='Normalized Time',
@@ -1444,7 +1446,11 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
         progbar.total = total
         progbar.refresh()
 
+        df_temp=None
         for id_t in idx_t:
+            if df_temp is None:
+                df_temp = pd.DataFrame(columns=columns)
+            progbar.set_description(f'Checking {id_p}_{id_t}')
             idx_s = [os.path.basename(file).split('_')[0] for file in os.listdir(dir_src) if id_p in file and id_t in file and 'S15133' not in file]
             condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
             side = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['side'].values[0]
@@ -1455,11 +1461,14 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
 
                 if omc_files and mmc_files:
                     df_new = pd.DataFrame({'id_s': id_s, 'id_p': id_p, 'id_t': id_t, 'condition': condition, 'side': side, 'to_plot': to_plot}, index = [0])
-                    df = pd.concat([df, df_new], ignore_index=True)
+                    df_temp = pd.concat([df_temp, df_new], ignore_index=True)
                 else:
                     continue
 
             progbar.update(1)
+
+        if df_temp is not None:
+            df = pd.concat([df, df_temp], ignore_index=True)
 
     df.to_csv(path_csv, sep=';')
 
@@ -1550,19 +1559,32 @@ if __name__ == "__main__":
     kinematics =['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos',
                  'shoulder_abduction_pos']
 
+    # TODO: Make sure, MMC and OMC have always the same colour in Plots MMC - Blue, OMC - Orange check on averaged timeseries
+
     kinematic = kinematics[4]
     # iterate over all plottable trials and create plots
+
+    list_sp_tuples = []
 
     for i in range(len(df_plottable)):
         id_s = df_plottable['id_s'][i]
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]
+
+        list_sp_tuples.append((id_s, id_p))
         for kinematic in kinematics:
             plot_timeseries_blandaltman_scale_location(root_val, kinematic=kinematic, idx_p=id_p, idx_t=id_t, dynamic=dynamic_str, write_html=False, write_svg=True, show_plots=False)
             pass
 
         generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
                                       showfig = False, write_html=False, write_svg=True)
+
+    set_dp_tuples = set(list_sp_tuples)
+
+    for tuple in set_dp_tuples:
+        id_s = tuple[0]
+        id_p = tuple[1]
+        plot_timeseries_averaged(root_val, id_s, id_p, dynamic=dynamic)
 
     #plot_timeseries_RMSE(id_s, dir_dst, dir_data, joint_data=True, id_p=None,  verbose=1)
     #plot_measured_vs_errors(data1, data2, id_s='S000', measured_value='Test', path=path, show_plots=True)
