@@ -2067,11 +2067,11 @@ if __name__ == '__main__':
 
             preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= det_outliers,
-                                  joint_vel_thresh=thresh_elbowVelocity, hand_vel_thresh=hand_vel_thresh, correct=correct, fancy_offset=True,
+                                  joint_vel_thresh=thresh_elbowVelocity, hand_vel_thresh=hand_vel_thresh, correct=correct, fancy_offset=False,
                                   verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug, debug_c=50)
             dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
-            #normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
+            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
 
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=True, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
