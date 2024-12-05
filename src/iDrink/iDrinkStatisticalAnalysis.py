@@ -46,40 +46,128 @@ def delete_existing_files(dir):
         if os.path.isfile(path):
             os.remove(os.path.join(dir, file))
 
-def run_stat_murphy(df, id_s, root_stat_cat, verbose=1):
+def get_murphy_corrrelation(df, root_stat_cat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None, verbose=1):
+    """Calculates the correlation of Murphy Measures for each setting and participant
+
+    When id_p is None, the correlation accounts for the whole setting
+
     """
-    Calculates statistical measures for the given DataFrame.
+    from scipy.stats import pearsonr
 
-    It creates a subfolder in the root_stat folder with the id_s as name.
-    In this folder are .csv files containing the data for each trial in the setting.
-
-    One .csv File contains the average difference between MMC and OMC for all trials.
-
-    :param df:
-    :param id_s:
-    :param root_stat_cat:
-    :param verbose:
-    :return:
-    """
-    global murphy_measures
-
-    csv_out = os.path.join(root_stat_cat, id_s, f'{id_s}_stat.csv')
-
-    df_s = pd.DataFrame(columns=['identifier', 'id_s', 'id_p', 'id_t'] + murphy_measures)
+    df_corr = pd.DataFrame(columns=['id_s', 'id_p', 'measure', 'condition', 'side', 'pearson', 'pearson_p'])
 
     id_s_omc = 'S15133'
-    idx_p = df['id_p'].unique()
 
-    for id_p in idx_p:
-        idx_t = sorted(list(df[(df['id_p']==id_p) & (df['id_s']==id_s )]['id_t'].unique()))
+    df_omc = df[df['id_s'] == id_s_omc]
+    df_mmc = df[df['id_s'] != id_s_omc]
 
-        for id_t in idx_t:
-            identifier = f"{id_s}_{id_p}_{id_t}"
+    for measure in murphy_measures:
 
-            path_trial_stat_csv = os.path.join(root_stat_cat, id_s, f'{identifier}_stat.csv')
+            for id_s in sorted(df_mmc['id_s'].unique()):
+                df_mmc_s = None
+                df_omc_s = None
 
-            row_mmc = df.loc[df['identifier'] == identifier, murphy_measures].values[0]
-            row_omc = df.loc[(df['id_s'] == id_s_omc) & (df['id_p'] == id_p) & (df['id_t'] == id_t), murphy_measures].values[0]
+                id_p_mmc = df_mmc[df_mmc['id_s'] == id_s]['id_p'].unique()
+                id_p_omc = df_omc['id_p'].unique()
+                idx_p = sorted(list(set(id_p_mmc).intersection(id_p_omc)))
+
+                df_temp = pd.DataFrame(columns=['id_s', 'id_p', 'measure', 'condition', 'side', 'pearson', 'pearson_p'], index = [0])
+
+                df_temp['id_s'] = id_s
+                df_temp['measure'] = measure
+
+                for id_p in idx_p:
+                    df_mmc_p = df_mmc[(df_mmc['id_s']== id_s) & (df_mmc['id_p'] == id_p)]
+                    df_omc_p = df_omc[df_omc['id_p'] == id_p]
+
+                    id_t_mmc = df_mmc_p['id_t'].unique()
+                    id_t_omc = df_omc_p['id_t'].unique()
+                    idx_t = sorted(list(set(id_t_mmc).intersection(id_t_omc)))
+
+                    for condition in ['affected', 'unaffected']:
+                        df_mmc_t = df_mmc_p[(df_mmc_p['id_t'].isin(idx_t)) & (df_mmc_p['condition'] == condition)]
+                        df_omc_t = df_omc_p[(df_omc_p['id_t'].isin(idx_t)) & (df_omc_p['condition'] == condition)]
+
+                        # sort df_mmc_t and df_omc_t by id_t
+                        df_mmc_t = df_mmc_t.sort_values(by='id_t')
+                        df_omc_t = df_omc_t.sort_values(by='id_t')
+
+                        # delete duplicate rows
+                        df_mmc_t = df_mmc_t.drop_duplicates(subset='id_t', keep='first')
+                        df_omc_t = df_omc_t.drop_duplicates(subset='id_t', keep='first')
+
+                        if len(df_mmc_t) != len(df_omc_t) or len(df_mmc_t):
+                            print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
+                                  f"Length of MMC and OMC DataFrames do not match for {id_s}_{id_p}_{condition}")
+                            continue
+
+                        if len(df_mmc_t) == 0 or len(df_omc_t) == 0:
+                            print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
+                                  f"No data for OMC or MMC found for {id_s}_{id_p}_{condition}")
+                            continue
+
+                        df_temp['id_p'] = id_p
+                        df_temp['condition'] = condition
+                        df_temp['side'] = df_omc_t['side'].values[0]
+
+
+                        if len(df_mmc_t) < 5 or len(df_omc_t) < 5:
+                            print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
+                                  f"No data found for {id_s}_{id_p}_{condition}")
+                            df_mmc_t = df_mmc_p[(df_mmc_p['id_t'].isin(idx_t))]
+                            df_omc_t = df_omc_p[(df_omc_p['id_t'].isin(idx_t))]
+
+                            # sort df_mmc_t and df_omc_t by id_t
+                            df_mmc_t = df_mmc_t.sort_values(by='id_t')
+                            df_omc_t = df_omc_t.sort_values(by='id_t')
+
+                            # delete duplicate rows
+                            df_mmc_t = df_mmc_t.drop_duplicates(subset='id_t', keep='first')
+                            df_omc_t = df_omc_t.drop_duplicates(subset='id_t', keep='first')
+
+                            df_temp['condition'] = ''
+
+                        df_mmc_s = df_mmc_t if df_mmc_s is None else pd.concat([df_mmc_s, df_mmc_t])
+                        df_omc_s = df_omc_t if df_omc_s is None else pd.concat([df_omc_s, df_omc_t])
+
+                        try:
+                            correlation = pearsonr(df_mmc_t[measure], df_omc_t[measure])
+                            df_temp['pearson'] = correlation[0]
+                            df_temp['pearson_p'] = correlation[1]
+                        except Exception as e:
+                            if verbose >= 1:
+                                print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
+                                      f"Error while calculating correlation for {id_s}_{id_p}_{condition}")
+                                print(f"Error:\t{e}")
+                            continue
+
+                        df_corr = pd.concat([df_corr, df_temp])
+
+                if df_mmc_s is not None and df_omc_s is not None:
+                    for condition in ['affected', 'unaffected']:
+                        df_mmc_t = df_mmc_s[df_mmc_s['condition'] == condition]
+                        df_omc_t = df_omc_s[df_omc_s['condition'] == condition]
+
+                        df_temp['id_p'] = ''
+                        df_temp['condition'] = condition
+                        df_temp['side'] = ''
+                        try:
+                            correlation = pearsonr(df_mmc_t[measure], df_omc_t[measure])
+                            df_temp['pearson'] = correlation[0]
+                            df_temp['pearson_p'] = correlation[1]
+                        except Exception as e:
+                            if verbose >= 1:
+                                print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
+                                      f"Error while calculating correlation for {id_s}_{condition}")
+                                print(f"Error:\t{e}")
+                            continue
+
+                        df_corr = pd.concat([df_corr, df_temp])
+
+    csv_corr = os.path.join(root_stat_cat, 'stat_murphy_corr.csv')
+    df_corr.to_csv(csv_corr, sep=';')
+
+    return df_corr
 
 def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verbose=1):
     """
@@ -156,69 +244,6 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
 
     return df_diff
 
-def save_plots_murphy(df_murphy, root_stat_cat, filetype = '.svg', verbose=1):
-    """
-    Creates plots for the Murphy Measures of the MMC and OMC and saves them in the Statistics Folder.
-
-    :param df_murphy:
-    :param root_stat_cat:
-    :param verbose:
-    :return:
-    """
-
-    global murphy_measures
-
-    idx_s = df_murphy['id_s'].unique()
-    idx_s_mmc = np.delete(idx_s, np.where(idx_s == 'S15133'))
-
-    root_plots = os.path.join(root_stat_cat, 'plots')
-
-    if not os.path.exists(root_plots):
-        os.makedirs(root_plots)
-
-    if verbose >= 1:
-        progress = tqdm(total=sum(len(sublist) for sublist in list(df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique() for id_s in idx_s)), desc="Creating Plots")
-    for id_s in idx_s_mmc:
-        idx_p = sorted(list(df_murphy[df_murphy['id_s'] == id_s]['id_p'].unique()))
-        fullsettingplotted = False
-
-        for id_p in idx_p:
-            if verbose >= 1:
-                progress.set_description(f"Creating Plots for {id_s}_{id_p}")
-            idx_t = sorted(list(df_murphy[(df_murphy['id_p'] == id_p) & (df_murphy['id_s'] == id_s)]['id_t'].unique()))
-
-            for measure in murphy_measures:
-                filename = os.path.join(root_plots,  f'bland_altman_{id_s}_{id_p}_{measure}')
-                iDrinkVP.plot_murphy_blandaltman_old(df_murphy, measure, id_s, id_p, filename=filename,
-                                                     filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
-
-                filename = os.path.join(root_plots, f'residuals_vs_mmc_{id_s}_{id_p}_{measure}')
-                iDrinkVP.plot_murphy_blandaltman_old(df_murphy, measure, id_s, id_p,
-                                                     plot_to_val=True, filename=filename, show_id_t=False, verbose=verbose,
-                                                     filetype=filetype, show_plots=False)
-
-                if not fullsettingplotted:
-                    filename = os.path.join(root_plots,  f'bland_altman_all_{id_s}_{measure}')
-                    iDrinkVP.plot_murphy_blandaltman_old(df_murphy, measure, id_s, filename=filename,
-                                                         filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
-
-                    filename = os.path.join(root_plots, f'residuals_vs_mmc_all_{id_s}_{measure}')
-                    iDrinkVP.plot_murphy_blandaltman_old(df_murphy, measure, id_s, filename=filename,
-                                                         filetype=filetype, plot_to_val=True, show_id_t=False, verbose=verbose,
-                                                         show_plots=False)
-
-            fullsettingplotted = True
-
-            if verbose >= 1:
-                progress.update(1)
-
-    if verbose >= 1:
-        progress.close()
-
-
-
-    pass
-
 def runs_statistics_discrete(path_csv_murphy, root_stat,
                              thresh_PeakVelocity_mms = None, thresh_elbowVelocity=None,
                              make_plots = False, verbose=1):
@@ -254,10 +279,10 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
 
     if verbose >= 1:
         progbar = tqdm(total=len(idx_s_mmc), desc='Calculating Differences')
-    for id_s in idx_s_mmc:
+    for id_s in sorted(idx_s_mmc):
 
         if verbose >= 1:
-            progbar.set_description(f'Calculating Differences for {id_s}')
+            progbar.set_description(f'Joining MMC and OMC Data for {id_s}')
 
 
         df_s = df_murphy[df_murphy['id_s'] == id_s]
@@ -276,10 +301,17 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
     if verbose >= 1:
         progbar.close()
 
+    # TODO: calculate correlation over idxs ans idxs_idxP
+    df_corr = get_murphy_corrrelation(df, root_stat_cat,
+                                      thresh_PeakVelocity_mms = thresh_PeakVelocity_mms, thresh_elbowVelocity=thresh_elbowVelocity,
+                                      verbose=verbose)
+
     # Create DataFrame containing the differences between MMC and OMC
     df_diff = get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=thresh_PeakVelocity_mms, verbose=verbose)
 
-    # TODO: calculate correlation over idxs ans idxs_idxP
+
+
+
 
 
 
@@ -364,16 +396,8 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
     df_mean.to_csv(path_csv_murphy_mean, sep=';')
     df_rmse.to_csv(path_csv_murphy_rmse, sep=';')
 
-
-    if make_plots:
-        save_plots_murphy(df_murphy, root_stat_cat, filetype=['.svg', '.html'], verbose=verbose)
-
     # Create DataFrame for each trial
     #run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
-
-
-
-
 
     pass
     """constructed_identifier = f'S15133_{trial.id_p}_{trial.id_t}'
@@ -1202,7 +1226,9 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
                     [f'{metric}_mmc' for metric in metrics])
 
         df_old = None
+        progbar = tqdm(total=len(metrics), desc='Joining Metric DataFrames', disable=verbose < 1)
         for metric in metrics:
+            progbar.set_description(f'Joining Metric DataFrames: {metric}')
             csv_in = os.path.join(dir_src, f'{metric}{appendix}')
 
             if not os.path.isfile(csv_in):
@@ -1221,14 +1247,16 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
             df_out['side'] = df_in['side'].values
 
             if df_old is not None:
+                progbar.set_description(f'Joining Metric DataFrames: Checking Columns')
                 if not check_if_columns_are_same(columns_to_check, df_out, df_old):
                     raise ValueError(f"Columns do not match: {columns_to_check}")
+
             df_old = df_out
 
+            progbar.update(1)
+        progbar.close()
+
         return df_out
-
-
-
 
     metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
                'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
@@ -1239,10 +1267,13 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
     csv_out = os.path.join(dir_results, 'time_series_correlation.csv')
 
     if os.path.isfile(csv_out) and not overwrite_csvs:
+        if verbose >= 1:
+            print(f"Reading existing csv file: {csv_out}")
         df_out = pd.read_csv(csv_out, sep=';')
     else:
-        df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic'] + [f'{metric}_pearson' for metric in metrics] +
-                               [f'{metric}_pearson_p' for metric in metrics] )
+        if verbose >= 1:
+            print(f"Creating new csv file: {csv_out}")
+        df_out = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'condition', 'side', 'dynamic', 'metric', 'pearson', 'pearson_p'] )
 
     progbar = None
 
@@ -1257,51 +1288,63 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
 
         df_in = join_metric_dataFrames(dir_src, metrics, appendix)
 
-        id_sets = list(set(tuple(row) for row in df_in[['id_s', 'id_p', 'id_t']].to_records(index=False)))
+        if verbose >= 1:
+            print("getting id_sets")
+
+        id_sets = sorted(list(set(tuple(row) for row in df_in[['id_s', 'id_p', 'id_t']].to_records(index=False))))
 
         if verbose >= 1:
             if progbar is None:
-                progbar = tqdm(total=len(id_sets)*2, desc='Calculating Correlations', disable=verbose < 1)
+                progbar = tqdm(total=len(id_sets), desc=f'Calculating Correlations for {dynamic}', disable=verbose < 1)
 
-        for id_set in id_sets:
+        for i, id_set in enumerate(id_sets):
             id_s = id_set[0]
             id_p = id_set[1]
             id_t = id_set[2]
 
-            df_out_temp = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic'] + [f'{metric}_pearson' for metric in metrics] +
-                                        [f'{metric}_pearson_p' for metric in metrics], index=[0])
+            """df_out_temp = pd.DataFrame(columns=['id_s', 'id_p', 'id_t', 'dynamic'] + [f'{metric}_pearson' for metric in metrics] +
+                                        [f'{metric}_pearson_p' for metric in metrics], index=[0])"""
+
+            df_out_temp = pd.DataFrame(
+                columns=['id_s', 'id_p', 'id_t', 'condition', 'side', 'dynamic', 'metric', 'pearson', 'pearson_p'], index=[0])
 
             df_out_temp['id_s'] = id_s
             df_out_temp['id_p'] = id_p
             df_out_temp['id_t'] = id_t
             df_out_temp['dynamic'] = dynamic
 
-
-
             for metric in metrics:
+                progbar.set_description(f'Calculating Correlations for {dynamic} \t {id_s}_{id_p}_{id_t} \t{metric} \t \t \t \t {i}')
 
-                if verbose >= 1:
-                    progbar.set_description(f'Calculating Correlations for {metric} {id_s}_{id_p}_{id_t}')
+                # check if row already exists
+                if len(df_out[(df_out['id_s'] == id_s) & (df_out['id_p'] == id_p) & (df_out['id_t'] == id_t) & (df_out['dynamic'] == dynamic) & (df_out['metric'] == metric)]) > 0:
+                    continue
 
                 df_temp = df_in[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) & (df_in['id_t'] == id_t)]
-
 
                 condition = df_temp['condition'].values[0]
                 side = df_temp['side'].values[0]
 
+                # Get correlation
                 omc = df_temp[f'{metric}_omc'].values.tolist()
                 mmc = df_temp[f'{metric}_mmc'].values.tolist()
-                pearson = pearsonr(omc, mmc)[0]
-                pearson_p = pearsonr(omc, mmc)[1]
+                pearson = pearsonr(omc, mmc)
 
-                df_out_temp[f'{metric}_pearson'] = pearson
-                df_out_temp[f'{metric}_pearson_p'] = pearson_p
+                df_out_temp['condition'] = condition
+                df_out_temp['side'] = side
+                df_out_temp['metric'] = metric
+                df_out_temp['pearson'] = pearson[0]
+                df_out_temp['pearson_p'] = pearson[1]
 
-            df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
-            if verbose >= 1:
-                progbar.update(1)
+                df_out = pd.concat([df_out, df_out_temp], axis=0, ignore_index=True)
 
-    if verbose >= 1:
+            progbar.update(1)
+
+            progbar.set_description(
+                f'Calculating Correlations for {dynamic} \t {id_s}_{id_p}_{id_t} \t {metric} \t {i} \t safetywrite')
+
+            if i % 50 == 0:
+                df_out.to_csv(csv_out, sep=';', index=False)
         progbar.close()
 
     df_out.to_csv(csv_out, sep=';', index=False)
@@ -2054,7 +2097,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = True
+    test_timeseries = False
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
@@ -2079,7 +2122,7 @@ if __name__ == '__main__':
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=True, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results, overwrite_csvs=True, verbose=1)
         get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)"""
-        get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=True, verbose=1)
+        get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=False, verbose=1)
 
 
 
