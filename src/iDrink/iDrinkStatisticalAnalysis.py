@@ -54,115 +54,80 @@ def get_murphy_corrrelation(df, root_stat_cat, thresh_PeakVelocity_mms=None, thr
     """
     from scipy.stats import pearsonr
 
-    df_corr = pd.DataFrame(columns=['id_s', 'id_p', 'measure', 'condition', 'side', 'pearson', 'pearson_p'])
+    #cor_columns = ['id_s', 'id_p', 'measure', 'condition', 'side', 'pearson', 'pearson_p']
+    corr_columns = ['id_s', 'measure', 'condition', 'pearson', 'pearson_p']
+
+    df_corr = pd.DataFrame(columns=corr_columns)
 
     id_s_omc = 'S15133'
 
     df_omc = df[df['id_s'] == id_s_omc]
     df_mmc = df[df['id_s'] != id_s_omc]
 
+    total = len(df_mmc['id_s'].unique()) * len(murphy_measures)
+    idx_s = sorted(df_mmc['id_s'].unique())
+
+    progbar = tqdm(total=total, desc="Calculating Correlations", disable=verbose<1)
+
     for measure in murphy_measures:
+        for id_s in idx_s:
+            progbar.set_description(f'Calculating Correlations for {id_s}_{measure} \t \t \t \t \t')
 
-            for id_s in sorted(df_mmc['id_s'].unique()):
-                df_mmc_s = None
-                df_omc_s = None
+            id_p_mmc = df_mmc[df_mmc['id_s'] == id_s]['id_p'].unique()
+            id_p_omc = df_omc['id_p'].unique()
+            idx_p = sorted(list(set(id_p_mmc).intersection(id_p_omc)))
 
-                id_p_mmc = df_mmc[df_mmc['id_s'] == id_s]['id_p'].unique()
-                id_p_omc = df_omc['id_p'].unique()
-                idx_p = sorted(list(set(id_p_mmc).intersection(id_p_omc)))
+            df_temp = pd.DataFrame(columns=corr_columns, index = [0])
 
-                df_temp = pd.DataFrame(columns=['id_s', 'id_p', 'measure', 'condition', 'side', 'pearson', 'pearson_p'], index = [0])
+            df_mmc_s = None
+            df_omc_s = None
 
+            for id_p in idx_p:
+                df_mmc_p = df_mmc[(df_mmc['id_s']== id_s) & (df_mmc['id_p'] == id_p)]
+                df_omc_p = df_omc[df_omc['id_p'] == id_p]
+
+                id_t_mmc = df_mmc_p['id_t'].unique()
+                id_t_omc = df_omc_p['id_t'].unique()
+                idx_t = sorted(list(set(id_t_mmc).intersection(id_t_omc)))
+
+                df_mmc_t = df_mmc_p[df_mmc_p['id_t'].isin(idx_t)]
+                df_omc_t = df_omc_p[df_omc_p['id_t'].isin(idx_t)]
+
+                # sort df_mmc_t and df_omc_t by id_t
+                df_mmc_t = df_mmc_t.sort_values(by='id_t')
+                df_omc_t = df_omc_t.sort_values(by='id_t')
+
+                # delete duplicate rows
+                df_mmc_t = df_mmc_t.drop_duplicates(subset='id_t', keep='first')
+                df_omc_t = df_omc_t.drop_duplicates(subset='id_t', keep='first')
+
+                df_mmc_s = df_mmc_t if df_mmc_s is None else pd.concat([df_mmc_s, df_mmc_t])
+                df_omc_s = df_omc_t if df_omc_s is None else pd.concat([df_omc_s, df_omc_t])
+
+            if df_mmc_s is not None and df_omc_s is not None:
                 df_temp['id_s'] = id_s
                 df_temp['measure'] = measure
 
-                for id_p in idx_p:
-                    df_mmc_p = df_mmc[(df_mmc['id_s']== id_s) & (df_mmc['id_p'] == id_p)]
-                    df_omc_p = df_omc[df_omc['id_p'] == id_p]
+                for condition in ['affected', 'unaffected']:
+                    df_mmc_t = df_mmc_s[df_mmc_s['condition'] == condition]
+                    df_omc_t = df_omc_s[df_omc_s['condition'] == condition]
+                    df_temp['condition'] = condition
 
-                    id_t_mmc = df_mmc_p['id_t'].unique()
-                    id_t_omc = df_omc_p['id_t'].unique()
-                    idx_t = sorted(list(set(id_t_mmc).intersection(id_t_omc)))
-
-                    for condition in ['affected', 'unaffected']:
-                        df_mmc_t = df_mmc_p[(df_mmc_p['id_t'].isin(idx_t)) & (df_mmc_p['condition'] == condition)]
-                        df_omc_t = df_omc_p[(df_omc_p['id_t'].isin(idx_t)) & (df_omc_p['condition'] == condition)]
-
-                        # sort df_mmc_t and df_omc_t by id_t
-                        df_mmc_t = df_mmc_t.sort_values(by='id_t')
-                        df_omc_t = df_omc_t.sort_values(by='id_t')
-
-                        # delete duplicate rows
-                        df_mmc_t = df_mmc_t.drop_duplicates(subset='id_t', keep='first')
-                        df_omc_t = df_omc_t.drop_duplicates(subset='id_t', keep='first')
-
-                        if len(df_mmc_t) != len(df_omc_t) or len(df_mmc_t):
+                    try:
+                        correlation = pearsonr(df_mmc_t[measure], df_omc_t[measure])
+                        df_temp['pearson'] = correlation[0]
+                        df_temp['pearson_p'] = correlation[1]
+                    except Exception as e:
+                        if verbose >= 1:
                             print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
-                                  f"Length of MMC and OMC DataFrames do not match for {id_s}_{id_p}_{condition}")
-                            continue
+                                  f"Error while calculating correlation for {id_s}_{condition}")
+                            print(f"Error:\t{e}")
+                            df_temp['pearson'] = None
+                            df_temp['pearson_p'] = None
 
-                        if len(df_mmc_t) == 0 or len(df_omc_t) == 0:
-                            print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
-                                  f"No data for OMC or MMC found for {id_s}_{id_p}_{condition}")
-                            continue
-
-                        df_temp['id_p'] = id_p
-                        df_temp['condition'] = condition
-                        df_temp['side'] = df_omc_t['side'].values[0]
-
-
-                        if len(df_mmc_t) < 5 or len(df_omc_t) < 5:
-                            print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
-                                  f"No data found for {id_s}_{id_p}_{condition}")
-                            df_mmc_t = df_mmc_p[(df_mmc_p['id_t'].isin(idx_t))]
-                            df_omc_t = df_omc_p[(df_omc_p['id_t'].isin(idx_t))]
-
-                            # sort df_mmc_t and df_omc_t by id_t
-                            df_mmc_t = df_mmc_t.sort_values(by='id_t')
-                            df_omc_t = df_omc_t.sort_values(by='id_t')
-
-                            # delete duplicate rows
-                            df_mmc_t = df_mmc_t.drop_duplicates(subset='id_t', keep='first')
-                            df_omc_t = df_omc_t.drop_duplicates(subset='id_t', keep='first')
-
-                            df_temp['condition'] = ''
-
-                        df_mmc_s = df_mmc_t if df_mmc_s is None else pd.concat([df_mmc_s, df_mmc_t])
-                        df_omc_s = df_omc_t if df_omc_s is None else pd.concat([df_omc_s, df_omc_t])
-
-                        try:
-                            correlation = pearsonr(df_mmc_t[measure], df_omc_t[measure])
-                            df_temp['pearson'] = correlation[0]
-                            df_temp['pearson_p'] = correlation[1]
-                        except Exception as e:
-                            if verbose >= 1:
-                                print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
-                                      f"Error while calculating correlation for {id_s}_{id_p}_{condition}")
-                                print(f"Error:\t{e}")
-                            continue
-
-                        df_corr = pd.concat([df_corr, df_temp])
-
-                if df_mmc_s is not None and df_omc_s is not None:
-                    for condition in ['affected', 'unaffected']:
-                        df_mmc_t = df_mmc_s[df_mmc_s['condition'] == condition]
-                        df_omc_t = df_omc_s[df_omc_s['condition'] == condition]
-
-                        df_temp['id_p'] = ''
-                        df_temp['condition'] = condition
-                        df_temp['side'] = ''
-                        try:
-                            correlation = pearsonr(df_mmc_t[measure], df_omc_t[measure])
-                            df_temp['pearson'] = correlation[0]
-                            df_temp['pearson_p'] = correlation[1]
-                        except Exception as e:
-                            if verbose >= 1:
-                                print(f"Error in {os.path.basename(__file__)}.{get_murphy_corrrelation.__name__}\n"
-                                      f"Error while calculating correlation for {id_s}_{condition}")
-                                print(f"Error:\t{e}")
-                            continue
-
-                        df_corr = pd.concat([df_corr, df_temp])
+                    df_corr = pd.concat([df_corr, df_temp], ignore_index=True)
+            progbar.update(1)
+    progbar.close()
 
     csv_corr = os.path.join(root_stat_cat, 'stat_murphy_corr.csv')
     df_corr.to_csv(csv_corr, sep=';')
