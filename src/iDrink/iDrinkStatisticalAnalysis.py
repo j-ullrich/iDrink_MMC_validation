@@ -2054,7 +2054,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = False
+    test_timeseries = True
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
@@ -2065,7 +2065,7 @@ if __name__ == '__main__':
 
     if test_timeseries:
 
-        for correct in corrections:
+        """for correct in corrections:
             debug = False
 
             preprocess_timeseries(root_val,
@@ -2078,8 +2078,8 @@ if __name__ == '__main__':
 
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=True, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results, overwrite_csvs=True, verbose=1)
-        get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
-        get_timeseries_correlations(dir_processed, dir_results, verbose=1)
+        get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)"""
+        get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=True, verbose=1)
 
 
 

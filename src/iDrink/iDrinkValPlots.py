@@ -263,8 +263,8 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
     csv_murphy = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
     df_murphy = pd.read_csv(csv_murphy, sep=';')
 
-    csv_murph_timestamps = os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv')
-    df_murph_timestamps = pd.read_csv(csv_murph_timestamps, sep=';')
+    csv_murph_diff = os.path.join(root_stat, '02_categorical', 'stat_murphy_diff.csv')
+    df_murph_diff = pd.read_csv(csv_murph_diff, sep=';')
 
     csv_cad = os.path.join(root_stat, '02_categorical', 'clinically_acceptable_difference.csv')
     df_cad = pd.read_csv(csv_cad, sep=',')
@@ -501,7 +501,7 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                 fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
                 fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
 
-                fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s}')
+                fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s} with CAD of {cad} {unit}')
 
                 if show_plots:
                     fig.show()
