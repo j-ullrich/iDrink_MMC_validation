@@ -189,23 +189,23 @@ def save_plots_murphy(df_murphy, root_stat_cat, filetype = '.svg', verbose=1):
 
             for measure in murphy_measures:
                 filename = os.path.join(root_plots,  f'bland_altman_{id_s}_{id_p}_{measure}')
-                iDrinkVP.plot_murphy_blandaltman(df_murphy, measure, id_s, id_p, filename=filename,
-                                                 filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
+                iDrinkVP.plot_murphy_blandaltman_old(df_murphy, measure, id_s, id_p, filename=filename,
+                                                     filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
 
                 filename = os.path.join(root_plots, f'residuals_vs_mmc_{id_s}_{id_p}_{measure}')
-                iDrinkVP.plot_murphy_blandaltman(df_murphy, measure, id_s, id_p,
-                                                 plot_to_val=True, filename=filename, show_id_t=False, verbose=verbose,
-                                                 filetype=filetype, show_plots=False)
+                iDrinkVP.plot_murphy_blandaltman_old(df_murphy, measure, id_s, id_p,
+                                                     plot_to_val=True, filename=filename, show_id_t=False, verbose=verbose,
+                                                     filetype=filetype, show_plots=False)
 
                 if not fullsettingplotted:
                     filename = os.path.join(root_plots,  f'bland_altman_all_{id_s}_{measure}')
-                    iDrinkVP.plot_murphy_blandaltman(df_murphy, measure, id_s, filename=filename,
-                                                     filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
+                    iDrinkVP.plot_murphy_blandaltman_old(df_murphy, measure, id_s, filename=filename,
+                                                         filetype=filetype, show_id_t=False, verbose=verbose, show_plots=False)
 
                     filename = os.path.join(root_plots, f'residuals_vs_mmc_all_{id_s}_{measure}')
-                    iDrinkVP.plot_murphy_blandaltman(df_murphy, measure, id_s, filename=filename,
-                                                     filetype=filetype, plot_to_val=True, show_id_t=False, verbose=verbose,
-                                                     show_plots=False)
+                    iDrinkVP.plot_murphy_blandaltman_old(df_murphy, measure, id_s, filename=filename,
+                                                         filetype=filetype, plot_to_val=True, show_id_t=False, verbose=verbose,
+                                                         show_plots=False)
 
             fullsettingplotted = True
 
@@ -235,6 +235,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
 
     idx_s = df_murphy['id_s'].unique()
     idx_s_mmc = np.delete(idx_s, np.where(idx_s == 'S15133'))
+
 
     # delete rows in df_murphy if PeakVelocity_mms is beyond threshold and if
     if thresh_PeakVelocity_mms is not None:
@@ -277,6 +278,8 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
 
     # Create DataFrame containing the differences between MMC and OMC
     df_diff = get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=thresh_PeakVelocity_mms, verbose=verbose)
+
+    # TODO: calculate correlation over idxs ans idxs_idxP
 
 
 
@@ -363,7 +366,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
 
 
     if make_plots:
-        save_plots_murphy(df_murphy, root_stat_cat, filetype=['.html'], verbose=verbose)
+        save_plots_murphy(df_murphy, root_stat_cat, filetype=['.svg', '.html'], verbose=verbose)
 
     # Create DataFrame for each trial
     #run_stat_murphy(df, id_s, root_stat_cat, verbose=verbose)
@@ -2051,7 +2054,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = True
+    test_timeseries = False
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
@@ -2074,17 +2077,16 @@ if __name__ == '__main__':
             normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
 
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=True, verbose=1, debug=debug)
-        get_error_mean_rmse(dir_results,overwrite_csvs=True, verbose=1)
+        get_error_mean_rmse(dir_results, overwrite_csvs=True, verbose=1)
         get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
         get_timeseries_correlations(dir_processed, dir_results, verbose=1)
-            #get_multiple_correlations(dir_processed, dir_results, verbose=1) #TODO: Implement this function
 
-            #get_omc_mmc_error_old(root_val, path_csv_murphy_timestamps, correct=correct, verbose=1)
 
 
 
     else:
 
-        runs_statistics_discrete(path_csv_murphy_measures, root_stat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)
-        runs_statistics_discrete(path_csv_murphy_measures, root_stat, thresh_PeakVelocity_mms=hand_vel_thresh,
-                                 thresh_elbowVelocity=thresh_elbowVelocity)
+        runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
+                                 thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)
+        runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
+                                 thresh_PeakVelocity_mms=hand_vel_thresh, thresh_elbowVelocity=thresh_elbowVelocity)

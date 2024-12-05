@@ -19,6 +19,9 @@ from plotly.subplots import make_subplots
 
 import statsmodels.api as sm
 
+# idx_p to ignore for plotting
+ignore_id_p = []
+
 murphy_measures = ["PeakVelocity_mms",
                    "elbowVelocity",
                    "tTopeakV_s",
@@ -38,28 +41,487 @@ rgba_omc = '255, 165, 0'
 
 
 def get_unit(kin):
+
+    cases_deg = ['trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos',
+                 'trunkDisplacementDEG', 'ShoulderFlexionReaching', 'ElbowExtension',
+                 'shoulderAbduction', 'shoulderFlexionDrinking']
+
     match kin:
-        case 'hand_vel':
+        case 'hand_vel' | 'PeakVelocity_mms':
             unit = 'mm/s'
-        case 'elbow_vel':
+        case 'elbow_vel' | 'elbowVelocity':
             unit = 'deg/s'
-        case 'trunk_disp':
+        case 'trunk_disp' | 'trunkDisplacementMM':
             unit = 'mm'
-        case 'trunk_ang':
+        case k if k in cases_deg:
             unit = 'deg'
-        case 'elbow_flex_pos':
-            unit = 'deg'
-        case 'shoulder_flex_pos':
-            unit = 'deg'
-        case 'shoulder_abduction_pos':
-            unit = 'deg'
+        case 'tTopeakV_s' | 'tToFirstpeakV_s' :
+            unit = 's'
+        case 'tTopeakV_rel' | 'tToFirstpeakV_rel':
+            unit = '%'
         case _:
             unit = ''
 
     return unit
 
-def plot_murphy_blandaltman(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.svg', use_smoother=True,
-                            colourcode = None, show_id_t=False, verbose=1, show_plots=True, customize_layout=False):
+def get_cad(df, measure):
+    match measure:
+        case 'PeakVelocity_mms':
+            measure_name = 'peak_V'
+        case 'elbowVelocity':
+            measure_name = 'peak_V_elb'
+        case 'tTopeakV_s':
+            measure_name = 't_to_PV'
+        case 'tToFirstpeakV_s':
+            measure_name = 't_first_PV'
+        case 'tTopeakV_rel':
+            measure_name = 't_PV_rel'
+        case 'tToFirstpeakV_rel':
+            measure_name = 't_first_PV_rel'
+        case 'NumberMovementUnits':
+            measure_name = 'n_mov_units'
+        case 'InterjointCoordination':
+            measure_name = 'interj_coord'
+        case 'trunkDisplacementMM':
+            measure_name = 'trunk_disp'
+        case 'trunkDisplacementDEG':
+            return None
+        case 'ShoulderFlexionReaching':
+            measure_name = 'arm_flex_reach'
+        case 'ElbowExtension':
+            measure_name = 'elb_ext'
+        case 'shoulderAbduction':
+            measure_name = 'arm_abd'
+        case 'shoulderFlexionDrinking':
+            measure_name = 'arm_flex_drink'
+        case _:
+            return
+
+    return df.loc[0, measure_name]
+
+def get_title_measure_name(measure):
+    """returns a string based on the murphy measure for a figure_title"""
+    match measure:
+        case 'PeakVelocity_mms':
+            title = 'Peak Velocity'
+        case 'elbowVelocity':
+            title = 'Elbow Velocity'
+        case 'tTopeakV_s':
+            title = 'Time to Peak Velocity'
+        case 'tToFirstpeakV_s':
+            title = 'Time to First Peak Velocity'
+        case 'tTopeakV_rel':
+            title = 'Relative time to Peak Velocity relative'
+        case 'tToFirstpeakV_rel':
+            title = 'Relative time to First Peak Velocity'
+        case 'NumberMovementUnits':
+            title = 'Number of Movement Units'
+        case 'InterjointCoordination':
+            title = 'Interjoint Coordination'
+        case 'trunkDisplacementMM':
+            title = 'Trunk Displacement'
+        case 'trunkDisplacementDEG':
+            title = 'Trunk Displacement'
+        case 'ShoulderFlexionReaching':
+            title = 'Shoulder Flexion Reaching'
+        case 'ElbowExtension':
+            title = 'Elbow Extension'
+        case 'shoulderAbduction':
+            title = 'Shoulder Abduction'
+        case 'shoulderFlexionDrinking':
+            title = 'Shoulder Flexion Drinking'
+        case _:
+            title = ''
+    return title
+
+def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_plots=False, verbose = 1):
+    """Create Bland altman plot for Murphy measures.
+
+    Plots are generated for:
+        - {id_s}_{id_p}_blandaltman_{measure}
+        - {id_s}_blandaltman_{measure}
+
+        left side is unaffected, right side is affected
+    """
+
+    def make_DataFrame_for_plots(df_mmc, df_omc, measure):
+        """Create the Dataframe that will be used for the figures
+        columns are:
+        - id_s
+        - id_p
+        - id_t
+        - condition
+        - side
+        - mmc
+        - omc
+        - mean
+        """
+        df_mmc = df_mmc.sort_values(by='id_t')
+        df_omc = df_omc.sort_values(by='id_t')
+
+
+
+        data = {
+            'id_s': df_mmc['id_s'].values,
+            'id_p': df_mmc['id_p'].values,
+            'id_t': df_mmc['id_t'].values,
+            'condition': df_mmc['condition'].values,
+            'side': df_mmc['side'].values,
+            'mmc': df_mmc[measure].values,
+            'omc': df_omc[measure].values,
+            'mean': np.mean([df_mmc[measure].values, df_omc[measure].values], axis=0)
+        }
+
+        return pd.DataFrame(data)
+
+    def make_figure(df, measure, affected, side, id_s, id_p, cad, unit):
+        """
+        Creates the Figure
+        :param df:
+        :param measure:
+        :param id_s:
+        :param id_p:
+        :param cad:
+        :return:
+        """
+
+        fig = go.Figure()
+
+        if id_p is None:
+            for i_p in df['id_p'].unique():
+                df_p = df[df['id_p'] == i_p]
+                text = [f'id_p: {string1}<br>id_t: {string2}'
+                        for string1, string2 in zip(df_p['id_p'], df_p['id_t'])]
+                fig.add_trace(go.Scatter(x=df_p['mean'], y=df_p['mmc'] - df_p['omc'], mode='markers', name=f'{i_p}',
+                                         text=text, hoverinfo='text'))
+        else:
+            text = [f'id_p: {string1}<br>id_t: {string2}'
+                    for string1, string2 in zip(df['id_p'], df['id_t'])]
+            fig.add_trace(go.Scatter(x=df['mean'], y=df['mmc'] - df['omc'], mode='markers', name='Data',
+                                     text=text, hoverinfo='text'))
+
+        fig.add_hline(y=0, line_dash='dash', line_color='grey', name='Zero')
+
+        # add smoother
+        lowess = sm.nonparametric.lowess(df['mmc'] - df['omc'], df['mean'], frac=0.6)
+        fig.add_trace(go.Scatter(x=lowess[:, 0], y=lowess[:, 1], mode='lines', name='Smoother', line=dict(color='black')))
+
+        # add limits of agreement
+        std_diff = np.std(df['mmc'] - df['omc'])
+        sd = 1.96
+        upper_limit = + sd * std_diff
+        lower_limit = - sd * std_diff
+
+        fig.add_hline(y=upper_limit, line_dash='dash', line_color='orange', name=f'Upper Limit ({sd} SD)')
+        fig.add_hline(y=lower_limit, line_dash='dash', line_color='orange', name=f'Lower Limit ({sd} SD)')
+
+        # add horizontal line for cad
+        if cad is not None:
+            fig.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+            fig.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
+
+        title_measure = get_title_measure_name(measure)
+
+        if id_p is None:
+            title = f'Bland Altman Plot for {title_measure} of {id_s} with CAD of {cad} {unit}'
+            dir_id = f'{id_s}'
+            id_sp = f'{id_s}'
+        else:
+            title = f'Bland Altman Plot for {title_measure} of {id_s}, {id_p} with CAD of {cad} {unit}'
+            dir_id = f'{id_s}_{id_p}'
+            id_sp = f'{id_s}_{id_p}'
+
+        fig.update_layout(title=title,
+                          xaxis_title=f'Mean of {title_measure} {unit}',
+                          yaxis_title=f'Difference of MMC from OMC {unit}',
+                          legend=dict(
+                              orientation="h",
+                              x=0,
+                              y=-0.2  # Positionierung unterhalb der x-Achse
+                          )
+                          )
+
+        d_aff = '01_affected' if affected == 'affected' else '02_unaffected'
+
+        dir_dst = os.path.join(dir_out_bland, dir_id, d_aff)
+
+        os.makedirs(dir_dst, exist_ok=True)
+
+        if write_html:
+            path = os.path.join(dir_dst, f'{id_sp}_{measure}_{side}_{affected}_blandaltman.html')
+            fig.write_html(path)
+
+        if write_svg:
+            path = os.path.join(dir_dst, f'{id_sp}_{measure}_{side}_{affected}_blandaltman.svg')
+            fig.write_image(path, scale=5)
+
+        if show_plots:
+            fig.show()
+
+        return fig
+
+    csv_murphy = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
+    df_murphy = pd.read_csv(csv_murphy, sep=';')
+
+    csv_murph_timestamps = os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv')
+    df_murph_timestamps = pd.read_csv(csv_murph_timestamps, sep=';')
+
+    csv_cad = os.path.join(root_stat, '02_categorical', 'clinically_acceptable_difference.csv')
+    df_cad = pd.read_csv(csv_cad, sep=',')
+
+    # TODO: Implement trials that need to be ignored.
+
+    dir_out_bland = os.path.join(root_stat, '02_categorical', '02_plots', '01_bland_altman')
+
+    for id_ignore in ignore_id_p:
+        # Delete all rows with the given id_p
+        df_murphy = df_murphy[df_murphy['id_p'] != id_ignore]
+
+    id_s_omc = 'S15133'
+    df_murphy_omc = df_murphy[df_murphy['id_s'] == id_s_omc]
+
+    df_murphy_mmc = df_murphy[df_murphy['id_s'] != id_s_omc]
+    idx_s = sorted(df_murphy_mmc['id_s'].unique())
+
+
+    # get total number of combinations of id_s and id_p for progbar
+    total = 0
+    for id_s in idx_s:
+        total +=  df_murphy_mmc[df_murphy_mmc['id_s'] == id_s]['id_p'].nunique()
+
+    total *= len(murphy_measures)
+
+    progbar = tqdm(range(total), desc='Plotting Bland Altman', unit='Trial', disable=verbose<1)
+
+    for measure in murphy_measures:
+        for id_s in idx_s:
+            df_murphy_mmc_s = df_murphy_mmc[df_murphy_mmc['id_s'] == id_s]
+
+            idx_p = sorted(df_murphy_mmc_s['id_p'].unique())
+
+            df_aff_s = None
+            df_unaff_s = None
+
+
+            for id_p in idx_p:
+
+                progbar.set_description(f'Plotting Bland Altman for {measure} {id_s}_{id_p}')
+
+                df_murphy_mmc_p = df_murphy_mmc_s[df_murphy_mmc_s['id_p'] == id_p]
+                df_murphy_omc_p = df_murphy_omc[df_murphy_omc['id_p'] == id_p]
+
+                idx_t_mmc = sorted(df_murphy_mmc_p['id_t'].unique())
+                idx_t_omc = sorted(df_murphy_omc_p['id_t'].unique())
+
+
+                idx_t = [id_t for id_t in idx_t_mmc if id_t in idx_t_omc]  # Get all id_ts that exist for omc and mmc
+
+                df_mmc_t = df_murphy_mmc_p[df_murphy_mmc_p['id_t'].isin(idx_t)]
+                df_omc_t = df_murphy_omc_p[df_murphy_omc_p['id_t'].isin(idx_t)]
+
+
+                df_fig = make_DataFrame_for_plots(df_mmc_t, df_omc_t, measure)
+
+                df_aff = df_fig[df_fig['condition'] == 'affected']
+                df_unaff = df_fig[df_fig['condition'] == 'unaffected']
+                fig_aff = None
+                fig_unaff = None
+
+                if id_p not in df_aff['id_p'].unique() or id_p not in df_unaff['id_p'].unique():
+                    continue
+
+                df_aff_s = df_aff if df_aff_s is None else pd.concat([df_aff_s, df_aff])
+                df_unaff_s = df_unaff if df_unaff_s is None else pd.concat([df_unaff_s, df_unaff])
+
+                cad = get_cad(df_cad, measure)
+
+
+                side_aff = df_aff['side'].values[0] if len(df_aff) > 0 else None
+                side_unaff = df_unaff['side'].values[0] if len(df_unaff) > 0 else None
+
+
+                unit = get_unit(measure)
+                unit = f'[{unit}]' if unit else ''
+
+                if side_aff is not None:
+                    fig_aff = make_figure(df_aff, measure, 'affected', side_aff, id_s, id_p, cad, unit)
+
+                if side_unaff is not None:
+                    fig_unaff = make_figure(df_unaff, measure, 'unaffected', side_unaff, id_s, id_p, cad, unit)
+
+                if fig_aff is not None and fig_unaff is not None:
+                    # get both plots in one figure side by side
+                    fig = make_subplots(rows=1, cols=2,
+                                        subplot_titles=(f'Unaffected - {side_unaff}', f'Affected - {side_aff}'),
+                                        shared_yaxes=True)
+
+                    title_measure = get_title_measure_name(measure)
+
+                    for i in range(len(fig_unaff.data)):
+                        if fig_unaff.data[i].mode == 'markers':
+                            fig_unaff.data[i].name = f'error unaffected'
+                            fig_aff.data[i].name = f'error affected'
+                        elif fig_unaff.data[i].mode == 'lines':
+                            fig_unaff.data[i].name = 'Smoother'
+                            fig_aff.data[i].showlegend = False
+                        fig.add_trace(fig_unaff.data[i], row=1, col=1)
+                        fig.add_trace(fig_aff.data[i], row=1, col=2)
+
+
+                    # add hline for cad in both plots
+                    if cad is not None:
+                        fig.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD', row=1, col=1)
+                        fig.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD', row=1, col=1)
+
+                        fig.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD', row=1, col=2)
+                        fig.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD', row=1, col=2)
+
+                    # add hlines for limits of agreement
+                    std_unaff = np.std(df_unaff['mmc'] - df_unaff['omc'])
+                    std_aff = np.std(df_aff['mmc'] - df_aff['omc'])
+
+
+                    sd = 1.96
+
+                    upper_limit_unaff = + sd * std_unaff
+                    lower_limit_unaff = - sd * std_unaff
+
+                    upper_limit_aff = + sd * std_aff
+                    lower_limit_aff = - sd * std_aff
+
+
+                    fig.add_hline(y=upper_limit_unaff, line_dash='dash', line_color='orange', name=f'Upper Limit ({sd} SD)', row=1, col=1)
+                    fig.add_hline(y=lower_limit_unaff, line_dash='dash', line_color='orange', name=f'Lower Limit ({sd} SD)', row=1, col=1)
+
+                    fig.add_hline(y=upper_limit_aff, line_dash='dash', line_color='orange', name=f'Upper Limit ({sd} SD)', row=1, col=2)
+                    fig.add_hline(y=lower_limit_aff, line_dash='dash', line_color='orange', name=f'Lower Limit ({sd} SD)', row=1, col=2)
+
+                    # add limit of agreement to legend
+                    mean_peak = np.mean([df_unaff['mmc'].values, df_unaff['omc'].values])
+                    fig.add_trace(go.Scatter(x=[mean_peak], y=[0], mode='lines', name='Limits of Agreement', line=dict(color='orange', dash='dash')))
+                    # add cad to legend
+                    fig.add_trace(go.Scatter(x=[mean_peak], y=[0], mode='lines', name='CAD', line=dict(color='red', dash='dash')))
+
+                    fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=1)
+                    fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
+                    fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
+
+                    fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s}_{id_p}')
+
+                    if show_plots:
+                        fig.show()
+
+                    dir_out = os.path.join(dir_out_bland, f'{id_s}_{id_p}')
+                    os.makedirs(dir_out, exist_ok=True)
+
+                    if write_html:
+                        path = os.path.join(dir_out, f'{id_s}_{id_p}_{measure}_blandaltman.html')
+                        fig.write_html(path)
+                    if write_svg:
+                        path = os.path.join(dir_out, f'{id_s}_{id_p}_{measure}_blandaltman.svg')
+                        fig.write_image(path, scale=5)
+                progbar.update(1)
+
+            progbar.set_description(f'Plotting Bland Altman for {measure} {id_s}')
+
+            fig_s_aff = None
+            fig_s_unaff = None
+
+            if df_aff_s is not None:
+                fig_s_aff = make_figure(df_aff_s, measure, 'affected', 'mean', id_s, None, cad, unit)
+
+            if df_unaff_s is not None:
+                fig_s_unaff = make_figure(df_unaff_s, measure, 'unaffected', 'mean', id_s, None, cad, unit)
+
+            if fig_s_aff is not None and fig_s_unaff is not None:
+                # get both plots in one figure side by side
+                fig = make_subplots(rows=1, cols=2,
+                                    subplot_titles=(f'Unaffected - {side_unaff}', f'Affected - {side_aff}'),
+                                    shared_yaxes=True)
+
+                title_measure = get_title_measure_name(measure)
+
+                for i in range(len(fig_s_unaff.data)):
+                    if fig_s_unaff.data[i].mode == 'markers':
+                        p = fig_s_aff.data[i].name
+                        fig_s_unaff.data[i].name = f'{p} error unaffected'
+                    elif fig_s_unaff.data[i].mode == 'lines':
+                        fig_s_unaff.data[i].name = 'Smoother'
+
+                    fig.add_trace(fig_s_unaff.data[i], row=1, col=1)
+
+                    if i < len(fig_s_aff.data):
+                        if fig_s_aff.data[i].mode == 'markers':
+                            p = fig_s_aff.data[i].name
+                            fig_s_aff.data[i].name = f'{p} error affected'
+                        elif fig_s_aff.data[i].mode == 'lines':
+                            fig_s_aff.data[i].showlegend = False
+
+                        fig.add_trace(fig_s_aff.data[i], row=1, col=2)
+
+                # add hline for cad in both plots
+                if cad is not None:
+                    fig.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD', row=1, col=1)
+                    fig.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD', row=1, col=1)
+
+                    fig.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD', row=1, col=2)
+                    fig.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD', row=1, col=2)
+
+                # add hlines for limits of agreement
+                std_unaff = np.std(df_unaff_s['mmc'] - df_unaff_s['omc'])
+                std_aff = np.std(df_aff_s['mmc'] - df_aff_s['omc'])
+
+                sd = 1.96
+
+                upper_limit_unaff = + sd * std_unaff
+                lower_limit_unaff = - sd * std_unaff
+
+                upper_limit_aff = + sd * std_aff
+                lower_limit_aff = - sd * std_aff
+
+                fig.add_hline(y=upper_limit_unaff, line_dash='dash', line_color='orange', name=f'Upper Limit ({sd} SD)',
+                              row=1, col=1)
+                fig.add_hline(y=lower_limit_unaff, line_dash='dash', line_color='orange', name=f'Lower Limit ({sd} SD)',
+                              row=1, col=1)
+
+                fig.add_hline(y=upper_limit_aff, line_dash='dash', line_color='orange', name=f'Upper Limit ({sd} SD)',
+                              row=1, col=2)
+                fig.add_hline(y=lower_limit_aff, line_dash='dash', line_color='orange', name=f'Lower Limit ({sd} SD)',
+                              row=1, col=2)
+
+                # add limit of agreement to legend
+                mean_peak = np.mean([df_unaff_s['mmc'].values, df_unaff_s['omc'].values])
+                fig.add_trace(go.Scatter(x=[mean_peak], y=[0], mode='lines', name='Limits of Agreement',
+                                         line=dict(color='orange', dash='dash')))
+                # add cad to legend
+                fig.add_trace(
+                    go.Scatter(x=[mean_peak], y=[0], mode='lines', name='CAD', line=dict(color='red', dash='dash')))
+
+                fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=1)
+                fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
+                fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
+
+                fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s}')
+
+                if show_plots:
+                    fig.show()
+
+                dir_out = os.path.join(dir_out_bland, f'{id_s}')
+                os.makedirs(dir_out, exist_ok=True)
+
+                if write_html:
+                    path = os.path.join(dir_out, f'{id_s}_{measure}_blandaltman.html')
+                    fig.write_html(
+                        path)
+                if write_svg:
+                    path = os.path.join(dir_out, f'{id_s}_{measure}_blandaltman.svg')
+                    fig.write_image(path, scale=5)
+
+    progbar.close()
+
+
+def plot_murphy_blandaltman_old(df_murphy, measured_value, id_s, id_p=None, plot_to_val=False, filename=None, filetype='.svg', use_smoother=True,
+                                colourcode = None, show_id_t=False, verbose=1, show_plots=True, customize_layout=False):
     """
     create bland altman plot.
 
@@ -283,57 +745,6 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = True, show
 
     df_rmse_nonan = df_rmse.dropna()
     df_rmse_mean = df_rmse[df_rmse['id_p'].isna()]
-
-    def get_cad(df, measure):
-
-        match measure:
-            case 'PeakVelocity_mms':
-                measure_name = 'peak_V'
-
-            case 'elbowVelocity':
-                measure_name = 'peak_V_elb'
-
-            case 'tTopeakV_s':
-                measure_name = 't_to_PV'
-
-            case 'tToFirstpeakV_s':
-                measure_name = 't_first_PV'
-
-            case 'tTopeakV_rel':
-                measure_name = 't_PV_rel'
-
-            case 'tToFirstpeakV_rel':
-                measure_name = 't_first_PV_rel'
-
-            case 'NumberMovementUnits':
-                measure_name = 'n_mov_units'
-
-            case 'InterjointCoordination':
-                measure_name = 'interj_coord'
-
-            case 'trunkDisplacementMM':
-                measure_name = 'trunk_disp'
-
-            case 'trunkDisplacementDEG':
-                return None
-
-            case 'ShoulderFlexionReaching':
-                measure_name = 'arm_flex_reach'
-
-            case 'ElbowExtension':
-                measure_name = 'elb_ext'
-
-            case 'shoulderAbduction':
-                measure_name = 'arm_abd'
-
-            case 'shoulderFlexionDrinking':
-                measure_name = 'arm_flex_drink'
-
-            case _:
-                return
-
-
-        return df.loc[0, measure_name]
 
     progbar = tqdm(murphy_measures, desc='Plotting for ', unit='Measure', disable=verbose<1)
 
@@ -1540,8 +1951,14 @@ if __name__ == "__main__":
 
     verbose = 1
 
-    """for corr in [True, False]:
-        plot_murphy_error_rmse_box_bar_plot(root_val, outlier_corrected=corr)"""
+    plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, show_plots=False, verbose=1)
+
+    # end of script
+    import sys
+    sys.exit()
+
+    for corr in [True, False]:
+        plot_murphy_error_rmse_box_bar_plot(root_val, outlier_corrected=corr)
 
     #plot_timeseries_averaged(root_val, 'S001', 'P07', dynamic=dynamic)
 
