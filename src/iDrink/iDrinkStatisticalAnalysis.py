@@ -1311,6 +1311,7 @@ def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False,
             if i % 50 == 0:
                 df_out.to_csv(csv_out, sep=';', index=False)
         progbar.close()
+        progbar = None
 
     df_out.to_csv(csv_out, sep=';', index=False)
 
