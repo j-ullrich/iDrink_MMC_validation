@@ -9,6 +9,9 @@ for analysis.
 import os
 import sys
 import glob
+from os import write
+
+from PIL.ImageOps import scale
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
@@ -75,7 +78,7 @@ def check_if_HPE_done(used_cams, id_p, id_t, hpe_model, filtered, verbose=1):
     for cam in used_cams:
         if  len(used_cams) == 1: # TODO: Debug Single Cam
             files = glob.glob(os.path.join(root_val, '02_pose_estimation', filt, id_p, f'{id_p}_{cam}',
-                                           hpe_model, 'single_cam', f'{id_p}_{id_t}_*.trc'))
+                                           hpe_model, 'single-cam', f'{id_p}_{id_t}_*.trc'))
         else:
             files = glob.glob(os.path.join(root_val, '02_pose_estimation', filt, id_p, f'{id_p}_{cam}',
                                            hpe_model, f'trial_{trial_int}_*', f'trial_{trial_int}_*.zip'))
@@ -185,7 +188,7 @@ def get_lost_trials():
 
     global df_failed_trials
 
-    columns_out = ['id_s', 'id_p', 'id_t', 'affected', 'side', 'calib_error', 'HPE', 'P2S', 'OS', 'murphy', 'murphy_omc',
+    columns_out = ['id_s', 'id_p', 'id_t', 'affected', 'side', 'calib_error', 'HPE', 'P2S', 'OS', 'murphy', 'murphy_omc', 'success', 'fail',
                    'failed_at', 'reason']
     df_failed_trials = pd.DataFrame(columns=columns_out)
 
@@ -226,6 +229,8 @@ def get_lost_trials():
 
         if not HPE_success:
             df_temp['failed_at'] = 'HPE'
+            df_temp['success'] = 0
+            df_temp['fail'] = 1
 
             df_failed_trials = pd.concat([df_failed_trials, df_temp], ignore_index=True)
             continue
@@ -236,6 +241,8 @@ def get_lost_trials():
 
         if not P2S_success:
             df_temp['failed_at'] = 'P2S'
+            df_temp['success'] = 0
+            df_temp['fail'] = 1
 
             df_failed_trials = pd.concat([df_failed_trials, df_temp], ignore_index=True)
             continue
@@ -247,9 +254,13 @@ def get_lost_trials():
         if not opensim_success:
             df_temp['failed_at'] = 'OS'
             df_temp['reason'] = reason
+            df_temp['success'] = 0
+            df_temp['fail'] = 1
 
             df_failed_trials = pd.concat([df_failed_trials, df_temp], ignore_index=True)
             continue
+
+
 
         murphy_success, reason = check_if_murphy_done(id_s, id_p, id_t, df_murphy)
 
@@ -258,6 +269,8 @@ def get_lost_trials():
         if not murphy_success:
             df_temp['failed_at'] = 'Murphy'
             df_temp['reason'] = reason
+            df_temp['success'] = 0
+            df_temp['fail'] = 1
 
             murphy_omc_success, _ = check_if_murphy_has_reference_data(id_s, id_p, id_t, df_murphy)
             df_temp['murphy_omc'] = murphy_omc_success
@@ -275,43 +288,234 @@ def get_lost_trials():
         if not murphy_omc_success:
             df_temp['failed_at'] = 'Murphy OMC'
             df_temp['reason'] = reason
+            df_temp['success'] = 0
+            df_temp['fail'] = 1
 
             df_failed_trials = pd.concat([df_failed_trials, df_temp], ignore_index=True)
             continue
 
+        if HPE_success and P2S_success and opensim_success and murphy_success and murphy_omc_success:
+            df_temp['success'] = 1
+            df_temp['fail'] = 0
+
         df_failed_trials = pd.concat([df_failed_trials, df_temp], ignore_index=True)
-
-
 
     progbar.close()
 
+    os.makedirs(os.path.dirname(csv_failed_trials), exist_ok=True)
     df_failed_trials.to_csv(csv_failed_trials, sep=';', index=False)
+
+    return df_failed_trials
+
+
+def plot_lost_trials(write_html=False, write_png=True, plot_success=False, showfig=False):
+    """
+    PLot on 2D Heatmap with id_s on y-axis and id_p on x-axis.
+
+    Low numbers are green, high numbers are red.
+
+    Sum is in cell.
+    """
+    import plotly.express as px
+
+    global df_failed_trials
+
+    if plot_success:
+        z = 'success'
+        colour_scale = ['rgb(255,0,0)', 'rgb(0,255,0)']
+        subdir = '01_success'
+        scale_name = 'Success'
+    else:
+        z = 'fail'
+        colour_scale = ['rgb(0,255,0)', 'rgb(255,0,0)']
+        subdir = '02_fail'
+        scale_name = 'Fails'
+
+    fig = px.density_heatmap(df_failed_trials, x='id_p', y='id_s', z=z, text_auto=True, color_continuous_scale=colour_scale)
+
+    fig.update_layout(title='Trials failed during Pipeline',
+                      )
+
+    fig.update_xaxes(title_text=f'Patients')
+    fig.update_yaxes(title_text=f'Settings')
+    fig.update_coloraxes(colorbar_title={'text': scale_name})
+
+    dir_out = os.path.join(root_stat, '04_failed_trials', '02_plots', subdir)
+
+    os.makedirs(dir_out, exist_ok=True)
+
+    if showfig:
+        fig.show()
+
+    if write_html:
+        filename = os.path.join(dir_out, f'Trials_{z}.html')
+        fig.write_html(filename)
+
+    if write_png:
+        filename = os.path.join(dir_out, f'Trials_{z}.png')
+        fig.write_image(filename, scale=5)
+
+def plot_lost_trials_by_stage(stage, write_html=False, write_png=True, showfig=False):
+    """
+    PLot on 2D Heatmap with id_s on y-axis and id_p on x-axis.
+
+    Low numbers are green, high numbers are red.
+
+    Sum is in cell.
+    """
+    import plotly.express as px
+
+    global df_failed_trials
+
+    match stage:
+        case 'HPE':
+            title_stage = 'pose estimation'
+        case 'P2S':
+            title_stage = 'triangulation'
+        case 'OS':
+            title_stage = 'calculation of inverse kinematics'
+        case 'murphy':
+            title_stage = 'calculation of kinematic measures'
+        case 'murphy_omc':
+            title_stage = 'calculation of kinematic measures of OMC reference'
+        case _:
+            title_stage = 'Pipeline'
+
+
+    df_temp = df_failed_trials[['id_p', 'id_s', stage]]
+    df_temp[stage] = df_temp[stage].apply(lambda x: 0 if x == 1 else 1 if x == 0 else x)
+
+    colour_scale = ['rgb(0,255,0)', 'rgb(255,0,0)']
+    subdir = '02_fail'
+    scale_name = 'Fails'
+
+    fig = px.density_heatmap(df_temp, x='id_p', y='id_s', z=stage, text_auto=True, color_continuous_scale=colour_scale)
+
+    fig.update_layout(title=f'Trials failed during {title_stage}',
+                      )
+
+    fig.update_xaxes(title_text=f'Patients')
+    fig.update_yaxes(title_text=f'Settings')
+    fig.update_coloraxes(colorbar_title={'text': scale_name})
+
+    dir_out = os.path.join(root_stat, '04_failed_trials', '02_plots', subdir)
+
+    os.makedirs(dir_out, exist_ok=True)
+
+    if showfig:
+        fig.show()
+
+    if write_html:
+        filename = os.path.join(dir_out, f'Trials_failed_{stage}.html')
+        fig.write_html(filename)
+
+    if write_png:
+        filename = os.path.join(dir_out, f'Trials_failed_{stage}.png')
+        fig.write_image(filename, scale=5)
+
+def plot_all_fails(stages, no_num_in_plot=False, notitle=True, write_html=False, write_png=True, showfig=False):
+    '''
+    Creates plot with failed plots as subplots
+
+    :param stages:
+    :param write_html:
+    :param write_png:
+    :param showfig:
+    :return:
+    '''
+    from plotly.subplots import make_subplots
+    import plotly.graph_objects as go
+
+    max_rows = 3
+    max_cols = 2
+
+    def get_row_col(row, col):
+
+        if col == max_cols:
+            return row+1, 1
+        else:
+            return row, col+1
+
+    subplot_titles = ['Pipeline', 'pose estimation', 'triangulation', 'inverse kinematics',
+                      'kinematic measures', 'kinematic measures of OMC reference']
+    fig = make_subplots(rows=max_rows, cols=max_cols, subplot_titles=subplot_titles,
+                        horizontal_spacing=0.15, vertical_spacing=0.15)
+
+
+    row = 1
+    col=1
+    if no_num_in_plot:
+        fig.add_trace(go.Histogram2d(x=df_failed_trials['id_p'], y=df_failed_trials['id_s'], z=df_failed_trials['fail'],
+                                     histfunc='sum', coloraxis='coloraxis'), row=row, col=col)
+    else:
+
+        fig.add_trace(go.Histogram2d(x=df_failed_trials['id_p'], y=df_failed_trials['id_s'], z=df_failed_trials['fail'],
+                                    histfunc='sum', texttemplate= "%{z}", coloraxis='coloraxis'), row=row, col=col)
+
+
+    for stage in stages:
+        df_temp = df_failed_trials[['id_p', 'id_s', stage]]
+        df_temp[stage] = df_temp[stage].apply(lambda x: 0 if x == 1 else 1 if x == 0 else x)
+
+        row, col = get_row_col(row, col)
+        if no_num_in_plot:
+            fig.add_trace(go.Histogram2d(x=df_temp['id_p'], y=df_temp['id_s'], z=df_temp[stage],
+                                         histfunc='sum', coloraxis='coloraxis'), row=row, col=col)
+        else:
+            fig.add_trace(go.Histogram2d(x=df_temp['id_p'], y=df_temp['id_s'], z=df_temp[stage],
+                                         histfunc='sum', texttemplate="%{z}", coloraxis='coloraxis'), row=row, col=col)
+
+    colour_scale = ['rgb(0,255,0)', 'rgb(255,0,0)']
+    fig.update_layout(coloraxis=dict(colorscale=colour_scale), coloraxis_colorbar=dict(title='Fails'))
+
+    if notitle:
+        fig.update_layout(width=750, height=1000)
+    else:
+        fig.update_layout(title=dict(text='Trials failed during Pipeline', font=dict(size=28), automargin = False,
+                                     yref='paper'),width=750, height=1000)
+
+    fig.update_annotations(font_size=16)
+
+    fig.update_xaxes(title_text=f'Patients')
+    fig.update_yaxes(title_text=f'Settings')
+    fig.update_coloraxes(colorbar_title={'text': 'Fails'})
+
+    dir_out = os.path.join(root_stat, '04_failed_trials', '02_plots', '02_fail')
+
+    os.makedirs(dir_out, exist_ok=True)
+
+    if showfig:
+        fig.show()
+
+    if write_html:
+        filename = os.path.join(dir_out, f'Trials_failed_all.html')
+        fig.write_html(filename)
+
+    if write_png:
+        filename = os.path.join(dir_out, f'Trials_failed_all.png')
+        fig.write_image(filename, scale=5)
+
+def plot_calib_errors():
+    pass
+
 
 
 if __name__ == '__main__':
 
-    get_lost_trials()
-
-    if os.path.isfile(csv_failed_trials):
+    overwrite = False
+    if os.path.isfile(csv_failed_trials) and not overwrite:
         df_failed_trials = pd.read_csv(csv_failed_trials, sep=';')
+    else:
+        df_failed_trials = get_lost_trials()
 
     count_lost_trials = df_failed_trials.groupby(['id_p', 'id_s', 'failed_at']).size().reset_index(name='count')
 
+    stages = ['HPE', 'P2S', 'OS', 'murphy', 'murphy_omc']
 
+    plot_all_fails(stages, write_html=False, write_png=True, showfig=True)
 
+    plot_lost_trials(write_html=False, write_png=True, plot_success=False, showfig=False)
+    plot_lost_trials(write_html=False, write_png=True, plot_success=True, showfig=False)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    for stage in stages:
+        plot_lost_trials_by_stage(stage, write_html=False, write_png=True, showfig=False)
