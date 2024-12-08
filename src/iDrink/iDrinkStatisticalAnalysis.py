@@ -1140,7 +1140,177 @@ def get_rom_rmse(dir_results, overwrite_csvs=False, verbose=1):
 
     df_out.to_csv(csv_out, sep=';', index=False)
 
+def get_rom_rmse_old(dir_results, overwrite_csvs=False, verbose=1):
+    """
+    Reads the .csv files with range of motion errors and writes rmse for following ids: '{id_s}', '{id_s}_{id_p}'
 
+    :param dir_results:
+    :param verbose:
+    :return:
+    """
+    metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
+               'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
+
+    csv_in = os.path.join(dir_results, 'omc_mmc_rom.csv')
+    csv_out = os.path.join(dir_results, 'omc_mmc_rom_rmse.csv')
+
+    df_p_temp = pd.DataFrame(columns=['id', 'dynamic', 'condition'] + [f'{metric}_rom_rmse' for metric in metrics])
+    df_s_temp = pd.DataFrame(columns=['id', 'dynamic', 'condition'] + [f'{metric}_rom_rmse' for metric in metrics])
+
+    if os.path.isfile(csv_in):
+        df_in = pd.read_csv(csv_in, sep=';')
+    else:
+        raise FileNotFoundError(f"File not found: {csv_in}")
+
+
+    def get_mean_error_for_s_and_p(df_in, df_mean, metrics, id):
+        if df_in.shape[0] == 0:
+            return df_mean
+
+        for dynamic in df_in['dynamic'].unique():
+            df_dyn = df_in[df_in['dynamic'] == dynamic]
+
+            for condition in df_dyn['condition'].unique():
+                df_con = df_dyn[df_dyn['condition'] == condition]
+
+                df_t_out = pd.DataFrame(columns=df_mean.columns, index=[0])
+                df_t_out['id'] = id
+                df_t_out['condition'] = condition
+                df_t_out['dynamic'] = dynamic
+
+                for metric in metrics:
+                    error_max = df_con[f'{metric}_max_mmc'] - df_con[f'{metric}_max_omc']
+                    error_min = df_con[f'{metric}_min_mmc'] - df_con[f'{metric}_min_omc']
+                    error_rom = df_con[f'{metric}_rom_mmc'] - df_con[f'{metric}_rom_omc']
+
+                    df_t_out[f'{metric}_max_rmse'] = np.sqrt(np.nanmean( error_max**2))
+                    df_t_out[f'{metric}_min_rmse'] = np.sqrt(np.nanmean( error_min**2))
+                    df_t_out[f'{metric}_rom_rmse'] = np.sqrt(np.nanmean( error_rom**2))
+
+                df_mean = pd.concat([df_mean, df_t_out], axis=0, ignore_index=True)
+
+        return df_mean
+
+    # get sets for id_s and id_p
+    idx_s = sorted(df_in['id_s'].unique())
+    idx_p = sorted(df_in['id_p'].unique())
+
+
+    for id_s in idx_s:
+        df_s_temp = get_mean_error_for_s_and_p(df_in[df_in['id_s'] == id_s], df_s_temp, metrics, id_s)
+
+        for id_p in idx_p:
+            df_p_temp = get_mean_error_for_s_and_p(df_in[(df_in['id_s'] == id_s) & (df_in['id_p'] == id_p) ],
+                                                   df_p_temp, metrics, f'{id_s}_{id_p}')
+
+    if os.path.isfile(csv_out) and not overwrite_csvs:
+        df_out = pd.read_csv(csv_out, sep=';')
+        df_out = pd.concat([df_out, df_s_temp, df_p_temp], axis=0, ignore_index=True)
+    else:
+        df_out = pd.concat([df_s_temp, df_p_temp], axis=0, ignore_index=True)
+
+    df_out.to_csv(csv_out, sep=';', index=False)
+
+def get_rom_rmse(dir_results, overwrite_csvs=False, verbose=1):
+    """
+    Reads the .csv files with range of motion errors and writes rmse for following ids: '{id_s}', '{id_s}_{id_p}'
+
+    :param dir_results:
+    :param verbose:
+    :return:
+    """
+    metrics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang',
+               'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos']
+
+    csv_in = os.path.join(dir_results, 'omc_mmc_rom.csv')
+    csv_out = os.path.join(dir_results, 'omc_mmc_rom_rmse.csv')
+
+    df_p_temp = pd.DataFrame(columns=['id_s', 'id_p', 'dynamic', 'condition', 'metric', 'rom_rmse'])
+    df_s_temp = pd.DataFrame(columns=['id_s', 'id_p', 'dynamic', 'condition', 'metric', 'rom_rmse'])
+
+    if os.path.isfile(csv_in):
+        df_in = pd.read_csv(csv_in, sep=';')
+    else:
+        raise FileNotFoundError(f"File not found: {csv_in}")
+
+
+    def get_mean_error_for_s_and_p(df_in, df_mean, metrics, id):
+        if df_in.shape[0] == 0:
+            return df_mean
+
+        for dynamic in df_in['dynamic'].unique():
+            df_dyn = df_in[df_in['dynamic'] == dynamic]
+
+            for condition in df_dyn['condition'].unique():
+                df_con = df_dyn[df_dyn['condition'] == condition]
+
+                df_t_out = pd.DataFrame(columns=df_mean.columns, index=[0])
+                df_t_out['id'] = id
+                df_t_out['condition'] = condition
+                df_t_out['dynamic'] = dynamic
+
+                for metric in metrics:
+                    error_max = df_con[f'{metric}_max_mmc'] - df_con[f'{metric}_max_omc']
+                    error_min = df_con[f'{metric}_min_mmc'] - df_con[f'{metric}_min_omc']
+                    error_rom = df_con[f'{metric}_rom_mmc'] - df_con[f'{metric}_rom_omc']
+
+                    df_t_out[f'{metric}_max_rmse'] = np.sqrt(np.nanmean( error_max**2))
+                    df_t_out[f'{metric}_min_rmse'] = np.sqrt(np.nanmean( error_min**2))
+                    df_t_out[f'{metric}_rom_rmse'] = np.sqrt(np.nanmean( error_rom**2))
+
+                df_mean = pd.concat([df_mean, df_t_out], axis=0, ignore_index=True)
+
+        return df_mean
+
+    df_in.dropna(axis=1, inplace=True)
+    # get sets for id_s and id_p
+    idx_s = sorted(df_in['id_s'].unique())
+
+
+    if os.path.isfile(csv_out) and not overwrite_csvs:
+        df_out = pd.read_csv(csv_out, sep=';')
+        df_out = pd.concat([df_out, df_s_temp, df_p_temp], axis=0, ignore_index=True)
+    else:
+        df_out = pd.concat([df_s_temp, df_p_temp], axis=0, ignore_index=True)
+
+    total = 0
+    for id_s in idx_s:
+        df_temp_s = df_in[df_in['id_s'] == id_s]
+        idx_p = sorted(df_temp_s['id_p'].unique())
+        total += len(idx_p) * len(metrics) * 2 * 2
+
+
+
+    progbar = tqdm(total=total, desc='Calculating RMSE', disable=verbose<1)
+    for id_s in idx_s:
+        df_temp_s = df_in[df_in['id_s'] == id_s]
+
+        idx_p = sorted(df_temp_s['id_p'].unique())
+
+        for id_p in idx_p:
+            progbar.set_description(f'Calculating RMSE for {id_s}_{id_p}')
+
+            df_temp_p = df_temp_s[df_temp_s['id_p'] == id_p]
+            for metric in metrics:
+                col = f'{metric}_rom_error'
+                for dynamic in ['fixed', 'dynamic']:
+                    for condition in ['affected', 'unaffected']:
+                        df_t = df_temp_p[(df_temp_p['dynamic'] == dynamic) & (df_temp_p['condition'] == condition)]
+
+                        df_new_row = pd.DataFrame(columns = df_p_temp.columns, index=[0])
+                        df_new_row['id_s'] = id_s
+                        df_new_row['id_p'] = id_p
+                        df_new_row['dynamic'] = dynamic
+                        df_new_row['condition'] = condition
+                        df_new_row['metric'] = metric
+                        df_new_row['rom_rmse'] = np.sqrt(np.nanmean(df_t[col]**2))
+
+                        df_out = pd.concat([df_out, df_new_row], axis=0, ignore_index=True)
+
+                        progbar .update(1)
+
+    progbar.close()
+    df_out.to_csv(csv_out, sep=';', index=False)
 
 def get_timeseries_correlations(dir_processed, dir_results,overwrite_csvs=False, verbose=1):
     """
@@ -2063,7 +2233,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = False
+    test_timeseries = True
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
@@ -2074,7 +2244,7 @@ if __name__ == '__main__':
 
     if test_timeseries:
 
-        for correct in corrections:
+        """for correct in corrections:
             debug = False
 
             preprocess_timeseries(root_val,
@@ -2087,8 +2257,10 @@ if __name__ == '__main__':
 
         get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=True, verbose=1, debug=debug)
         get_error_mean_rmse(dir_results, overwrite_csvs=True, verbose=1)
+        get_rom_rmse_old(dir_results, overwrite_csvs=True, verbose=1)
+        get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=False, verbose=1)"""
+
         get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
-        get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=False, verbose=1)
 
 
 
