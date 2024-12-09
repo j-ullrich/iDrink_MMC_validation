@@ -1233,35 +1233,6 @@ def get_rom_rmse(dir_results, overwrite_csvs=False, verbose=1):
     else:
         raise FileNotFoundError(f"File not found: {csv_in}")
 
-
-    def get_mean_error_for_s_and_p(df_in, df_mean, metrics, id):
-        if df_in.shape[0] == 0:
-            return df_mean
-
-        for dynamic in df_in['dynamic'].unique():
-            df_dyn = df_in[df_in['dynamic'] == dynamic]
-
-            for condition in df_dyn['condition'].unique():
-                df_con = df_dyn[df_dyn['condition'] == condition]
-
-                df_t_out = pd.DataFrame(columns=df_mean.columns, index=[0])
-                df_t_out['id'] = id
-                df_t_out['condition'] = condition
-                df_t_out['dynamic'] = dynamic
-
-                for metric in metrics:
-                    error_max = df_con[f'{metric}_max_mmc'] - df_con[f'{metric}_max_omc']
-                    error_min = df_con[f'{metric}_min_mmc'] - df_con[f'{metric}_min_omc']
-                    error_rom = df_con[f'{metric}_rom_mmc'] - df_con[f'{metric}_rom_omc']
-
-                    df_t_out[f'{metric}_max_rmse'] = np.sqrt(np.nanmean( error_max**2))
-                    df_t_out[f'{metric}_min_rmse'] = np.sqrt(np.nanmean( error_min**2))
-                    df_t_out[f'{metric}_rom_rmse'] = np.sqrt(np.nanmean( error_rom**2))
-
-                df_mean = pd.concat([df_mean, df_t_out], axis=0, ignore_index=True)
-
-        return df_mean
-
     df_in.dropna(axis=1, inplace=True)
     # get sets for id_s and id_p
     idx_s = sorted(df_in['id_s'].unique())
@@ -1278,6 +1249,13 @@ def get_rom_rmse(dir_results, overwrite_csvs=False, verbose=1):
         df_temp_s = df_in[df_in['id_s'] == id_s]
         idx_p = sorted(df_temp_s['id_p'].unique())
         total += len(idx_p) * len(metrics) * 2 * 2
+
+
+    # Outlier Correction
+    from scipy import stats
+    cols_error = ['hand_vel_rom_error', 'elbow_vel_rom_error', 'trunk_disp_rom_error', 'trunk_ang_rom_error',
+                  'elbow_flex_pos_rom_error', 'shoulder_flex_pos_rom_error', 'shoulder_abduction_pos_rom_error']
+    df_rom = df_in[(np.abs(stats.zscore(df_in[cols_error])) < 3).all(axis=1)]
 
 
 
