@@ -249,7 +249,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
     # Create subset of DataFrame containing all trials that are also in OMC
     df = pd.DataFrame(columns=df_murphy.columns)
 
-    # Detect outlier for ROM errors
+    # Detect outlier
     cols_error = ['TotalMovementTime', 'PeakVelocity_mms', 'elbowVelocity', 'tTopeakV_s',
                   'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel', 'NumberMovementUnits',
                   'InterjointCoordination', 'trunkDisplacementMM', 'trunkDisplacementDEG', 'ShoulderFlexionReaching',
