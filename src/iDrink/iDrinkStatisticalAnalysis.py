@@ -2077,8 +2077,10 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                 # Write to new csv
                 os.makedirs(dir_dat_out, exist_ok=True)
 
-                path_omc_out = os.path.join(dir_dat_out, f'S15133_{id_p}_{id_t}_{condition}_{side}_{correct}_preprocessed.csv')
-                path_mmc_out = os.path.join(dir_dat_out, f'{id_s}_{id_p}_{id_t}_{condition}_{side}_{correct}_preprocessed.csv')
+                path_omc_out = os.path.join(dir_dat_out,
+                                            f'S15133_{id_p}_{id_t}_{condition}_{side}_{correct}_preprocessed.csv')
+                path_mmc_out = os.path.join(dir_dat_out,
+                                            f'{id_s}_{id_p}_{id_t}_{condition}_{side}_{correct}_preprocessed.csv')
 
                 df_omc.to_csv(path_omc_out, sep=';')
                 df_mmc.to_csv(path_mmc_out, sep=';')
