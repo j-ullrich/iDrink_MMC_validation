@@ -15,7 +15,8 @@ import platform
 import pandas as pd
 import numpy as np
 import scipy as sp
-from vtkmodules.numpy_interface.algorithms import condition
+
+from scipy.stats import pearsonr, zscore
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from iDrinkOpenSim import read_opensim_file
@@ -52,7 +53,13 @@ def get_murphy_corrrelation(df, root_stat_cat, thresh_PeakVelocity_mms=None, thr
     When id_p is None, the correlation accounts for the whole setting
 
     """
-    from scipy.stats import pearsonr
+
+    # Detect outlier for ROM errors
+    """cols_error = ['TotalMovementTime', 'condition', 'PeakVelocity_mms', 'elbowVelocity', 'tTopeakV_s',
+                  'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel', 'NumberMovementUnits',
+                  'InterjointCoordination', 'trunkDisplacementMM', 'trunkDisplacementDEG', 'ShoulderFlexionReaching',
+                  'ElbowExtension', 'shoulderAbduction', 'shoulderFlexionDrinking']
+    df = df[(np.abs(zscore(df[cols_error])) < 3).all(axis=1)]"""
 
     #cor_columns = ['id_s', 'id_p', 'measure', 'condition', 'side', 'pearson', 'pearson_p']
     corr_columns = ['id_s', 'measure', 'condition', 'pearson', 'pearson_p']
@@ -241,6 +248,13 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
 
     # Create subset of DataFrame containing all trials that are also in OMC
     df = pd.DataFrame(columns=df_murphy.columns)
+
+    # Detect outlier for ROM errors
+    cols_error = ['TotalMovementTime', 'PeakVelocity_mms', 'elbowVelocity', 'tTopeakV_s',
+                  'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel', 'NumberMovementUnits',
+                  'InterjointCoordination', 'trunkDisplacementMM', 'trunkDisplacementDEG', 'ShoulderFlexionReaching',
+                  'ElbowExtension', 'shoulderAbduction', 'shoulderFlexionDrinking']
+    df_murphy = df_murphy[(np.abs(zscore(df_murphy[cols_error])) < 3).all(axis=1)]
 
     if verbose >= 1:
         progbar = tqdm(total=len(idx_s_mmc), desc='Calculating Differences')
@@ -2211,7 +2225,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = True
+    test_timeseries = False
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
