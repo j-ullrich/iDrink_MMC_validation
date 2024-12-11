@@ -217,7 +217,7 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
     return df_diff
 
 def runs_statistics_discrete(path_csv_murphy, root_stat,
-                             thresh_PeakVelocity_mms = None, thresh_elbowVelocity=None,
+                             thresh_PeakVelocity_mms = None, thresh_elbowVelocity=None, outlier_iqr=False,
                              make_plots = False, verbose=1):
     """
     Takes Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
@@ -246,15 +246,29 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
         outlier_corrected = ''
 
 
-    # Create subset of DataFrame containing all trials that are also in OMC
     df = pd.DataFrame(columns=df_murphy.columns)
 
-    # Detect outlier
+    def detect_outliers_iqr(dataframe, columns):
+        outlier_mask = pd.DataFrame(index=dataframe.index)
+        for col in columns:
+            Q1 = dataframe[col].quantile(0.25)
+            Q3 = dataframe[col].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - 1.5 * IQR
+            upper_bound = Q3 + 1.5 * IQR
+            outlier_mask[col] = (dataframe[col] > lower_bound) & (dataframe[col] < upper_bound)
+
+        return outlier_mask.all(axis=1), dataframe[~outlier_mask.all(axis=1)].reindex()
+
     cols_error = ['TotalMovementTime', 'PeakVelocity_mms', 'elbowVelocity', 'tTopeakV_s',
                   'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel', 'NumberMovementUnits',
                   'InterjointCoordination', 'trunkDisplacementMM', 'trunkDisplacementDEG', 'ShoulderFlexionReaching',
                   'ElbowExtension', 'shoulderAbduction', 'shoulderFlexionDrinking']
-    df_murphy = df_murphy[(np.abs(zscore(df_murphy[cols_error])) < 3).all(axis=1)]
+
+    if outlier_iqr:
+        mask_iqr, df_murphy = detect_outliers_iqr(df_murphy, cols_error)
+    else:
+        df_murphy = df_murphy[(np.abs(zscore(df_murphy[cols_error])) < 3).all(axis=1)].reindex()
 
     if verbose >= 1:
         progbar = tqdm(total=len(idx_s_mmc), desc='Calculating Differences')
@@ -2262,6 +2276,7 @@ if __name__ == '__main__':
     else:
 
         runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
-                                 thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None)
-        runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
-                                 thresh_PeakVelocity_mms=hand_vel_thresh, thresh_elbowVelocity=thresh_elbowVelocity)
+                                 thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None, outlier_iqr=False)
+
+        """runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
+                                 thresh_PeakVelocity_mms=hand_vel_thresh, thresh_elbowVelocity=thresh_elbowVelocity)"""
