@@ -684,7 +684,7 @@ def plot_murphy_blandaltman_old(df_murphy, measured_value, id_s, id_p=None, plot
                     print(f'Filetype {extension} not supported. Please use .html, .svg, .jpg or .jpeg')
 
 
-def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = True, showfig=False, write_html=False, write_svg=True, verbose=1):
+def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1):
     """
     PLots boxplots for errors and rmse of Murphy measures.
 
@@ -790,6 +790,12 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = True, show
             path = os.path.join(dir_out_bar_rmse, f'murphy_bar_{measure}_rmse{outlier_str}.svg')
             fig_bar.write_image(path, scale=5)
 
+        if write_png:
+            path = os.path.join(dir_out_box_rmse, f'murphy_box_{measure}_rmse{outlier_str}.png')
+            fig_box.write_image(path, scale=5)
+            path = os.path.join(dir_out_bar_rmse, f'murphy_bar_{measure}_rmse{outlier_str}.png')
+            fig_bar.write_image(path, scale=5)
+
         for id_p in df_rmse_nonan['id_p'].unique():
 
             progbar.set_description(f'Plotting Boxplots for {measure} of {id_p}')
@@ -837,8 +843,16 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = True, show
                 path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.svg')
                 fig_box_error.write_image(path, scale=5)
 
+            if write_png:
+                path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.png')
+                fig_box.write_image(path, scale=5)
+                path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.png')
+                fig_bar.write_image(path, scale=5)
+                path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.png')
+                fig_box_error.write_image(path, scale=5)
+
         # Error
-        fig_error_box = px.box(df_error, x='id_s', y=measure, color='condition', title=f'Error for {measure}',
+        fig_error_box = px.box(df_error.sort_values(by='id_s'), x='id_s', y=measure, color='condition', title=f'Error for {measure}',
                                labels={'condition': 'Condition', 'id_s': 'Setting ID', 'value': 'Error'})
 
         if cad is not None:
@@ -854,6 +868,10 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = True, show
 
         if write_svg:
             path = os.path.join(dir_out_box_error, f'murphy_box_{measure}_error{outlier_str}.svg')
+            fig_error_box.write_image(path, scale=5)
+
+        if write_png:
+            path = os.path.join(dir_out_box_error, f'murphy_box_{measure}_error{outlier_str}.png')
             fig_error_box.write_image(path, scale=5)
 
 
@@ -1920,9 +1938,6 @@ def get_plottable_timeseries_kinematics(plottable_csv, min_n_ids, affected=None,
 
 
 if __name__ == "__main__":
-    dir_data = r"I:\iDrink\validation_root\03_data"
-    dir_dst = r"I:\iDrink\validation_root\04_statistics\01_continuous\02_plots"
-
     cols_of_interest = ['']
 
     id_s = 'S001'
@@ -1951,14 +1966,14 @@ if __name__ == "__main__":
 
     verbose = 1
 
-    plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, show_plots=False, verbose=1)
+    csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
+    caloib_plots_dst = os.path.join(root_stat, '05_calibration')
+    calibration_boxplot(csv_calib_errors, caloib_plots_dst, verbose=1, show_fig=False)
 
-    # end of script
-    import sys
-    sys.exit()
+    #plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, show_plots=False, verbose=1)
 
-    for corr in [True, False]:
-        plot_murphy_error_rmse_box_bar_plot(root_val, outlier_corrected=corr)
+    for corr in [False]:
+        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, outlier_corrected=corr)
 
     #plot_timeseries_averaged(root_val, 'S001', 'P07', dynamic=dynamic)
 
