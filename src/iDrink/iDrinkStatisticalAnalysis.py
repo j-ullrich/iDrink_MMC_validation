@@ -264,12 +264,14 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
                   'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel', 'NumberMovementUnits',
                   'InterjointCoordination', 'trunkDisplacementMM', 'trunkDisplacementDEG', 'ShoulderFlexionReaching',
                   'ElbowExtension', 'shoulderAbduction', 'shoulderFlexionDrinking']
-
+    df_murphy_omc = df_murphy[df_murphy['id_s'] == 'S15133']
+    df_murphy_mmc = df_murphy[df_murphy['id_s'] != 'S15133']
     if outlier_iqr:
-        mask_iqr, df_murphy = detect_outliers_iqr(df_murphy, cols_error)
+        mask_iqr, df_murphy_mmc = detect_outliers_iqr(df_murphy_mmc, cols_error)
     else:
-        df_murphy = df_murphy[(np.abs(zscore(df_murphy[cols_error])) < 3).all(axis=1)].reindex()
+        df_murphy_mmc = df_murphy_mmc[(np.abs(zscore(df_murphy_mmc[cols_error])) < 3).all(axis=1)].reindex()
 
+    df_murphy = pd.concat([df_murphy_omc, df_murphy_mmc])
     if verbose >= 1:
         progbar = tqdm(total=len(idx_s_mmc), desc='Calculating Differences')
     for id_s in sorted(idx_s_mmc):
