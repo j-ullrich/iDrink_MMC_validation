@@ -1317,7 +1317,8 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                 fig.add_trace(fig_aff.data[i], row=1, col=2)
 
             id_s_name = get_setting_axis_name(id_s)
-            fig.update_layout(title=f'Averaged Timeseries for {kinematic_name} of {id_s_name}_{id_p}',)
+            fig.update_layout(title=f'Averaged Timeseries for {kinematic_name} of {id_s_name}_{id_p}',
+                              xaxis_title='Normalized Time', yaxis_title=f'{kinematic_name} [{unit}]')
 
             if fig_show:
                 fig.show()
