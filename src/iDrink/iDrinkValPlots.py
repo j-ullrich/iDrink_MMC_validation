@@ -1968,12 +1968,12 @@ if __name__ == "__main__":
 
     csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
     caloib_plots_dst = os.path.join(root_stat, '05_calibration')
-    calibration_boxplot(csv_calib_errors, caloib_plots_dst, verbose=1, show_fig=False)
+    #calibration_boxplot(csv_calib_errors, caloib_plots_dst, verbose=1, show_fig=False)
 
     #plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, show_plots=False, verbose=1)
 
     for corr in [False]:
-        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, outlier_corrected=corr)
+        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=True, write_png=True, outlier_corrected=corr)
 
     #plot_timeseries_averaged(root_val, 'S001', 'P07', dynamic=dynamic)
 
