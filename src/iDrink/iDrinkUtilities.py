@@ -628,16 +628,15 @@ def get_cad(df, measure):
     return df.loc[0, measure_name]
 
 def get_setting_axis_name(id_s):
-
     match id_s:
         case 'S001':
-            name = 'SimCC, Cams: 1-5'
+            name = 'SimCC, Cams: 1,2,3,4,5'
         case 'S002':
-            name = 'Metrabs, Cams: 1-5'
+            name = 'Metrabs, Cams: 1,2,3,4,5'
         case 'S003':
-            name = 'SimCC, Cams: 6-10'
+            name = 'SimCC, Cams: 6,7,8,9,10'
         case 'S004':
-            name = 'Metrabs, Cams: 6-10'
+            name = 'Metrabs, Cams: 6,7,8,9,10'
         case 'S005':
             name = 'SimCC, Cams: 1,3,5'
         case 'S006':
@@ -684,6 +683,8 @@ def get_setting_axis_name(id_s):
             name = 'Single, Cam: 8, unfilt'
         case _:
             name = id_s
+
+    return name
 
 
 if __name__ == '__main__':

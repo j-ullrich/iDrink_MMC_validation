@@ -19,6 +19,7 @@ import ast
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkUtilities
+from iDrink.iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name
 
 drive = iDrinkUtilities.get_drivepath()
 
@@ -308,7 +309,7 @@ def get_lost_trials():
     return df_failed_trials
 
 
-def plot_lost_trials(write_html=False, write_png=True, plot_success=False, showfig=False):
+def plot_lost_trials(write_html=False, write_png=True, write_svg=True, plot_success=False, showfig=False):
     """
     PLot on 2D Heatmap with id_s on y-axis and id_p on x-axis.
 
@@ -319,6 +320,8 @@ def plot_lost_trials(write_html=False, write_png=True, plot_success=False, showf
     import plotly.express as px
 
     global df_failed_trials
+
+    df_failed_trials['id_s_name'] = df_failed_trials['id_s'].apply(lambda x: get_setting_axis_name(x))
 
     if plot_success:
         z = 'success'
@@ -331,9 +334,9 @@ def plot_lost_trials(write_html=False, write_png=True, plot_success=False, showf
         subdir = '02_fail'
         scale_name = 'Fails'
 
-    fig = px.density_heatmap(df_failed_trials, x='id_p', y='id_s', z=z, text_auto=True, color_continuous_scale=colour_scale)
+    fig = px.density_heatmap(df_failed_trials, x='id_p', y='id_s_name', z=z, text_auto=True, color_continuous_scale=colour_scale)
 
-    fig.update_layout(title='Trials failed during Pipeline',
+    fig.update_layout(title='<b>Trials failed during Pipeline<b>',
                       )
 
     fig.update_xaxes(title_text=f'Patients')
@@ -355,7 +358,11 @@ def plot_lost_trials(write_html=False, write_png=True, plot_success=False, showf
         filename = os.path.join(dir_out, f'Trials_{z}.png')
         fig.write_image(filename, scale=5)
 
-def plot_lost_trials_by_stage(stage, write_html=False, write_png=True, showfig=False):
+    if write_svg:
+        filename = os.path.join(dir_out, f'Trials_{z}.svg')
+        fig.write_image(filename, scale=5)
+
+def plot_lost_trials_by_stage(stage, write_html=False, write_png=True, write_svg=False, showfig=False):
     """
     PLot on 2D Heatmap with id_s on y-axis and id_p on x-axis.
 
@@ -384,14 +391,15 @@ def plot_lost_trials_by_stage(stage, write_html=False, write_png=True, showfig=F
 
     df_temp = df_failed_trials[['id_p', 'id_s', stage]]
     df_temp[stage] = df_temp[stage].apply(lambda x: 0 if x == 1 else 1 if x == 0 else x)
+    df_temp['id_s_name'] = df_temp['id_s'].apply(lambda x: get_setting_axis_name(x))
 
     colour_scale = ['rgb(0,255,0)', 'rgb(255,0,0)']
     subdir = '02_fail'
     scale_name = 'Fails'
 
-    fig = px.density_heatmap(df_temp, x='id_p', y='id_s', z=stage, text_auto=True, color_continuous_scale=colour_scale)
+    fig = px.density_heatmap(df_temp, x='id_p', y='id_s_name', z=stage, text_auto=True, color_continuous_scale=colour_scale)
 
-    fig.update_layout(title=f'Trials failed during {title_stage}',
+    fig.update_layout(title=f'<b>Trials failed during {title_stage}<b>',
                       )
 
     fig.update_xaxes(title_text=f'Patients')
@@ -413,7 +421,12 @@ def plot_lost_trials_by_stage(stage, write_html=False, write_png=True, showfig=F
         filename = os.path.join(dir_out, f'Trials_failed_{stage}.png')
         fig.write_image(filename, scale=5)
 
-def plot_all_fails(stages, no_num_in_plot=False, notitle=True, write_html=False, write_png=True, showfig=False):
+    if write_svg:
+        filename = os.path.join(dir_out, f'Trials_failed_{stage}.svg')
+        fig.write_image(filename, scale=5)
+
+
+def plot_all_fails(stages, no_num_in_plot=False, notitle=True, write_html=False, write_png=True, write_svg=False, showfig=False):
     '''
     Creates plot with failed plots as subplots
 
@@ -426,8 +439,10 @@ def plot_all_fails(stages, no_num_in_plot=False, notitle=True, write_html=False,
     from plotly.subplots import make_subplots
     import plotly.graph_objects as go
 
-    max_rows = 3
-    max_cols = 2
+    max_rows = 2
+    max_cols = 3
+    height = 350* max_rows
+    width = 600 * max_cols
 
     def get_row_col(row, col):
 
@@ -436,43 +451,44 @@ def plot_all_fails(stages, no_num_in_plot=False, notitle=True, write_html=False,
         else:
             return row, col+1
 
-    subplot_titles = ['Pipeline', 'pose estimation', 'triangulation', 'inverse kinematics',
-                      'kinematic measures', 'kinematic measures of OMC reference']
+    subplot_titles = ['<b>Pipeline<b>', '<b>pose estimation<b>', '<b>triangulation<b>', '<b>inverse kinematics<b>',
+                      '<b>kinematic measures<b>', '<b>kinematic measures of OMC reference<b>']
     fig = make_subplots(rows=max_rows, cols=max_cols, subplot_titles=subplot_titles,
                         horizontal_spacing=0.15, vertical_spacing=0.15)
 
+    df_failed_trials['id_s_name'] = df_failed_trials['id_s'].apply(lambda x: get_setting_axis_name(x))
 
     row = 1
     col=1
     if no_num_in_plot:
-        fig.add_trace(go.Histogram2d(x=df_failed_trials['id_p'], y=df_failed_trials['id_s'], z=df_failed_trials['fail'],
+        fig.add_trace(go.Histogram2d(x=df_failed_trials['id_p'], y=df_failed_trials['id_s_name'], z=df_failed_trials['fail'],
                                      histfunc='sum', coloraxis='coloraxis'), row=row, col=col)
     else:
 
-        fig.add_trace(go.Histogram2d(x=df_failed_trials['id_p'], y=df_failed_trials['id_s'], z=df_failed_trials['fail'],
+        fig.add_trace(go.Histogram2d(x=df_failed_trials['id_p'], y=df_failed_trials['id_s_name'], z=df_failed_trials['fail'],
                                     histfunc='sum', texttemplate= "%{z}", coloraxis='coloraxis'), row=row, col=col)
 
 
     for stage in stages:
-        df_temp = df_failed_trials[['id_p', 'id_s', stage]]
+        df_temp = df_failed_trials[['id_p', 'id_s', 'id_s_name', stage]]
         df_temp[stage] = df_temp[stage].apply(lambda x: 0 if x == 1 else 1 if x == 0 else x)
 
         row, col = get_row_col(row, col)
         if no_num_in_plot:
-            fig.add_trace(go.Histogram2d(x=df_temp['id_p'], y=df_temp['id_s'], z=df_temp[stage],
+            fig.add_trace(go.Histogram2d(x=df_temp['id_p'], y=df_temp['id_s_name'], z=df_temp[stage],
                                          histfunc='sum', coloraxis='coloraxis'), row=row, col=col)
         else:
-            fig.add_trace(go.Histogram2d(x=df_temp['id_p'], y=df_temp['id_s'], z=df_temp[stage],
+            fig.add_trace(go.Histogram2d(x=df_temp['id_p'], y=df_temp['id_s_name'], z=df_temp[stage],
                                          histfunc='sum', texttemplate="%{z}", coloraxis='coloraxis'), row=row, col=col)
 
     colour_scale = ['rgb(0,255,0)', 'rgb(255,0,0)']
     fig.update_layout(coloraxis=dict(colorscale=colour_scale), coloraxis_colorbar=dict(title='Fails'))
 
     if notitle:
-        fig.update_layout(width=750, height=1000)
+        fig.update_layout(width=width, height=height)
     else:
-        fig.update_layout(title=dict(text='Trials failed during Pipeline', font=dict(size=28), automargin = False,
-                                     yref='paper'),width=750, height=1000)
+        fig.update_layout(title=dict(text='<b>Trials failed during Pipeline<b>', font=dict(size=28), automargin = False,
+                                     yref='paper'),width=width, height=height)
 
     fig.update_annotations(font_size=16)
 
@@ -494,6 +510,9 @@ def plot_all_fails(stages, no_num_in_plot=False, notitle=True, write_html=False,
     if write_png:
         filename = os.path.join(dir_out, f'Trials_failed_all.png')
         fig.write_image(filename, scale=5)
+    if write_svg:
+        filename = os.path.join(dir_out, f'Trials_failed_all.svg')
+        fig.write_image(filename, scale=5)
 
 def plot_calib_errors():
     pass
@@ -512,10 +531,10 @@ if __name__ == '__main__':
 
     stages = ['HPE', 'P2S', 'OS', 'murphy', 'murphy_omc']
 
-    plot_all_fails(stages, write_html=False, write_png=True, showfig=True)
+    plot_all_fails(stages, write_html=False, write_png=True, write_svg=True, showfig=False)
 
-    plot_lost_trials(write_html=False, write_png=True, plot_success=False, showfig=False)
-    plot_lost_trials(write_html=False, write_png=True, plot_success=True, showfig=False)
+    plot_lost_trials(write_html=False, write_png=True, write_svg=True, plot_success=False, showfig=False)
+    plot_lost_trials(write_html=False, write_png=True, write_svg=True, plot_success=True, showfig=False)
 
     for stage in stages:
-        plot_lost_trials_by_stage(stage, write_html=False, write_png=True, showfig=False)
+        plot_lost_trials_by_stage(stage, write_html=False, write_png=True, write_svg=True, showfig=False)
