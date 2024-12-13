@@ -49,7 +49,7 @@ idx_s_multicam_reduced = ['S001', 'S002']
 idx_s_reduced = idx_s_multicam_reduced + idx_s_singlecam
 idx_s = idx_s_multicam + idx_s_singlecam
 
-def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_plots=False, verbose = 1):
+def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_plots=False, write_png=True, verbose = 1):
     """Create Bland altman plot for Murphy measures.
 
     Plots are generated for:
@@ -217,6 +217,8 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
             df_aff_s = None
             df_unaff_s = None
 
+            id_s_name = get_setting_axis_name(id_s)
+
 
             for id_p in idx_p:
 
@@ -321,7 +323,7 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                     fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
                     fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
 
-                    fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s}_{id_p}')
+                    fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s_name} for {id_p}')
 
                     if show_plots:
                         fig.show()
@@ -334,6 +336,9 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                         fig.write_html(path)
                     if write_svg:
                         path = os.path.join(dir_out, f'{id_s}_{id_p}_{measure}_blandaltman.svg')
+                        fig.write_image(path, scale=5)
+                    if write_png:
+                        path = os.path.join(dir_out, f'{id_s}_{id_p}_{measure}_blandaltman.png')
                         fig.write_image(path, scale=5)
                 progbar.update(1)
 
@@ -416,7 +421,8 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                 fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
                 fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
 
-                fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s} with CAD of {cad} {unit}')
+                fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s_name} with CAD of {cad} {unit}',
+                                  width=1200, height=600)
 
                 if show_plots:
                     fig.show()
@@ -430,6 +436,10 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                         path)
                 if write_svg:
                     path = os.path.join(dir_out, f'{id_s}_{measure}_blandaltman.svg')
+                    fig.write_image(path, scale=5)
+
+                if write_png:
+                    path = os.path.join(dir_out, f'{id_s}_{measure}_blandaltman.png')
                     fig.write_image(path, scale=5)
 
     progbar.close()
@@ -1202,6 +1212,7 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
         # Search for the kinematic in filename
         kinematic = [kin for kin in kinematics if kin in file][0]
         kinematic_name = get_title_measure_name(kinematic)
+        unit = get_unit(kinematic)
 
         df_in_red = df_in_full[(df_in_full['id_s'] == id_s) & (df_in_full['id_p'] == id_p)]
 
@@ -1912,7 +1923,7 @@ if __name__ == "__main__":
     caloib_plots_dst = os.path.join(root_stat, '05_calibration')
     #calibration_boxplot(csv_calib_errors, caloib_plots_dst, verbose=1, show_fig=False)
 
-    #plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, show_plots=False, verbose=1)
+    plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)
 
     for corr in [False]:
         plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=True, write_png=True, outlier_corrected=corr)

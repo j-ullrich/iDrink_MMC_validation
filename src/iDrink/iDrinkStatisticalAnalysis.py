@@ -22,6 +22,7 @@ sys.path.append(os.path.dirname(os.path.realpath(__file__)))
 from iDrinkOpenSim import read_opensim_file
 import iDrinkValPlots as iDrinkVP
 import iDrinkUtilities
+from iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name
 
 murphy_measures = ["PeakVelocity_mms",
                    "elbowVelocity",
@@ -37,6 +38,12 @@ murphy_measures = ["PeakVelocity_mms",
                    "ElbowExtension",
                    "shoulderAbduction"]
 
+ignore_id_p = ['P11', 'P19']
+idx_s_singlecam = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
+idx_s_multicam = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008', 'S009', 'S010', 'S011', 'S012', 'S013', 'S014', 'S015', 'S016']
+idx_s_multicam_reduced = ['S001', 'S002']
+idx_s_reduced = idx_s_multicam_reduced + idx_s_singlecam
+idx_s_full = idx_s_multicam + idx_s_singlecam
 
 def delete_existing_files(dir):
     """Deletes all files that are in the given directory"""
@@ -47,7 +54,7 @@ def delete_existing_files(dir):
         if os.path.isfile(path):
             os.remove(os.path.join(dir, file))
 
-def get_murphy_corrrelation(df, root_stat_cat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None, verbose=1):
+def get_murphy_corrrelation(df, root_stat_cat, thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None, reduced_analysis=False, verbose=1):
     """Calculates the correlation of Murphy Measures for each setting and participant
 
     When id_p is None, the correlation accounts for the whole setting
@@ -71,6 +78,10 @@ def get_murphy_corrrelation(df, root_stat_cat, thresh_PeakVelocity_mms=None, thr
     df_omc = df[df['id_s'] == id_s_omc]
     df_mmc = df[df['id_s'] != id_s_omc]
 
+    if reduced_analysis:
+        df_mmc = df_mmc[(df_mmc['id_s'].isin(idx_s_reduced)) & (~df_mmc['id_p'].isin(ignore_id_p))]
+        df_omc = df_omc[(~df_omc['id_p'].isin(ignore_id_p))]
+
     total = len(df_mmc['id_s'].unique()) * len(murphy_measures)
     idx_s = sorted(df_mmc['id_s'].unique())
 
@@ -83,6 +94,8 @@ def get_murphy_corrrelation(df, root_stat_cat, thresh_PeakVelocity_mms=None, thr
             id_p_mmc = df_mmc[df_mmc['id_s'] == id_s]['id_p'].unique()
             id_p_omc = df_omc['id_p'].unique()
             idx_p = sorted(list(set(id_p_mmc).intersection(id_p_omc)))
+
+
 
             df_temp = pd.DataFrame(columns=corr_columns, index = [0])
 
@@ -136,7 +149,12 @@ def get_murphy_corrrelation(df, root_stat_cat, thresh_PeakVelocity_mms=None, thr
             progbar.update(1)
     progbar.close()
 
-    csv_corr = os.path.join(root_stat_cat, 'stat_murphy_corr.csv')
+    if reduced_analysis:
+        file_app = '_reduced'
+    else:
+        file_app = ''
+
+    csv_corr = os.path.join(root_stat_cat, f'stat_murphy_corr{file_app}.csv')
     df_corr.to_csv(csv_corr, sep=';')
 
     return df_corr
@@ -160,6 +178,9 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
     progbar = tqdm(total=sum(len(sublist) for sublist in list(df[df['id_s'] == id_s]['id_p'].unique() for id_s in idx_s)), desc="Calculating Differences", disable=verbose<1)
 
     for id_s in idx_s:
+        if id_s == id_s_omc:
+            continue
+
         idx_p = sorted(list(df[df['id_s'] == id_s]['id_p'].unique()))
         for id_p in idx_p:
             idx_t = sorted(list(df[(df['id_p'] == id_p) & (df['id_s'] == id_s)]['id_t'].unique()))
@@ -218,7 +239,7 @@ def get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=3000, verb
 
 def runs_statistics_discrete(path_csv_murphy, root_stat,
                              thresh_PeakVelocity_mms = None, thresh_elbowVelocity=None, outlier_iqr=False,
-                             make_plots = False, verbose=1):
+                             make_plots = False, reduced_analysis=False, verbose=1):
     """
     Takes Murphy Measures of MMC and OMC and compares them. Then plots the results and saves data and plots in the Statistics Folder.
     :param df_mmc:
@@ -266,6 +287,11 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
                   'ElbowExtension', 'shoulderAbduction', 'shoulderFlexionDrinking']
     df_murphy_omc = df_murphy[df_murphy['id_s'] == 'S15133']
     df_murphy_mmc = df_murphy[df_murphy['id_s'] != 'S15133']
+
+    if reduced_analysis:
+        df_murphy_mmc = df_murphy_mmc[(df_murphy_mmc['id_s'].isin(idx_s_reduced)) & (~df_murphy_mmc['id_p'].isin(ignore_id_p))]
+        df_murphy_omc = df_murphy_omc[(~df_murphy_omc['id_p'].isin(ignore_id_p))]
+
     if outlier_iqr:
         mask_iqr, df_murphy_mmc = detect_outliers_iqr(df_murphy_mmc, cols_error)
     else:
@@ -299,7 +325,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
     # TODO: calculate correlation over idxs ans idxs_idxP
     df_corr = get_murphy_corrrelation(df, root_stat_cat,
                                       thresh_PeakVelocity_mms = thresh_PeakVelocity_mms, thresh_elbowVelocity=thresh_elbowVelocity,
-                                      verbose=verbose)
+                                      reduced_analysis=reduced_analysis,   verbose=verbose)
 
     # Create DataFrame containing the differences between MMC and OMC
     df_diff = get_mmc_omc_difference(df, root_stat_cat, thresh_PeakVelocity_mms=thresh_PeakVelocity_mms, verbose=verbose)
@@ -381,10 +407,18 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
         progbar.close()
 
     # Write to  csv
-    path_csv_murphy_diff = os.path.join(root_stat_cat, f'stat_murphy_diff{outlier_corrected}.csv')
-    path_csv_murphy_abs_diff = os.path.join(root_stat_cat, f'stat_murphy_abs_diff{outlier_corrected}.csv')
-    path_csv_murphy_mean = os.path.join(root_stat_cat, f'stat_murphy_mean{outlier_corrected}.csv')
-    path_csv_murphy_rmse = os.path.join(root_stat_cat, f'stat_murphy_rmse{outlier_corrected}.csv')
+    if reduced_analysis:
+        file_app = '_reduced'
+    else:
+        file_app = ''
+
+
+
+
+    path_csv_murphy_diff = os.path.join(root_stat_cat, f'stat_murphy_diff{outlier_corrected}{file_app}.csv')
+    path_csv_murphy_abs_diff = os.path.join(root_stat_cat, f'stat_murphy_abs_diff{outlier_corrected}{file_app}.csv')
+    path_csv_murphy_mean = os.path.join(root_stat_cat, f'stat_murphy_mean{outlier_corrected}{file_app}.csv')
+    path_csv_murphy_rmse = os.path.join(root_stat_cat, f'stat_murphy_rmse{outlier_corrected}{file_app}.csv')
 
     df_diff.to_csv(path_csv_murphy_diff, sep=';')
     df_abs_diff.to_csv(path_csv_murphy_abs_diff, sep=';')
@@ -2278,7 +2312,7 @@ if __name__ == '__main__':
     else:
 
         runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
-                                 thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None, outlier_iqr=False)
+                                 thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None, reduced_analysis=True, outlier_iqr=False)
 
         """runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
                                  thresh_PeakVelocity_mms=hand_vel_thresh, thresh_elbowVelocity=thresh_elbowVelocity)"""
