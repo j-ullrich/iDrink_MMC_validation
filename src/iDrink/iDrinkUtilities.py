@@ -507,7 +507,7 @@ def get_drivepath():
     import platform
     drives = ['C:', 'D:', 'E:', 'I:']
 
-    # Get drive based on machines validation is used on
+    # Get drive based on machines validation is run on
     match platform.uname().node:
         case 'DESKTOP-N3R93K5':
             drive = drives[1] + '\\'
@@ -517,6 +517,173 @@ def get_drivepath():
             drive = drives[3] + '\\'
 
     return drive
+
+def get_title_measure_name(measure):
+    """returns a string based on the murphy measure for a figure_title"""
+    match measure:
+        case 'PeakVelocity_mms':
+            title = 'Peak Endeffector Velocity'
+        case 'elbowVelocity':
+            title = 'Peak Elbow Velocity'
+        case 'tTopeakV_s':
+            title = 'Time to Peak Velocity'
+        case 'tToFirstpeakV_s':
+            title = 'Time to First Peak Velocity'
+        case 'tTopeakV_rel':
+            title = 'Relative time to Peak Velocity relative'
+        case 'tToFirstpeakV_rel':
+            title = 'Relative time to First Peak Velocity'
+        case 'NumberMovementUnits':
+            title = 'Number of Movement Units'
+        case 'InterjointCoordination':
+            title = 'Interjoint Coordination'
+        case 'trunkDisplacementMM':
+            title = 'Trunk Displacement'
+        case 'trunkDisplacementDEG':
+            title = 'Trunk Displacement'
+        case 'ShoulderFlexionReaching':
+            title = 'Shoulder Flexion Reaching'
+        case 'ElbowExtension':
+            title = 'Elbow Extension'
+        case 'shoulderAbduction':
+            title = 'Shoulder Abduction'
+        case 'shoulderFlexionDrinking':
+            title = 'Shoulder Flexion Drinking'
+            title = 'Trunk Angle'
+        case 'hand_vel':
+            title = 'Hand Velocity'
+        case 'elbow_vel':
+            title = 'Elbow Velocity'
+        case 'trunk_disp':
+            title = 'Trunk Displacement'
+        case 'trunk_ang':
+            title = 'Trunk Angle'
+        case 'elbow_flex_pos':
+            title = 'Elbow Flexion'
+        case 'shoulder_flex_pos':
+            title = 'Shoulder Flexion'
+        case 'shoulder_abduction_pos':
+            title = 'Shoulder Abduction'
+        case _:
+            title = ''
+    return title
+
+def get_unit(kin):
+
+    cases_deg = ['trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos',
+                 'trunkDisplacementDEG', 'ShoulderFlexionReaching', 'ElbowExtension',
+                 'shoulderAbduction', 'shoulderFlexionDrinking']
+
+    match kin:
+        case 'hand_vel' | 'PeakVelocity_mms':
+            unit = 'mm/s'
+        case 'elbow_vel' | 'elbowVelocity':
+            unit = 'deg/s'
+        case 'trunk_disp' | 'trunkDisplacementMM':
+            unit = 'mm'
+        case k if k in cases_deg:
+            unit = 'deg'
+        case 'tTopeakV_s' | 'tToFirstpeakV_s' :
+            unit = 's'
+        case 'tTopeakV_rel' | 'tToFirstpeakV_rel':
+            unit = '%'
+        case _:
+            unit = ''
+
+    return unit
+
+def get_cad(df, measure):
+    match measure:
+        case 'PeakVelocity_mms' | 'hand_vel':
+            measure_name = 'peak_V'
+        case 'elbowVelocity' | 'elbow_vel':
+            measure_name = 'peak_V_elb'
+        case 'tTopeakV_s':
+            measure_name = 't_to_PV'
+        case 'tToFirstpeakV_s':
+            measure_name = 't_first_PV'
+        case 'tTopeakV_rel':
+            measure_name = 't_PV_rel'
+        case 'tToFirstpeakV_rel':
+            measure_name = 't_first_PV_rel'
+        case 'NumberMovementUnits':
+            measure_name = 'n_mov_units'
+        case 'InterjointCoordination':
+            measure_name = 'interj_coord'
+        case 'trunkDisplacementMM' | 'trunk_disp':
+            measure_name = 'trunk_disp'
+        case 'trunkDisplacementDEG' | 'trunk_ang':
+            return None
+        case 'ShoulderFlexionReaching' | 'elbow_flex_pos':
+            measure_name = 'arm_flex_reach'
+        case 'ElbowExtension' | 'shoulder_flex_pos':
+            measure_name = 'elb_ext'
+        case 'shoulderAbduction' | 'shoulder_abduction_pos':
+            measure_name = 'arm_abd'
+        case 'shoulderFlexionDrinking' | 'shoulder_flex_pos':
+            measure_name = 'arm_flex_drink'
+        case _:
+            return
+
+    return df.loc[0, measure_name]
+
+def get_setting_axis_name(id_s):
+
+    match id_s:
+        case 'S001':
+            name = 'SimCC, Cams: 1-5'
+        case 'S002':
+            name = 'Metrabs, Cams: 1-5'
+        case 'S003':
+            name = 'SimCC, Cams: 6-10'
+        case 'S004':
+            name = 'Metrabs, Cams: 6-10'
+        case 'S005':
+            name = 'SimCC, Cams: 1,3,5'
+        case 'S006':
+            name = 'Metrabs, Cams: 1,3,5'
+        case 'S007':
+            name = 'SimCC, Cams: 2,3,4'
+        case 'S008':
+            name = 'Metrabs, Cams: 2,3,4'
+        case 'S009':
+            name = 'SimCC, Cams: 6,8,10'
+        case 'S010':
+            name = 'Metrabs, Cams: 6,8,10'
+        case 'S011':
+            name = 'SimCC, Cams: 7,8,9'
+        case 'S012':
+            name = 'Metrabs, Cams: 7,8,9'
+        case 'S013':
+            name = 'SimCC, Cams: 2,4'
+        case 'S014':
+            name = 'Metrabs, Cams: 2,4'
+        case 'S015':
+            name = 'SimCC, Cams: 7,9'
+        case 'S016':
+            name = 'Metrabs, Cams: 7,9'
+        case 'S017':
+            name = 'Single, Cam: 1, filt'
+        case 'S018':
+            name = 'Single, Cam: 1, unfilt'
+        case 'S019':
+            name = 'Single, Cam: 2, filt'
+        case 'S020':
+            name = 'Single, Cam: 2, unfilt'
+        case 'S021':
+            name = 'Single, Cam: 3, filt'
+        case 'S022':
+            name = 'Single, Cam: 3, unfilt'
+        case 'S023':
+            name = 'Single, Cam: 7, filt'
+        case 'S024':
+            name = 'Single, Cam: 7, unfilt'
+        case 'S025':
+            name = 'Single, Cam: 8, filt'
+        case 'S026':
+            name = 'Single, Cam: 8, unfilt'
+        case _:
+            name = id_s
 
 
 if __name__ == '__main__':
