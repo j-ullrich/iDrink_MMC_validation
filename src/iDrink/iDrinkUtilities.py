@@ -681,6 +681,8 @@ def get_setting_axis_name(id_s):
             name = 'Single, Cam: 8, filt'
         case 'S026':
             name = 'Single, Cam: 8, unfilt'
+        case 'S15133':
+            name = 'OMC reference'
         case _:
             name = id_s
 

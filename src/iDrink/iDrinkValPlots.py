@@ -19,6 +19,9 @@ from plotly.subplots import make_subplots
 
 import statsmodels.api as sm
 
+import iDrinkUtilities
+from iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name
+
 # idx_p to ignore for plotting
 ignore_id_p = []
 
@@ -39,100 +42,12 @@ murphy_measures = ["PeakVelocity_mms",
 rgba_mmc = '100, 149, 237'
 rgba_omc = '255, 165, 0'
 
-
-def get_unit(kin):
-
-    cases_deg = ['trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos',
-                 'trunkDisplacementDEG', 'ShoulderFlexionReaching', 'ElbowExtension',
-                 'shoulderAbduction', 'shoulderFlexionDrinking']
-
-    match kin:
-        case 'hand_vel' | 'PeakVelocity_mms':
-            unit = 'mm/s'
-        case 'elbow_vel' | 'elbowVelocity':
-            unit = 'deg/s'
-        case 'trunk_disp' | 'trunkDisplacementMM':
-            unit = 'mm'
-        case k if k in cases_deg:
-            unit = 'deg'
-        case 'tTopeakV_s' | 'tToFirstpeakV_s' :
-            unit = 's'
-        case 'tTopeakV_rel' | 'tToFirstpeakV_rel':
-            unit = '%'
-        case _:
-            unit = ''
-
-    return unit
-
-def get_cad(df, measure):
-    match measure:
-        case 'PeakVelocity_mms':
-            measure_name = 'peak_V'
-        case 'elbowVelocity':
-            measure_name = 'peak_V_elb'
-        case 'tTopeakV_s':
-            measure_name = 't_to_PV'
-        case 'tToFirstpeakV_s':
-            measure_name = 't_first_PV'
-        case 'tTopeakV_rel':
-            measure_name = 't_PV_rel'
-        case 'tToFirstpeakV_rel':
-            measure_name = 't_first_PV_rel'
-        case 'NumberMovementUnits':
-            measure_name = 'n_mov_units'
-        case 'InterjointCoordination':
-            measure_name = 'interj_coord'
-        case 'trunkDisplacementMM':
-            measure_name = 'trunk_disp'
-        case 'trunkDisplacementDEG':
-            return None
-        case 'ShoulderFlexionReaching':
-            measure_name = 'arm_flex_reach'
-        case 'ElbowExtension':
-            measure_name = 'elb_ext'
-        case 'shoulderAbduction':
-            measure_name = 'arm_abd'
-        case 'shoulderFlexionDrinking':
-            measure_name = 'arm_flex_drink'
-        case _:
-            return
-
-    return df.loc[0, measure_name]
-
-def get_title_measure_name(measure):
-    """returns a string based on the murphy measure for a figure_title"""
-    match measure:
-        case 'PeakVelocity_mms':
-            title = 'Peak Velocity'
-        case 'elbowVelocity':
-            title = 'Elbow Velocity'
-        case 'tTopeakV_s':
-            title = 'Time to Peak Velocity'
-        case 'tToFirstpeakV_s':
-            title = 'Time to First Peak Velocity'
-        case 'tTopeakV_rel':
-            title = 'Relative time to Peak Velocity relative'
-        case 'tToFirstpeakV_rel':
-            title = 'Relative time to First Peak Velocity'
-        case 'NumberMovementUnits':
-            title = 'Number of Movement Units'
-        case 'InterjointCoordination':
-            title = 'Interjoint Coordination'
-        case 'trunkDisplacementMM':
-            title = 'Trunk Displacement'
-        case 'trunkDisplacementDEG':
-            title = 'Trunk Displacement'
-        case 'ShoulderFlexionReaching':
-            title = 'Shoulder Flexion Reaching'
-        case 'ElbowExtension':
-            title = 'Elbow Extension'
-        case 'shoulderAbduction':
-            title = 'Shoulder Abduction'
-        case 'shoulderFlexionDrinking':
-            title = 'Shoulder Flexion Drinking'
-        case _:
-            title = ''
-    return title
+ignore_id_p = ['P11', 'P19']
+idx_s_singlecam = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
+idx_s_multicam = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008', 'S009', 'S010', 'S011', 'S012', 'S013', 'S014', 'S015', 'S016']
+idx_s_multicam_reduced = ['S001', 'S002']
+idx_s_reduced = idx_s_multicam_reduced + idx_s_singlecam
+idx_s = idx_s_multicam + idx_s_singlecam
 
 def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_plots=False, verbose = 1):
     """Create Bland altman plot for Murphy measures.
@@ -743,6 +658,14 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
         if 'Unnamed: 0' in df.columns:
             df.drop(columns='Unnamed: 0', inplace=True)
 
+    df_rmse['id_s_name'] = df_rmse['id_s'].apply(lambda x: get_setting_axis_name(x))
+    df_rmse = df_rmse[~df_rmse['id_p'].isin(ignore_id_p)]
+    df_rmse = df_rmse[df_rmse['id_s'].isin(idx_s_reduced)]
+
+    df_error['id_s_name'] = df_error['id_s'].apply(lambda x: get_setting_axis_name(x))
+    df_error = df_error[~df_error['id_p'].isin(ignore_id_p)]
+    df_error = df_error[df_error['id_s'].isin(idx_s_reduced)]
+
     df_rmse_nonan = df_rmse.dropna()
     df_rmse_mean = df_rmse[df_rmse['id_p'].isna()]
 
@@ -752,27 +675,26 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
         progbar.set_description(f'Plotting for {measure}')
 
         cad = get_cad(df_cad, measure)
+        unit = get_unit(measure)
+        measure_name = get_title_measure_name(measure)
 
         # fig_rmse = px.box(df_rmse_nonan, x='id_s', y = measure, color='condition')
 
-        fig_box = go.Figure()
         fig_box_error = go.Figure()
         fig_bar = go.Figure()
-        for condition, group in df_rmse_nonan.groupby('condition'):
-            offset = 1 if condition == 'affected' else 0
-            fig_box.add_trace(go.Box(x=group['id_s'], y=group[measure], name=condition, offsetgroup=offset))
 
-        for condition, group in df_rmse_mean.groupby('condition'):
-            fig_bar.add_trace(go.Bar(x=group['id_s'], y=group[measure], name=condition))
+        fig_box = px.box(df_rmse_nonan, x='id_s_name', y=measure, color='condition', title=f'RMSE for {measure_name} with CAD of {cad} [{unit}]',)
 
-        # add horicontal line for cad
+        fig_bar = px.bar(df_rmse_mean, x='id_s_name', y=measure, color='condition', title=f'Mean RMSE for {measure_name} with CAD of {cad} [{unit}]',)
+
+        # add horizontal line for cad
         if cad is not None:
             fig_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
             fig_bar.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
 
 
-        fig_box.update_layout(title=f'RMSE for {measure} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
-        fig_bar.update_layout(title=f'RMSE for {measure} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
+        fig_box.update_layout(title=f'<b>RMSE for {measure_name} with CAD of {cad}  [{unit}]<b>', xaxis_title='Setting ID', yaxis_title='RMSE')
+        fig_bar.update_layout(title=f'<b>mean RMSE for {measure_name} with CAD of {cad}  [{unit}]<b>', xaxis_title='Setting ID', yaxis_title='RMSE')
 
         if showfig:
             fig_box.show()
@@ -808,8 +730,8 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
             for condition, group in df_rmse_nonan[df_rmse_nonan['id_p'] == id_p].groupby('condition'):
                 fig_bar.add_trace(go.Bar(x=group['id_s'], y=group[measure], name=condition))
 
-            fig_box_error = px.box(df_error[df_error['id_p'] == id_p], x='id_s', y=measure, color='condition',
-                                   title=f'Error for {measure} of {id_p}',
+            fig_box_error = px.box(df_error[df_error['id_p'] == id_p], x='id_s_name', y=measure, color='condition',
+                                   title=f'Error for {measure_name} of {id_p}',
                                    labels={'condition': 'Condition', 'id_s': 'Setting ID', 'value': 'Error'})
 
             # add horicontal line for cad
@@ -819,8 +741,8 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
                 fig_box_error.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
                 fig_box_error.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
 
-            fig_box.update_layout(title=f'RMSE for {measure} of {id_p} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
-            fig_bar.update_layout(title=f'RMSE for {measure} of {id_p} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
+            fig_box.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
+            fig_bar.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
 
             if showfig:
                 fig_box.show()
@@ -852,12 +774,14 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
                 fig_box_error.write_image(path, scale=5)
 
         # Error
-        fig_error_box = px.box(df_error.sort_values(by='id_s'), x='id_s', y=measure, color='condition', title=f'Error for {measure}',
-                               labels={'condition': 'Condition', 'id_s': 'Setting ID', 'value': 'Error'})
+        fig_error_box = px.box(df_error.sort_values(by='id_s'), x='id_s_name', y=measure, color='condition', title=f'Error',
+                               labels={'condition': 'Condition', 'id_s_name': 'Setting', 'value': 'Error'})
 
         if cad is not None:
             fig_error_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
             fig_error_box.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
+
+        fig_error_box.update_layout(title=f'Error for {measure_name}', xaxis_title='Setting', yaxis_title='Error')
 
         if showfig:
             fig_error_box.show()
@@ -1046,7 +970,7 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                 fig_time.write_image(path_time, scale=5)
 
 
-def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, verbose=1):
+def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1):
     """
     Prints boxplots based on the mean errors and RMSE of the timeseries.
 
@@ -1109,7 +1033,7 @@ def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False
 
         df = df_error[(df_error['id_p'] == id_p) & df_error['id'].str.contains('T')]
 
-
+        df['id_s_name'] = df['id_s'].apply(lambda x: get_setting_axis_name(x))
 
         list_dynamic = list(df['dynamic'].unique())
         list_normalized = list(df['normalized'].unique())
@@ -1121,22 +1045,24 @@ def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False
 
             for metric in metrics:
 
-                df_to_plot = df[(df['dynamic'] == dynamic) & (df['normalized'] == normal) & (df['metric'] == metric)]
+                df_to_plot = df[(df['dynamic'] == dynamic) & (df['normalized'] == normal) & (df['metric'] == metric) & (df['id_s'].isin(idx_s_reduced))]
+
 
                 unit = get_unit(metric)
+                metric_name = get_title_measure_name(metric)
 
                 # Boxplot of the mean errors of the timeseries x: id_s y: mean
 
-                fig_err = px.box(df_to_plot, x='id_s', y='mean', color = 'condition',
-                             title=f'Mean Error for {metric} of {id_p} - {dynamic}',
+                fig_err = px.box(df_to_plot, x='id_s_name', y='mean', color = 'condition',
+                             title=f'Mean Error for {metric_name} of {id_p} - {dynamic}',
                              labels={'mean': f'Mean Error [{unit}]', 'id_s': 'Setting ID'})
 
-                fig_rmse = px.box(df_to_plot, x='id_s', y='rmse', color = 'condition',
-                                      title=f'Log(RMSE) for {metric} of {id_p} - {dynamic}',
+                fig_rmse = px.box(df_to_plot, x='id_s_name', y='rmse', color = 'condition',
+                                      title=f'Log(RMSE) for {metric_name} of {id_p} - {dynamic}',
                                       labels={'rmse': f'RMSE [{unit}]', 'id_s': 'Setting ID'})
 
-                fig_log_rmse = px.box(df_to_plot, x='id_s', y='rmse', color = 'condition', log_y=True,
-                             title=f'Log(RMSE) for {metric} of {id_p} - {dynamic}',
+                fig_log_rmse = px.box(df_to_plot, x='id_s_name', y='rmse', color = 'condition', log_y=True,
+                             title=f'Log(RMSE) for {metric_name} of {id_p} - {dynamic}',
                              labels={'rmse': f'Log(RMSE) [{unit}]', 'id_s': 'Setting ID'})
 
 
@@ -1165,6 +1091,16 @@ def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False
                     fig_rmse.write_image(path, scale=5)
 
                     path = os.path.join(dir_dst_rmse_box_log, f'{id_p}_{metric}_{dynamic}_{normal}_log_rmse_box.svg')
+                    fig_log_rmse.write_image(path, scale=5)
+
+                if write_png:
+                    path = os.path.join(dir_dst_error_box, f'{id_p}_{metric}_{dynamic}_{normal}_error_box.png')
+                    fig_err.write_image(path, scale=5)
+
+                    path = os.path.join(dir_dst_rmse_box, f'{id_p}_{metric}_{dynamic}_{normal}_rmse_box.png')
+                    fig_rmse.write_image(path, scale=5)
+
+                    path = os.path.join(dir_dst_rmse_box_log, f'{id_p}_{metric}_{dynamic}_{normal}_log_rmse_box.png')
                     fig_log_rmse.write_image(path, scale=5)
 
         if verbose >= 1:
@@ -1265,6 +1201,7 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
         # Search for the kinematic in filename
         kinematic = [kin for kin in kinematics if kin in file][0]
+        kinematic_name = get_title_measure_name(kinematic)
 
         df_in_red = df_in_full[(df_in_full['id_s'] == id_s) & (df_in_full['id_p'] == id_p)]
 
@@ -1286,6 +1223,7 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
             std_omc = np.std(omc, axis=0)
 
             unit = get_unit(kinematic)
+            kinematic_name = get_title_measure_name(kinematic)
 
             fig = go.Figure()
 
@@ -1309,9 +1247,10 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                            fill='tonexty', fillcolor=f'rgba({rgba_omc}, 0.3)',
                            line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
 
-            fig.update_layout(title=f'Averaged Timeseries for {kinematic} of {id_s}_{id_p} - {side} - {affected}',
+            id_s_name = get_setting_axis_name(id_s)
+            fig.update_layout(title=f'Averaged Timeseries for {kinematic_name} of {id_s_name} for {id_p} - {side} - {affected}',
                               xaxis_title='Normalized Time',
-                              yaxis_title=f'{kinematic} [{unit}]', )
+                              yaxis_title=f'{kinematic_name} [{unit}]', )
 
             if fig_show:
                 fig.show()
@@ -1377,7 +1316,8 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                 fig_aff.data[i].showlegend = False
                 fig.add_trace(fig_aff.data[i], row=1, col=2)
 
-            fig.update_layout(title=f'Averaged Timeseries for {kinematic} of {id_s}_{id_p}',)
+            id_s_name = get_setting_axis_name(id_s)
+            fig.update_layout(title=f'Averaged Timeseries for {kinematic_name} of {id_s_name}_{id_p}',)
 
             if fig_show:
                 fig.show()
@@ -1852,6 +1792,9 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
     set_sp_tuples = set()
 
     for id_p in idx_p:
+        if id_p in ignore_id_p:
+            continue
+
         idx_t_omc = [os.path.basename(omc_csv).split('_')[2].split('.')[0] for omc_csv in omc_csvs
                      if id_p in os.path.basename(omc_csv)]
         idx_t_mmc = [os.path.basename(file).split('_')[2].split('.')[0] for file in os.listdir(dir_src) if id_p in file]
@@ -1871,11 +1814,11 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
             condition = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['condition'].values[0]
             side = df_timestamps[(df_timestamps['id_p'] == id_p) & (df_timestamps['id_t'] == id_t)]['side'].values[0]
             # read data
+            idx_s = [id_s for id_s in idx_s if id_s in idx_s_reduced]
+
             for id_s in idx_s:
                 omc_files = glob.glob(os.path.join(dir_src, f'{id_s_omc}_{id_p}_{id_t}*.csv'))
                 mmc_files = glob.glob(os.path.join(dir_src, f'{id_s}_{id_p}_{id_t}*.csv'))
-
-
 
                 if omc_files and mmc_files:
                     set_sp_tuples.add((id_s, id_p))
@@ -1890,8 +1833,6 @@ def write_plottable_identifier(dir_root_val, dir_src, to_plot, verbose = 1):
             df = pd.concat([df, df_temp], ignore_index=True)
 
     df.to_csv(path_csv, sep=';')
-
-
 
     return path_csv, set_sp_tuples
 
@@ -1975,9 +1916,7 @@ if __name__ == "__main__":
     for corr in [False]:
         plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=True, write_png=True, outlier_corrected=corr)
 
-    #plot_timeseries_averaged(root_val, 'S001', 'P07', dynamic=dynamic)
-
-    #plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, verbose=1)
+    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)
 
     csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)

@@ -13,6 +13,7 @@ import plotly.graph_objects as go
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkUtilities
+from iDrink.iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name
 
 
 class OpensimLogReader:
@@ -343,7 +344,7 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
     columns_to_plot = ['marker_rmse']
 
 
-
+    id_s_name = get_setting_axis_name(id_s)
 
     dir_plots_mean = os.path.join(dir_plots, 'pat_mean')
 
@@ -359,7 +360,7 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
 
             for column in columns_to_plot:
                 prog.set_description(f"Processing {id_s}_{id_p}_{column}")
-                fig = px.bar(df[df['id_p'] == id_p], x='id_t', y=column, title=f"{legendnames_for_column_names[column]} for {id_s}_{id_p}",)
+                fig = px.bar(df[df['id_p'] == id_p], x='id_t', y=column, title=f"{legendnames_for_column_names[column]} for {id_s_name}_{id_p}",)
 
                 if plot_thresh:
                     # add horizontal line for threshold at 0.04
@@ -384,13 +385,13 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
         for column in columns_to_plot:
             prog.set_description(f"Processing {id_s}_{column}")
 
-            setting_name = 'OMC-data' if id_s == 'S15133' else id_s
+            setting_name = 'OMC-data' if id_s == 'S15133' else id_s_name
 
             if log_y:
-                title = f"log({legendnames_for_column_names[column]}) for {setting_name}"
+                title = f"log({legendnames_for_column_names[column]}) for {id_s_name}"
 
             else:
-                title = f"{legendnames_for_column_names[column]} for {setting_name}"
+                title = f"{legendnames_for_column_names[column]} for {id_s_name}"
 
             fig = px.box(df, x='id_p', y=column, title=title, log_y=log_y)
 
@@ -458,6 +459,7 @@ def plot_individual_trial(dir_opensim_logs, dir_plots, id_s, showfig=False):
     :return:
     """
 
+    id_s_name = get_setting_axis_name(id_s)
 
     files_stg_one = glob.glob(os.path.join(dir_opensim_logs, f"{id_s}*opensim.log"))
     idx_p_stg_one = set([os.path.basename(file).split('_')[1] for file in files_stg_one])
