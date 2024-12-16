@@ -323,7 +323,8 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                     fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
                     fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
 
-                    fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s_name} for {id_p}')
+                    fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s_name} for {id_p}',
+                                      width=1200, height=600)
 
                     if show_plots:
                         fig.show()
@@ -693,9 +694,9 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
         fig_box_error = go.Figure()
         fig_bar = go.Figure()
 
-        fig_box = px.box(df_rmse_nonan, x='id_s_name', y=measure, color='condition', title=f'RMSE for {measure_name} with CAD of {cad} [{unit}]',)
+        fig_box = px.box(df_rmse_nonan, x='id_s_name', y=measure, color='condition', title=f'RMSE for {measure_name} with CAD of {cad} {unit}',)
 
-        fig_bar = px.bar(df_rmse_mean, x='id_s_name', y=measure, color='condition', title=f'Mean RMSE for {measure_name} with CAD of {cad} [{unit}]',)
+        fig_bar = px.bar(df_rmse_mean, x='id_s_name', y=measure, color='condition', title=f'Mean RMSE for {measure_name} with CAD of {cad} {unit}',)
 
         # add horizontal line for cad
         if cad is not None:
@@ -703,8 +704,8 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
             fig_bar.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
 
 
-        fig_box.update_layout(title=f'<b>RMSE for {measure_name} with CAD of {cad}  [{unit}]<b>', xaxis_title='Setting ID', yaxis_title='RMSE')
-        fig_bar.update_layout(title=f'<b>mean RMSE for {measure_name} with CAD of {cad}  [{unit}]<b>', xaxis_title='Setting ID', yaxis_title='RMSE')
+        fig_box.update_layout(title=f'<b>RMSE for {measure_name} with CAD of {cad}  {unit}<b>', xaxis_title='Setting', yaxis_title=f'RMSE {unit}')
+        fig_bar.update_layout(title=f'<b>mean RMSE for {measure_name} with CAD of {cad}  {unit}<b>', xaxis_title='Setting', yaxis_title=f'RMSE {unit}')
 
         if showfig:
             fig_box.show()
@@ -741,8 +742,8 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
                 fig_bar.add_trace(go.Bar(x=group['id_s'], y=group[measure], name=condition))
 
             fig_box_error = px.box(df_error[df_error['id_p'] == id_p], x='id_s_name', y=measure, color='condition',
-                                   title=f'Error for {measure_name} of {id_p}',
-                                   labels={'condition': 'Condition', 'id_s': 'Setting ID', 'value': 'Error'})
+                                   title=f'Error for {measure_name} of {id_p} with CAD of {cad}',
+                                   labels={'condition': 'Condition', 'id_s': 'Setting', 'value': 'Error'})
 
             # add horicontal line for cad
             if cad is not None:
@@ -751,8 +752,9 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
                 fig_box_error.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
                 fig_box_error.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
 
-            fig_box.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
-            fig_bar.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting ID', yaxis_title='RMSE')
+            fig_box.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='RMSE')
+            fig_bar.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='RMSE')
+            fig_box_error.update_layout(title=f'Error for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='Error')
 
             if showfig:
                 fig_box.show()
@@ -784,14 +786,16 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
                 fig_box_error.write_image(path, scale=5)
 
         # Error
-        fig_error_box = px.box(df_error.sort_values(by='id_s'), x='id_s_name', y=measure, color='condition', title=f'Error',
-                               labels={'condition': 'Condition', 'id_s_name': 'Setting', 'value': 'Error'})
+        unit = get_unit(measure)
+        fig_error_box = px.box(df_error.sort_values(by='id_s'), x='id_s_name', y=measure, color='condition',
+                               title=f'<b>Error for {measure_name} with CAD of {cad}<b>',
+                               labels={'condition': 'Condition', 'id_s_name': 'Setting', 'value': f'Error [{unit}]'})
 
         if cad is not None:
             fig_error_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
             fig_error_box.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
 
-        fig_error_box.update_layout(title=f'Error for {measure_name}', xaxis_title='Setting', yaxis_title='Error')
+        fig_error_box.update_layout(title=f'<b>Error for {measure_name} with CAD of {cad}<b>', xaxis_title='Setting', yaxis_title=f'Error [{unit}]')
 
         if showfig:
             fig_error_box.show()
@@ -1065,15 +1069,15 @@ def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False
 
                 fig_err = px.box(df_to_plot, x='id_s_name', y='mean', color = 'condition',
                              title=f'Mean Error for {metric_name} of {id_p} - {dynamic}',
-                             labels={'mean': f'Mean Error [{unit}]', 'id_s': 'Setting ID'})
+                             labels={'mean': f'Mean Error [{unit}]', 'id_s': 'Setting'})
 
                 fig_rmse = px.box(df_to_plot, x='id_s_name', y='rmse', color = 'condition',
                                       title=f'Log(RMSE) for {metric_name} of {id_p} - {dynamic}',
-                                      labels={'rmse': f'RMSE [{unit}]', 'id_s': 'Setting ID'})
+                                      labels={'rmse': f'RMSE [{unit}]', 'id_s': 'Setting'})
 
                 fig_log_rmse = px.box(df_to_plot, x='id_s_name', y='rmse', color = 'condition', log_y=True,
                              title=f'Log(RMSE) for {metric_name} of {id_p} - {dynamic}',
-                             labels={'rmse': f'Log(RMSE) [{unit}]', 'id_s': 'Setting ID'})
+                             labels={'rmse': f'Log(RMSE) [{unit}]', 'id_s': 'Setting'})
 
 
 
@@ -1923,7 +1927,7 @@ if __name__ == "__main__":
     caloib_plots_dst = os.path.join(root_stat, '05_calibration')
     #calibration_boxplot(csv_calib_errors, caloib_plots_dst, verbose=1, show_fig=False)
 
-    plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)
+    #plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)
 
     for corr in [False]:
         plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=True, write_png=True, outlier_corrected=corr)
@@ -1945,8 +1949,8 @@ if __name__ == "__main__":
 
     df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='unaffected', verbose=1)
 
-    kinematics =['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos',
-                 'shoulder_abduction_pos']
+    kinematics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos',
+                  'shoulder_abduction_pos']
 
     # TODO: Make sure, MMC and OMC have always the same colour in Plots MMC - Blue, OMC - Orange check on averaged timeseries
 
