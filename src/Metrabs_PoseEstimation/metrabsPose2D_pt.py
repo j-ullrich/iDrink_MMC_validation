@@ -389,8 +389,7 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
     joint_names = multiperson_model_pt.per_skeleton_joint_names[skeleton]
     joint_edges = multiperson_model_pt.per_skeleton_joint_edges[skeleton].cpu().numpy()
 
-    # Create DataFrame for 3D Poses
-    df = pd.DataFrame(columns=get_column_names(joint_names))
+
 
     calib = toml.load(calib_file)
 
@@ -407,6 +406,9 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
         out_video = os.path.realpath(os.path.join(root_val, "02_pose_estimation", "01_unfiltered",
                                                          f"{curr_trial.id_p}", f"{curr_trial.id_p}_{used_cam}",
                                                          "metrabs"))
+
+        # Create DataFrame for 3D Poses
+        df = pd.DataFrame(columns=get_column_names(joint_names))
 
 
 
