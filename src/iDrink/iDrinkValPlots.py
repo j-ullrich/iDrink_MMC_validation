@@ -43,11 +43,12 @@ rgba_mmc = '100, 149, 237'
 rgba_omc = '255, 165, 0'
 
 ignore_id_p = ['P11', 'P19']
-idx_s_singlecam = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
+idx_s_singlecam_full = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
+idx_s_singlecam = ['S017', 'S018']
 idx_s_multicam = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008', 'S009', 'S010', 'S011', 'S012', 'S013', 'S014', 'S015', 'S016']
 idx_s_multicam_reduced = ['S001', 'S002']
 idx_s_reduced = idx_s_multicam_reduced + idx_s_singlecam
-idx_s = idx_s_multicam + idx_s_singlecam
+idx_s_full = idx_s_multicam + idx_s_singlecam
 
 def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_plots=False, write_png=True, verbose = 1):
     """Create Bland altman plot for Murphy measures.
@@ -123,9 +124,10 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
 
         # add limits of agreement
         std_diff = np.std(df['mmc'] - df['omc'])
+        mean_diff = np.mean(df['mmc'] - df['omc'])
         sd = 1.96
-        upper_limit = + sd * std_diff
-        lower_limit = - sd * std_diff
+        upper_limit = mean_diff + sd * std_diff
+        lower_limit = mean_diff - sd * std_diff
 
         fig.add_hline(y=upper_limit, line_dash='dash', line_color='orange', name=f'Upper Limit ({sd} SD)')
         fig.add_hline(y=lower_limit, line_dash='dash', line_color='orange', name=f'Lower Limit ({sd} SD)')
@@ -136,19 +138,20 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
             fig.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
 
         title_measure = get_title_measure_name(measure)
+        ids_name = get_setting_axis_name(id_s)
 
         if id_p is None:
-            title = f'Bland Altman Plot for {title_measure} of {id_s} with CAD of {cad} {unit}'
+            title = f'Bland Altman Plot for {title_measure} of setting {ids_name} with a CAD of {cad} {unit}'
             dir_id = f'{id_s}'
             id_sp = f'{id_s}'
         else:
-            title = f'Bland Altman Plot for {title_measure} of {id_s}, {id_p} with CAD of {cad} {unit}'
+            title = f'Bland Altman Plot for {title_measure} of {id_p} and setting {ids_name}  with a CAD of {cad} {unit}'
             dir_id = f'{id_s}_{id_p}'
             id_sp = f'{id_s}_{id_p}'
 
         fig.update_layout(title=title,
                           xaxis_title=f'Mean of {title_measure} {unit}',
-                          yaxis_title=f'Difference of MMC from OMC {unit}',
+                          yaxis_title=f'Difference of MMC to OMC {unit}',
                           legend=dict(
                               orientation="h",
                               x=0,
@@ -196,7 +199,12 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
     df_murphy_omc = df_murphy[df_murphy['id_s'] == id_s_omc]
 
     df_murphy_mmc = df_murphy[df_murphy['id_s'] != id_s_omc]
-    idx_s = sorted(df_murphy_mmc['id_s'].unique())
+    idx_s_murph_mmc = sorted(df_murphy_mmc['id_s'].unique())
+
+    # Use only id_s that are also in
+
+    idx_s = [id_s for id_s in idx_s_murph_mmc if id_s in idx_s_full]
+
 
 
     # get total number of combinations of id_s and id_p for progbar
@@ -209,7 +217,7 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
     progbar = tqdm(range(total), desc='Plotting Bland Altman', unit='Trial', disable=verbose<1)
 
     for measure in murphy_measures:
-        for id_s in idx_s:
+        for id_s in sorted(idx_s):
             df_murphy_mmc_s = df_murphy_mmc[df_murphy_mmc['id_s'] == id_s]
 
             idx_p = sorted(df_murphy_mmc_s['id_p'].unique())
@@ -295,16 +303,18 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
 
                     # add hlines for limits of agreement
                     std_unaff = np.std(df_unaff['mmc'] - df_unaff['omc'])
+                    mean_diff_unaff = np.mean(df_unaff['mmc'] - df_unaff['omc'])
                     std_aff = np.std(df_aff['mmc'] - df_aff['omc'])
+                    mean_diff_aff = np.mean(df_aff['mmc'] - df_aff['omc'])
 
 
                     sd = 1.96
 
-                    upper_limit_unaff = + sd * std_unaff
-                    lower_limit_unaff = - sd * std_unaff
+                    upper_limit_unaff = mean_diff_unaff + sd * std_unaff
+                    lower_limit_unaff = mean_diff_unaff - sd * std_unaff
 
-                    upper_limit_aff = + sd * std_aff
-                    lower_limit_aff = - sd * std_aff
+                    upper_limit_aff = mean_diff_aff + sd * std_aff
+                    lower_limit_aff = mean_diff_aff - sd * std_aff
 
 
                     fig.add_hline(y=upper_limit_unaff, line_dash='dash', line_color='orange', name=f'Upper Limit ({sd} SD)', row=1, col=1)
@@ -321,9 +331,9 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
 
                     fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=1)
                     fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
-                    fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
+                    fig.update_yaxes(title_text=f'Difference of MMC to OMC {unit}', row=1, col=1)
 
-                    fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s_name} for {id_p}',
+                    fig.update_layout(title=f'Averaged Timeseries for {title_measure} of setting {id_s_name} for {id_p}',
                                       width=1200, height=600)
 
                     if show_plots:
@@ -422,7 +432,7 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                 fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
                 fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
 
-                fig.update_layout(title=f'Averaged Timeseries for {title_measure} of {id_s_name} with CAD of {cad} {unit}',
+                fig.update_layout(title=f'Bland Altman for {title_measure} of {id_s_name} with a CAD of {cad} {unit}',
                                   width=1200, height=600)
 
                 if show_plots:
@@ -818,7 +828,7 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
         progbar.update(1)
 
 
-def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, idx_t=None, dynamic='dynamic', write_html=True, write_svg=True, show_plots=True):
+def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, idx_t=None, dynamic='static', write_html=True, write_svg=True, show_plots=True):
     """
     Prints all Bland altman and scale location plots and saves them into the correct folder.
 
@@ -1923,18 +1933,18 @@ if __name__ == "__main__":
 
     verbose = 1
 
-    csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
-    caloib_plots_dst = os.path.join(root_stat, '05_calibration')
-    #calibration_boxplot(csv_calib_errors, caloib_plots_dst, verbose=1, show_fig=False)
+    """csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
+    calib_plots_dst = os.path.join(root_stat, '05_calibration')
+    calibration_boxplot(csv_calib_errors, calib_plots_dst, verbose=1, show_fig=False)"""
 
-    #plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)
+    plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)
 
-    for corr in [False]:
+    """for corr in [False]:
         plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=True, write_png=True, outlier_corrected=corr)
 
-    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)
+    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)"""
 
-    csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
+    """csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
 
     for tuple in set_sp_tuples:
@@ -1962,13 +1972,15 @@ if __name__ == "__main__":
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]
 
+        generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
+                                      showfig = False, write_html=False, write_svg=True)
+
 
         for kinematic in kinematics:
             plot_timeseries_blandaltman_scale_location(root_val, kinematic=kinematic, idx_p=id_p, idx_t=id_t, dynamic=dynamic_str, write_html=False, write_svg=True, show_plots=False)
-            pass
+            pass"""
 
-        generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
-                                      showfig = False, write_html=False, write_svg=True)
+
 
 
 

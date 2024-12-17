@@ -48,6 +48,14 @@ list_identifier = sorted(df_val_trials['identifier'].tolist())
 
 csv_failed_trials = os.path.join(root_stat, '04_failed_trials', 'failed_trials.csv')
 
+ignore_id_p = ['P11', 'P19']
+idx_s_singlecam_full = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
+idx_s_singlecam = ['S017', 'S018']
+idx_s_multicam = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008', 'S009', 'S010', 'S011', 'S012', 'S013', 'S014', 'S015', 'S016']
+idx_s_multicam_reduced = ['S001', 'S002']
+idx_s_reduced = idx_s_multicam_reduced + idx_s_singlecam
+idx_s_full = idx_s_multicam + idx_s_singlecam
+
 def get_calib_error(id_p, id_t, used_cams, df_error):
     """
     Get the calibration error for the given trial
@@ -309,7 +317,7 @@ def get_lost_trials():
     return df_failed_trials
 
 
-def plot_lost_trials(write_html=False, write_png=True, write_svg=True, plot_success=False, showfig=False):
+def plot_lost_trials(file_app, write_html=False, write_png=True, write_svg=True, plot_success=False, showfig=False):
     """
     PLot on 2D Heatmap with id_s on y-axis and id_p on x-axis.
 
@@ -351,18 +359,18 @@ def plot_lost_trials(write_html=False, write_png=True, write_svg=True, plot_succ
         fig.show()
 
     if write_html:
-        filename = os.path.join(dir_out, f'Trials_{z}.html')
+        filename = os.path.join(dir_out, f'Trials_{z}{file_app}.html')
         fig.write_html(filename)
 
     if write_png:
-        filename = os.path.join(dir_out, f'Trials_{z}.png')
+        filename = os.path.join(dir_out, f'Trials_{z}{file_app}.png')
         fig.write_image(filename, scale=5)
 
     if write_svg:
-        filename = os.path.join(dir_out, f'Trials_{z}.svg')
+        filename = os.path.join(dir_out, f'Trials_{z}{file_app}.svg')
         fig.write_image(filename, scale=5)
 
-def plot_lost_trials_by_stage(stage, write_html=False, write_png=True, write_svg=False, showfig=False):
+def plot_lost_trials_by_stage(stage, file_app, write_html=False, write_png=True, write_svg=False, showfig=False):
     """
     PLot on 2D Heatmap with id_s on y-axis and id_p on x-axis.
 
@@ -414,19 +422,19 @@ def plot_lost_trials_by_stage(stage, write_html=False, write_png=True, write_svg
         fig.show()
 
     if write_html:
-        filename = os.path.join(dir_out, f'Trials_failed_{stage}.html')
+        filename = os.path.join(dir_out, f'Trials_failed_{stage}{file_app}.html')
         fig.write_html(filename)
 
     if write_png:
-        filename = os.path.join(dir_out, f'Trials_failed_{stage}.png')
+        filename = os.path.join(dir_out, f'Trials_failed_{stage}{file_app}.png')
         fig.write_image(filename, scale=5)
 
     if write_svg:
-        filename = os.path.join(dir_out, f'Trials_failed_{stage}.svg')
+        filename = os.path.join(dir_out, f'Trials_failed_{stage}{file_app}.svg')
         fig.write_image(filename, scale=5)
 
 
-def plot_all_fails(stages, no_num_in_plot=False, notitle=True, write_html=False, write_png=True, write_svg=False, showfig=False):
+def plot_all_fails(stages, file_app, no_num_in_plot=False, notitle=True, write_html=False, write_png=True, write_svg=False, showfig=False):
     '''
     Creates plot with failed plots as subplots
 
@@ -504,14 +512,14 @@ def plot_all_fails(stages, no_num_in_plot=False, notitle=True, write_html=False,
         fig.show()
 
     if write_html:
-        filename = os.path.join(dir_out, f'Trials_failed_all.html')
+        filename = os.path.join(dir_out, f'Trials_failed_all{file_app}.html')
         fig.write_html(filename)
 
     if write_png:
-        filename = os.path.join(dir_out, f'Trials_failed_all.png')
+        filename = os.path.join(dir_out, f'Trials_failed_all{file_app}.png')
         fig.write_image(filename, scale=5)
     if write_svg:
-        filename = os.path.join(dir_out, f'Trials_failed_all.svg')
+        filename = os.path.join(dir_out, f'Trials_failed_all{file_app}.svg')
         fig.write_image(filename, scale=5)
 
 def plot_calib_errors():
@@ -522,19 +530,31 @@ def plot_calib_errors():
 if __name__ == '__main__':
 
     overwrite = False
+
+    reduced_analysis = True
     if os.path.isfile(csv_failed_trials) and not overwrite:
         df_failed_trials = pd.read_csv(csv_failed_trials, sep=';')
     else:
         df_failed_trials = get_lost_trials()
 
+    if reduced_analysis:
+        df_failed_trials = df_failed_trials[df_failed_trials['id_s'].isin(idx_s_reduced)]
+    else:
+        df_failed_trials=df_failed_trials[df_failed_trials['id_s'].isin(idx_s_full)]
+
     count_lost_trials = df_failed_trials.groupby(['id_p', 'id_s', 'failed_at']).size().reset_index(name='count')
 
     stages = ['HPE', 'P2S', 'OS', 'murphy', 'murphy_omc']
 
-    plot_all_fails(stages, write_html=False, write_png=True, write_svg=True, showfig=False)
+    if reduced_analysis:
+        file_app = '_reduced'
+    else:
+        file_app = ''
 
-    plot_lost_trials(write_html=False, write_png=True, write_svg=True, plot_success=False, showfig=False)
-    plot_lost_trials(write_html=False, write_png=True, write_svg=True, plot_success=True, showfig=False)
+    plot_all_fails(stages, file_app, write_html=False, write_png=True, write_svg=True, showfig=False)
+
+    plot_lost_trials(file_app, write_html=False, write_png=True, write_svg=True, plot_success=False, showfig=False)
+    plot_lost_trials(file_app, write_html=False, write_png=True, write_svg=True, plot_success=True, showfig=False)
 
     for stage in stages:
-        plot_lost_trials_by_stage(stage, write_html=False, write_png=True, write_svg=True, showfig=False)
+        plot_lost_trials_by_stage(stage, file_app, write_html=False, write_png=True, write_svg=True, showfig=False)

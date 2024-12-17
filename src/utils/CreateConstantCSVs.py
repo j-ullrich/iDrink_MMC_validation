@@ -21,7 +21,7 @@ root_stat = os.path.join(root_val, '04_Statistics')
 root_logs = os.path.join(root_val, "05_logs")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 metrabs_models_dir = os.path.join(root_val, "06_metrabs_models")  # Directory containing the Metrabs Models
 
-def createCAD_murphy():
+def createCAD_murphy(use_murphy_2011 = True):
     """
     Create .csv file containing the  Clinically Acceptable Difference (CAD) for all Murphy Measures.
 
@@ -46,7 +46,7 @@ def createCAD_murphy():
                                                'arm_flex_reach', 'elb_ext', 'arm_abd', 'arm_flex_drink'])"""
 
 
-    data = {
+    data_murph_2011 = {
         'healthy_mean': [6.49, 616, 121.8, 0.47, 0.43, 46.0, 42.5, 2.3, 0.96, 26.7, 45.6, 53.7, 30.1, 51.7],
         'healthy_std': [0.83, 93.8, 25.3, 0.08, 0.07, 6.9, 6.9, 0.3, 0.02, 16.8, 5.1, 7.8, 10.1, 5.3],
         'stroke_whole_mean': [11.4, 431, 64.9, 0.70, 0.46, 38.4, 27.1, 8.4, 0.82, 77.2, 44.5, 64.1, 47.6, 54.3],
@@ -56,6 +56,14 @@ def createCAD_murphy():
         'stroke_moderate_mean': [13.3, 395, 53.3, 0.79, 0.50, 37.5, 21.8, 11.1, 0.69, 101.7, 47.1, 67.2, 57.1, 61.3],
         'stroke_moderate_std': [2.9, 62.0, 13.6, 0.17, 0.17, 8.1, 11.9, 3.6, 0.46, 53.4, 7.4, 11.9, 14.5, 10.1]
     }
+
+    data_thrane_2018 = {
+
+
+
+    }
+
+
 
     index = ['mov_time', 'peak_V', 'peak_V_elb', 't_to_PV', 't_first_PV', 't_PV_rel',
              't_first_PV_rel', 'n_mov_units', 'interj_coord', 'trunk_disp',

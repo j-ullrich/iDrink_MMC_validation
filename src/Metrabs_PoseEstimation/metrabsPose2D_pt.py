@@ -410,14 +410,11 @@ def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_pa
         # Create DataFrame for 3D Poses
         df = pd.DataFrame(columns=get_column_names(joint_names))
 
-
-
         writer = None
 
         for d in [json_dir_filt, json_dir_unfilt, out_video]:
             if not os.path.exists(d):
                 os.makedirs(d, exist_ok=True)
-
 
         ##################################################
         #############  OPENING THE VIDEO  ################

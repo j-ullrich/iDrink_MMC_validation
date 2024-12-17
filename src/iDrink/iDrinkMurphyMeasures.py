@@ -443,8 +443,8 @@ class MurphyMeasures:
         Calculate the trunk displacement in mm.
         """
 
-        id_start, _ = self.get_phase_ids("reaching")
-        displacement = self.trunk_displacement[id_start:]
+        id_start, id_end = self.get_phase_ids("reaching", 'returning')
+        displacement = self.trunk_displacement[id_start:id_end]
         max_displacement_mm = np.max(displacement)*1000
 
         return round(max_displacement_mm, 4)
@@ -455,9 +455,9 @@ class MurphyMeasures:
         Calculate the trunk rotation in degrees.
         """
 
-        id_start, _ = self.get_phase_ids("reaching")
+        id_start, id_end = self.get_phase_ids("reaching", 'returning')
 
-        rotation = self.trunk_ang[id_start] - self.trunk_ang
+        rotation = self.trunk_ang[id_start] - self.trunk_ang[id_start, id_end]
 
         max_rotation_deg = np.max(rotation)
 
@@ -540,8 +540,12 @@ class MurphyMeasures:
         """peak_ids_hand, _ = scipy.signal.find_peaks(self.hand_vel, prominence=max(self.hand_vel)*0.1)
         peak_ids_elbow, _ = scipy.signal.find_peaks(self.elbow_vel, prominence=max(self.elbow_vel)*0.1)"""
 
-        peak_ids_hand, _ = self.get_peaks_of_movement(self.hand_vel)
-        peak_ids_elbow, _ = self.get_peaks_of_movement(self.elbow_vel)
+        id_mov_start, id_mov_end = self.get_phase_ids("reaching", "returning")
+        peak_ids_hand, _ = self.get_peaks_of_movement(self.hand_vel[id_mov_start: id_mov_end])
+        peak_ids_elbow, _ = self.get_peaks_of_movement(self.hand_vel[id_mov_start: id_mov_end])
+
+        peak_ids_hand = [peak + id_mov_start for peak in peak_ids_hand]
+        peak_ids_elbow = [peak + id_mov_start for peak in peak_ids_elbow]
 
         # max velocity of hand mm/s
         if len(peak_ids_hand) == 0:
@@ -563,7 +567,7 @@ class MurphyMeasures:
 
         # time to first peak hand velocity
         first_peak_id = peak_ids_hand[0]
-        self.tToFirstpeakV_s = self.time[peak_id]
+        self.tToFirstpeakV_s = self.time[first_peak_id]
 
         # time to peak hand velocity %
         self.tTopeakV_rel = (self.tTopeakV_s / self.TotalMovementTime) * 100
@@ -571,9 +575,10 @@ class MurphyMeasures:
         # time to first peak hand velocity %
         self.tToFirstpeakV_rel = (self.tToFirstpeakV_s / self.TotalMovementTime) * 100
 
-        self.NumberMovementUnits = self.get_movement_units(self.hand_vel)[0]
+        self.NumberMovementUnits = self.get_movement_units(self.hand_vel[id_mov_start: id_mov_end])[0]
 
-        self.InterjointCoordination = self.get_interjoint_coordination(self.elbow_flex_pos, self.shoulder_flex_pos)
+        self.InterjointCoordination = self.get_interjoint_coordination(self.elbow_flex_pos[id_mov_start: id_mov_end],
+                                                                       self.shoulder_flex_pos[id_mov_start: id_mov_end])
 
         self.trunkDisplacementMM = self.get_trunk_displacement() # trunk displacement in mm
 
