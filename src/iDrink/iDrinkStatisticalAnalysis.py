@@ -40,6 +40,7 @@ murphy_measures = ["PeakVelocity_mms",
 
 ignore_id_p = ['P11', 'P19']
 idx_s_singlecam = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
+idx_s_singlecam = ['S017', 'S018']
 idx_s_multicam = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008', 'S009', 'S010', 'S011', 'S012', 'S013', 'S014', 'S015', 'S016']
 idx_s_multicam_reduced = ['S001', 'S002']
 idx_s_reduced = idx_s_multicam_reduced + idx_s_singlecam
@@ -296,10 +297,11 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
         mask_iqr, df_murphy_mmc = detect_outliers_iqr(df_murphy_mmc, cols_error)
     else:
         df_murphy_mmc = df_murphy_mmc[(np.abs(zscore(df_murphy_mmc[cols_error])) < 3).all(axis=1)].reindex()
+        df_murphy_omc = df_murphy_omc[(np.abs(zscore(df_murphy_omc[cols_error])) < 3).all(axis=1)].reindex()
 
     df_murphy = pd.concat([df_murphy_omc, df_murphy_mmc])
     if verbose >= 1:
-        progbar = tqdm(total=len(idx_s_mmc), desc='Calculating Differences')
+        progbar = tqdm(total=len(idx_s_mmc), desc='Joining MMC and OMC Data')
     for id_s in sorted(idx_s_mmc):
 
         if verbose >= 1:
@@ -313,9 +315,10 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
         for id_p in idx_p:
             idx_t = sorted(list(df_murphy[(df_murphy['id_p']==id_p) & (df_murphy['id_s']==id_s )]['id_t'].unique()))
             for id_t in idx_t:
-                df = pd.concat([df, df_omc[(df_omc['id_p'] == id_p) & (df_omc['id_t'] == id_t)]])
+                if len(df[(df['id_s'] == 'S15133') & (df['id_p'] == id_p) & (df['id_t'] == id_t)]) == 0:
+                    df = pd.concat([df, df_omc[(df_omc['id_p'] == id_p) & (df_omc['id_t'] == id_t)]], ignore_index=True)
 
-        df = pd.concat([df_s, df])
+        df = pd.concat([df_s, df], ignore_index=True)
         if verbose >= 1:
             progbar.update(1)
 
@@ -2277,7 +2280,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = True
+    test_timeseries = False
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')

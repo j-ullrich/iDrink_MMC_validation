@@ -101,6 +101,15 @@ except FileNotFoundError:
     df_trials = None
 
 
+ignore_id_p = ['P11', 'P19']
+idx_s_singlecam_full = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
+idx_s_singlecam = ['S017', 'S018']
+idx_s_multicam = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008', 'S009', 'S010', 'S011', 'S012', 'S013', 'S014', 'S015', 'S016']
+idx_s_multicam_reduced = ['S001', 'S002']
+idx_s_reduced = idx_s_multicam_reduced + idx_s_singlecam
+idx_s_full = idx_s_multicam + idx_s_singlecam
+
+
 
 def run_full_pipeline(trial_list, mode):
     """
@@ -884,6 +893,7 @@ def run_murphy_measures(trial_list):
             murphy_progress.set_description(f"Running Murphy Measures for: {trial.identifier}")
             murphy_progress.update(1)
 
+
         # check that .sto files exist
         mov_files = glob.glob(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool', f'*.csv'))
 
@@ -894,6 +904,7 @@ def run_murphy_measures(trial_list):
             if args.verbose >= 1:
                 murphy_progress.set_description(f"No Mov data for for: {trial.identifier}")
             continue
+
 
         try:
             path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out')
@@ -963,7 +974,7 @@ def run_mode(no_calib = False):
     # First create list of trials to iterate through
     if args.mode != 'statistics':
         trial_list = create_trial_objects()
-        trial_list.sort(key=lambda x: x.id_p, reverse=False)
+        trial_list.sort(key=lambda x: x.id_s, reverse=False)
     if type(args.mode) == str:
         args.mode = [args.mode]
 

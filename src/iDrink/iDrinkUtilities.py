@@ -538,18 +538,17 @@ def get_title_measure_name(measure):
         case 'InterjointCoordination':
             title = 'Interjoint Coordination'
         case 'trunkDisplacementMM':
-            title = 'Trunk Displacement'
+            title = 'Maximum Trunk Displacement'
         case 'trunkDisplacementDEG':
-            title = 'Trunk Displacement'
+            title = 'Maximum Trunk Displacement'
         case 'ShoulderFlexionReaching':
             title = 'Shoulder Flexion Reaching'
         case 'ElbowExtension':
-            title = 'Elbow Extension'
+            title = 'Maximum Elbow Extension Reaching'
         case 'shoulderAbduction':
-            title = 'Shoulder Abduction'
+            title = 'Maximum Shoulder Abduction Reaching'
         case 'shoulderFlexionDrinking':
             title = 'Shoulder Flexion Drinking'
-            title = 'Trunk Angle'
         case 'hand_vel':
             title = 'Hand Velocity'
         case 'elbow_vel':
@@ -687,6 +686,42 @@ def get_setting_axis_name(id_s):
             name = id_s
 
     return name
+
+
+def get_measure_short_name(measure):
+    """Returns the short versino of the kinematic measures name"""
+
+    match measure:
+        case 'PeakVelocity_mms':
+            return 'peak_V'
+        case 'elbowVelocity':
+            return 'peak_V_elb'
+        case 'tTopeakV_s':
+            return 't_to_PV'
+        case 'tToFirstpeakV_s':
+            return 't_first_PV'
+        case 'tTopeakV_rel':
+            return 't_PV_rel'
+        case 'tToFirstpeakV_rel':
+            return 't_first_PV_rel'
+        case 'NumberMovementUnits':
+            return 'n_mov_units'
+        case 'InterjointCoordination':
+            return 'interj_coord'
+        case 'trunkDisplacementMM':
+            return 'trunk_disp'
+        case 'trunkDisplacementDEG':
+            return 'trunk_disp_deg'
+        case 'ShoulderFlexionReaching':
+            return 'arm_flex_reach'
+        case 'ElbowExtension':
+            return 'elb_ext'
+        case 'shoulderAbduction':
+            return 'arm_abd'
+        case 'shoulderFlexionDrinking':
+            return 'arm_flex_drink'
+        case _:
+            return measure
 
 
 if __name__ == '__main__':

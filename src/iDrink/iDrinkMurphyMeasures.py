@@ -457,7 +457,7 @@ class MurphyMeasures:
 
         id_start, id_end = self.get_phase_ids("reaching", 'returning')
 
-        rotation = self.trunk_ang[id_start] - self.trunk_ang[id_start, id_end]
+        rotation = self.trunk_ang[id_start] - self.trunk_ang[id_start: id_end]
 
         max_rotation_deg = np.max(rotation)
 
