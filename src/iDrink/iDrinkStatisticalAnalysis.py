@@ -814,9 +814,6 @@ def get_error_timeseries(dir_processed, dir_results, empty_dst=False, verbose = 
         dir_dst = os.path.join(dir_results, '01_ts_error')
         os.makedirs(dir_dst, exist_ok=True)
 
-        if empty_dst:
-            delete_existing_files(dir_dst)
-
         id_s_omc = 'S15133'
 
         csvs_in = glob.glob(os.path.join(dir_src, '*.csv'))
@@ -2280,7 +2277,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = False
+    test_timeseries = True
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
@@ -2300,14 +2297,14 @@ if __name__ == '__main__':
                                   verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug, debug_c=50)
             dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
-            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
+            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)"""
 
-        get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=True, verbose=1, debug=debug)
-        get_error_mean_rmse(dir_results, overwrite_csvs=True, verbose=1)
-        get_rom_rmse_old(dir_results, overwrite_csvs=True, verbose=1)
-        get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=False, verbose=1)"""
+        #get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=False, verbose=1, debug=debug)
+        get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1)
+        """get_rom_rmse_old(dir_results, overwrite_csvs=False, verbose=1)
+        get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=False, verbose=1)
 
-        get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
+        get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)"""
 
 
 

@@ -350,8 +350,9 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
 
     dir_svg = os.path.join(dir_plots_mean, f"01_svg")
     dir_html = os.path.join(dir_plots_mean, f"02_html")
+    dir_png = os.path.join(dir_plots_mean, f"03_png")
 
-    for dir in [dir_svg, dir_html]:
+    for dir in [dir_svg, dir_html, dir_png]:
         os.makedirs(dir, exist_ok=True)
 
     if plot_patients:
@@ -377,6 +378,7 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
 
                 fig.write_image(os.path.join(dir_svg, f"{id_s}_{id_p}_{column}_bar_mean.svg"))
                 fig.write_html(os.path.join(dir_html, f"{id_s}_{id_p}_{column}_bar_mean.html"))
+                fig.write_image(os.path.join(dir_png, f"{id_s}_{id_p}_{column}_bar_mean.png"), scale = 5)
                 prog.update(1)
         prog.close()
 
@@ -402,15 +404,25 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
                 fig.add_hline(y=0.02, line_width=1, line_dash='dash', line_color='orange')
 
 
-            fig.update_layout(xaxis_title=f'Participants',
-                              yaxis_title=f'{legendnames_for_column_names[column]} (m)'
+            fig.update_layout(title=dict(text=title, font=dict(size=28)),
+                              xaxis_title=dict(text=f'Participants', font=dict(size=24)),
+                              yaxis_title=dict(text=f'{legendnames_for_column_names[column]} (m)', font=dict(size=24)),
                               )
 
             if showfig:
                 fig.show()
 
-            fig.write_image(os.path.join(dir_svg, f"{id_s}_{column}_box_means.svg"))
-            fig.write_html(os.path.join(dir_html, f"{id_s}_{column}_box_means.html"))
+            dir_out = os.path.join(dir_svg, column)
+            os.makedirs(dir_out, exist_ok=True)
+            fig.write_image(os.path.join(dir_out, f"{id_s}_{column}_box_means.svg"))
+
+            dir_out = os.path.join(dir_html, column)
+            os.makedirs(dir_out, exist_ok=True)
+            fig.write_html(os.path.join(dir_out, f"{id_s}_{column}_box_means.html"))
+
+            dir_out = os.path.join(dir_png, column)
+            os.makedirs(dir_out, exist_ok=True)
+            fig.write_image(os.path.join(dir_out, f"0302_{id_s}_{column}_box_means.png"), scale = 5)
 
             prog.update(1)
 
@@ -526,4 +538,4 @@ if __name__ == '__main__':
     for id_s in idx_s:
         success = run_first_stage(dir_opensim_logs, dir_opensim_results, id_s)
         if success:
-            plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=True, showfig=False)
+            plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_settings=True, showfig=False)

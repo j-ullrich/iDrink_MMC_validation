@@ -433,6 +433,8 @@ def plot_lost_trials_by_stage(stage, file_app, write_html=False, write_png=True,
         filename = os.path.join(dir_out, f'Trials_failed_{stage}{file_app}.svg')
         fig.write_image(filename, scale=5)
 
+    return fig
+
 
 def plot_all_fails(stages, file_app, no_num_in_plot=False, notitle=True, write_html=False, write_png=True, write_svg=False, showfig=False):
     '''
@@ -447,9 +449,9 @@ def plot_all_fails(stages, file_app, no_num_in_plot=False, notitle=True, write_h
     from plotly.subplots import make_subplots
     import plotly.graph_objects as go
 
-    max_rows = 2
-    max_cols = 3
-    height = 350* max_rows
+    max_rows = 3
+    max_cols = 2
+    height = 500* max_rows
     width = 600 * max_cols
 
     def get_row_col(row, col):
@@ -462,7 +464,7 @@ def plot_all_fails(stages, file_app, no_num_in_plot=False, notitle=True, write_h
     subplot_titles = ['<b>Pipeline<b>', '<b>pose estimation<b>', '<b>triangulation<b>', '<b>inverse kinematics<b>',
                       '<b>kinematic measures<b>', '<b>kinematic measures of OMC reference<b>']
     fig = make_subplots(rows=max_rows, cols=max_cols, subplot_titles=subplot_titles,
-                        horizontal_spacing=0.15, vertical_spacing=0.15)
+                        horizontal_spacing=0.25, vertical_spacing=0.1)
 
     df_failed_trials['id_s_name'] = df_failed_trials['id_s'].apply(lambda x: get_setting_axis_name(x))
 
@@ -531,7 +533,7 @@ if __name__ == '__main__':
 
     overwrite = False
 
-    reduced_analysis = True
+    reduced_analysis = False
     if os.path.isfile(csv_failed_trials) and not overwrite:
         df_failed_trials = pd.read_csv(csv_failed_trials, sep=';')
     else:

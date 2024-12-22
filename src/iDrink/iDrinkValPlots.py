@@ -828,7 +828,7 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
         progbar.update(1)
 
 
-def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, idx_t=None, dynamic='static', write_html=True, write_svg=True, show_plots=True):
+def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, idx_t=None, dynamic='static', write_html=True, write_svg=True, write_png=True, show_plots=True):
     """
     Prints all Bland altman and scale location plots and saves them into the correct folder.
 
@@ -842,13 +842,12 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
     dir_src = os.path.join(root_val, '04_statistics', '01_continuous', '01_results', '01_ts_error')
 
     subdir_dyn = '02_dynamic' if dynamic else '01_fixed'
-    dir_dst_bland = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
-                                 '01_omc_mmc_error', '01_bland_altman', subdir_dyn)
-    dir_dst_scale = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
-                                 '01_omc_mmc_error', '02_scale_location', subdir_dyn)
-
-    dir_dst_time = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_to_mmc_error',
-                                    '01_omc_mmc_error', '03_time_error', subdir_dyn)
+    dir_dst_bland = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_mmc_error',
+                                 '01_bland_altman', subdir_dyn)
+    dir_dst_scale = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_mmc_error',
+                                 '02_scale_location', subdir_dyn)
+    dir_dst_time = os.path.join(root_val, '04_statistics', '01_continuous', '02_plots', '01_omc_mmc_error',
+                                '03_time_error', subdir_dyn)
 
     unit = get_unit(kinematic)
 
@@ -866,19 +865,22 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
     for id_p in idx_p:
         list_files_p = [file for file in list_files_full if id_p in file]
 
+
+
         if idx_t is None:
             idx_t = list(set([os.path.basename(file).split('_')[2].split('.')[0] for file in list_files_p]))
         elif type(idx_t) is str:
             idx_t = [idx_t]
 
-
+        progbar = tqdm(idx_p, desc='Plotting Bland Altman and Scale Location Plots', unit='Patient',
+                       disable=verbose < 1)
         for id_t in idx_t:
             files = [file for file in list_files_p if id_t in file]
             if files:
                 file = files[0]
             else:
                 continue
-
+            progbar.set_description(f'Plotting Bland Altman and Scale Location Plots for {id_p}_{id_t} \t {kinematic}')
 
             df_pt = pd.read_csv(file, sep=';')
             idx_s = list(set(df_pt['id_s'].values))
@@ -908,7 +910,7 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
 
                 # add smoother
                 lowess = sm.nonparametric.lowess(error, mean, frac=0.6)
-                fig_bland.add_trace(go.Scatter(x=lowess[:, 0], y=lowess[:, 1], mode='lines', name=f'{id_s}', line=dict(color='red')))
+                fig_bland.add_trace(go.Scatter(x=lowess[:, 0], y=lowess[:, 1], mode='lines', name=f'{id_s}', line=dict(color='black')))
 
                 # add line at 0
                 fig_bland.add_hline(y=0, line_dash='dash', line_color='grey', name='Zero')
@@ -916,8 +918,8 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
                 # add limits of agreement
                 std_diff = np.std(error)
                 sd = 1.96
-                upper_limit = + sd * std_diff
-                lower_limit = - sd * std_diff
+                upper_limit = mean + sd * std_diff
+                lower_limit = mean - sd * std_diff
 
                 fig_bland.add_hline(y=upper_limit, line_dash='dash', line_color='red', name=f'Upper Limit ({sd} SD)')
                 fig_bland.add_hline(y=lower_limit, line_dash='dash', line_color='red', name=f'Lower Limit ({sd} SD)')
@@ -992,6 +994,19 @@ def plot_timeseries_blandaltman_scale_location(root_val, kinematic, idx_p=None, 
 
                 path_time = os.path.join(dir_dst_time, f'{id_p}_{id_t}_{kinematic}_time.svg')
                 fig_time.write_image(path_time, scale=5)
+
+            if write_png:
+                path_bland = os.path.join(dir_dst_bland, f'{id_p}_{id_t}_{kinematic}.png')
+                fig_bland.write_image(path_bland, scale=5)
+
+                path_scale = os.path.join(dir_dst_scale, f'{id_p}_{id_t}_{kinematic}.png')
+                fig_scale.write_image(path_scale, scale=5)
+
+                path_time = os.path.join(dir_dst_time, f'{id_p}_{id_t}_{kinematic}_time.png')
+                fig_time.write_image(path_time, scale=5)
+
+            progbar.update(1)
+    progbar.close()
 
 
 def plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1):
@@ -1166,7 +1181,8 @@ def plot_timeseries_barplot_error_rmse(root_val):
 
         identifier
 
-def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False, write_html=False, write_svg=True,
+def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False,
+                             write_html=False, write_svg=True, write_png=True,
                              verbose = 1):
     """
     Plots averaged timeseries of all trials for a given setting and participant.
@@ -1273,7 +1289,7 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                            line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
 
             id_s_name = get_setting_axis_name(id_s)
-            fig.update_layout(title=f'Averaged Timeseries for {kinematic_name} of {id_s_name} for {id_p} - {side} - {affected}',
+            fig.update_layout(title=f'Averaged Timeseries for {kinematic_name} <br>of {id_s_name} for {id_p} - {side} - {affected}',
                               xaxis_title='Normalized Time',
                               yaxis_title=f'{kinematic_name} [{unit}]', )
 
@@ -1286,6 +1302,10 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
             if write_svg:
                 path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_{side}_{affected}_averaged.svg')
+                fig.write_image(path, scale=5)
+
+            if write_png:
+                path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_{side}_{affected}_averaged.png')
                 fig.write_image(path, scale=5)
 
             return fig
@@ -1342,8 +1362,15 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                 fig.add_trace(fig_aff.data[i], row=1, col=2)
 
             id_s_name = get_setting_axis_name(id_s)
-            fig.update_layout(title=f'Averaged Timeseries for {kinematic_name} of {id_s_name}_{id_p}',
-                              xaxis_title='Normalized Time', yaxis_title=f'{kinematic_name} [{unit}]')
+            fig.update_layout(title=dict(text= f'Averaged Timeseries for {kinematic_name} <br>of {id_s_name} and {id_p}', font = dict(size=24),
+                                         y=0.95, yanchor='top'),
+                              xaxis_title=dict(text= 'Normalized Time', font = dict(size=18)),
+                              yaxis_title=dict(text= f'{kinematic_name} [{unit}]'), font = dict(size=15))
+
+            fig.update_xaxes(title_text='Normalized Time', row=1, col=1)
+            fig.update_xaxes(title_text='Normalized Time', row=1, col=2)
+
+
 
             if fig_show:
                 fig.show()
@@ -1354,6 +1381,10 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
 
             if write_svg:
                 path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_averaged.svg')
+                fig.write_image(path, scale=5)
+
+            if write_png:
+                path = os.path.join(dir_out, f'{id_s}_{id_p}_{kinematic}_averaged.png')
                 fig.write_image(path, scale=5)
 
         progbar.update(1)
@@ -1933,18 +1964,18 @@ if __name__ == "__main__":
 
     verbose = 1
 
-    csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
+    """csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
     calib_plots_dst = os.path.join(root_stat, '05_calibration')
     calibration_boxplot(csv_calib_errors, calib_plots_dst, verbose=1, show_fig=False)
 
     plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)
 
     for corr in [False]:
-        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=True, write_png=True, outlier_corrected=corr)
+        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=True, write_png=True, outlier_corrected=corr)"""
 
     """plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)"""
 
-    """csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
+    csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
 
     for tuple in set_sp_tuples:
@@ -1954,7 +1985,6 @@ if __name__ == "__main__":
         id_p = tuple[1]
         plot_timeseries_averaged(root_val, id_s, id_p, dynamic=dynamic)
         progbar_tuple.update(1)
-
     progbar_tuple.close()
 
     df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='unaffected', verbose=1)
@@ -1972,13 +2002,16 @@ if __name__ == "__main__":
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]
 
-        generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
-                                      showfig = False, write_html=False, write_svg=True)
+        """generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
+                                      showfig = False, write_html=False, write_svg=True)"""
 
 
         for kinematic in kinematics:
-            plot_timeseries_blandaltman_scale_location(root_val, kinematic=kinematic, idx_p=id_p, idx_t=id_t, dynamic=dynamic_str, write_html=False, write_svg=True, show_plots=False)
-            pass"""
+            plot_timeseries_blandaltman_scale_location(root_val, kinematic=kinematic, idx_p=id_p, idx_t=id_t,
+                                                       dynamic=dynamic_str,
+                                                       write_html=False, write_svg=True, write_png=True,
+                                                       show_plots=False)
+            pass
 
 
 
