@@ -808,7 +808,8 @@ def get_error_timeseries(dir_processed, dir_results, empty_dst=False, verbose = 
     csv_out_rom = os.path.join(dir_results, 'omc_mmc_rom.csv')
 
     if empty_dst:
-        delete_existing_files(dir_results)
+        pass
+
 
     for dir_src in list_dir_src:
         dir_dst = os.path.join(dir_results, '01_ts_error')
@@ -1338,16 +1339,17 @@ def get_rom_rmse(dir_results, overwrite_csvs=False, verbose=1):
                 for dynamic in ['fixed', 'dynamic']:
                     for condition in ['affected', 'unaffected']:
                         df_t = df_temp_p[(df_temp_p['dynamic'] == dynamic) & (df_temp_p['condition'] == condition)]
+                        if df_t.shape[0] != 0:
+                            df_new_row = pd.DataFrame(columns = df_p_temp.columns, index=[0])
 
-                        df_new_row = pd.DataFrame(columns = df_p_temp.columns, index=[0])
-                        df_new_row['id_s'] = id_s
-                        df_new_row['id_p'] = id_p
-                        df_new_row['dynamic'] = dynamic
-                        df_new_row['condition'] = condition
-                        df_new_row['metric'] = metric
-                        df_new_row['rom_rmse'] = np.sqrt(np.nanmean(df_t[col]**2))
+                            df_new_row['id_s'] = id_s
+                            df_new_row['id_p'] = id_p
+                            df_new_row['dynamic'] = dynamic
+                            df_new_row['condition'] = condition
+                            df_new_row['metric'] = metric
+                            df_new_row['rom_rmse'] = np.sqrt(np.nanmean(df_t[col]**2))
 
-                        df_out = pd.concat([df_out, df_new_row], axis=0, ignore_index=True)
+                            df_out = pd.concat([df_out, df_new_row], axis=0, ignore_index=True)
 
                         progbar .update(1)
 
@@ -1723,7 +1725,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                     mean_omc = np.mean(val_omc)
                     mean_mmc = np.mean(val_mmc)
 
-                    dict_offsets[kinematic] = mean_mmc + mean_omc
+                    dict_offsets[kinematic] = - mean_mmc + mean_omc
 
                 work_df_mmc[kinematic] = work_df_mmc[kinematic] + offset_val
 
@@ -2132,8 +2134,8 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                 path_mmc_out = os.path.join(dir_dat_out,
                                             f'{id_s}_{id_p}_{id_t}_{condition}_{side}_{correct}_preprocessed.csv')
 
-                df_omc.to_csv(path_omc_out, sep=';')
-                df_mmc.to_csv(path_mmc_out, sep=';')
+                #df_omc.to_csv(path_omc_out, sep=';')
+                #df_mmc.to_csv(path_mmc_out, sep=';')
 
                 if verbose >= 2:
                     print(f"Preprocessed:\t{path_omc_out}\n"
@@ -2150,6 +2152,383 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
     if verbose >= 1:
         process.close()
+
+
+def get_offset_unfancy(dir_root, downsample = True, drop_last_rows = False, correct='fixed', detect_outliers = [],
+                          joint_vel_thresh = 5, hand_vel_thresh = 3000, fancy_offset = True,
+                          verbose=1, plot_debug=False, print_able=False,
+                          empty_dst=False,  debug=False, debug_c=20):
+    """
+    Preprocess timeseries data for statistical analysis.
+
+    - Downsample OMC to 60Hz
+    - Detect outliers based on endeffector and elbow velocity.
+
+    Write Log-csv for outlier detection with reason for taking a trial out.
+
+    :param dir_root:
+    :param verbose:
+    :return:
+    """
+    import matplotlib.pyplot as plt
+
+    def fixing_decay_and_offset_trial_by_trial(df_omc, dm_mmc, kinematic_val, trial_identifier, print_able=False,
+                                               plot_debug=False, offset=False):
+        '''
+        This Function is taken and modified from Marwen Moknis Masterthesis:
+        https://github.com/cf-project-delta/Delta_3D_reconstruction/blob/main/processing/transform_coordinate.py#L322
+
+        This function optimize the positioning of the kinematic trajectories
+
+        By getting the time delay between the trials of two systems (sys 1 as reference)
+
+        It will also get the offset present between both functions.
+
+        We will try to  minimize the root mean square error for those two variables :
+
+         - delta_t: time delay  (s)
+
+         - offset: Vertical offset in the unit of trajectory
+
+        '''
+
+        from scipy.optimize import curve_fit
+        ## creating two copies of both DataFrames
+        work_df_omc = df_omc.copy()
+        work_df_mmc = dm_mmc.copy()
+
+        # Setting the time vector for the reference DataFrame
+        end_time = work_df_omc['time'].iloc[-1].total_seconds()
+        start_time = work_df_omc['time'].iloc[0].total_seconds()
+        frames = len(work_df_omc)
+        # time_delta = (end_time-start_time)/frames
+        time_df_omc = np.linspace(start_time, end_time, frames)
+        work_df_omc['time'] = time_df_omc
+
+        ##Same for the second Dataframe
+
+        end_time_2 = work_df_mmc['time'].iloc[-1].total_seconds()
+        start_time_2 = work_df_mmc['time'].iloc[0].total_seconds()
+        frames_2 = len(work_df_mmc)
+        time_df_mmc = np.linspace(start_time_2, end_time_2, frames_2)
+        work_df_mmc['time'] = time_df_mmc
+
+        if offset:
+            def reference_function(time, delay_time, offset):
+
+                return np.interp(time + delay_time, work_df_omc['time'], work_df_omc[kinematic_val] + offset)
+        else:
+            def reference_function(time, delay_time):
+
+                return np.interp(time + delay_time, work_df_omc['time'], work_df_omc[kinematic_val])
+
+        popt, _ = curve_fit(reference_function, work_df_mmc['time'], work_df_mmc[kinematic_val])
+
+        ## Getting the value we did the optimisation on
+        optimal_delay_time = popt[0]
+        if offset:
+            optimal_offset_val = popt[1]
+
+        if print_able:
+            if offset:
+                print(f"Those are the optimal delay time {optimal_delay_time} and offset {optimal_offset_val} for trial {trial_identifier} ")
+            else:
+                print(f"This is the optimal delay time {optimal_delay_time} for trial {trial_identifier} ")
+
+        if not (offset):
+            ## We try the method of just taking out the mean of sys_2 and adding by the mean of the reference system
+            mean_omc = np.mean(work_df_omc[kinematic_val])
+            mean_mmc = np.mean(work_df_mmc[kinematic_val])
+            val_work_mmc = work_df_mmc[kinematic_val] - mean_mmc + mean_omc
+
+        if plot_debug:
+            plt.plot(work_df_omc['time'], work_df_omc[kinematic_val])
+            if offset:
+                plt.plot(work_df_mmc['time'] + optimal_delay_time,
+                         work_df_mmc[kinematic_val] + optimal_offset_val)
+            else:
+                plt.plot(work_df_mmc['time'] + optimal_delay_time, val_work_mmc)
+            plt.xlabel("Time (s)")
+            plt.ylabel(f"{kinematic_val} (Unit of kinematic)")
+            plt.title(f"Optimisation of the time delay for trial {trial_identifier}")
+            plt.legend(["Reference system", "System to optimise"])
+            plt.show()
+
+        if offset:
+            return optimal_delay_time, optimal_offset_val
+        else:
+            return optimal_delay_time
+
+    def handling_vertical_offset(df_omc, df_mmc, fancy=False):
+        '''
+        Taken and adapted from Marwen Moknis Masterthesis:
+
+        Function that centers the graphs relative to each other (vertically)
+
+        Centers mmc to omc by adding the mean of omc to mmc
+
+        Reference system : df_omc
+
+        '''
+        def do_it_fancy(work_df_mmc, work_df_omc, kinematics, dict_offsets):
+            from scipy.optimize import curve_fit
+
+            def reference_function(time, delay_time, offset):
+                return np.interp(time + delay_time, work_df_omc['time'], work_df_omc[kinematic] + offset)
+
+            for kinematic in kinematics:
+                try:
+                    popt, _ = curve_fit(reference_function, work_df_mmc['time'], work_df_mmc[kinematic], maxfev=5000)
+
+                    ## Getting the value we did the optimisation on
+                    optimal_delay_time = popt[0]
+                    offset_val = popt[1]
+
+                    dict_offsets[kinematic] = offset_val
+                except Exception as e:
+                    print(f"Error in curve_fit: {e}")
+
+                    # If curve_fit fails, use unfancy_method
+                    val_omc = work_df_omc[kinematic]
+                    val_mmc = work_df_mmc[kinematic]
+
+                    mean_omc = np.mean(val_omc)
+                    mean_mmc = np.mean(val_mmc)
+
+                    dict_offsets[kinematic] = -mean_mmc + mean_omc
+
+                work_df_mmc[kinematic] = work_df_mmc[kinematic] + offset_val
+
+            return work_df_mmc, dict_offsets
+
+
+        ##Copy of both DataFrames
+        df_omc_cp = df_omc.copy()
+        df_mmc_cp = df_mmc.copy()
+
+        ##Getting only the kinematic labels
+        kinematics = list(df_mmc_cp.columns)[1:] # TODO check that kinematics list is correct
+
+        dict_offsets = {key: None for key in kinematics}
+
+        if fancy:
+            df_mmc_cp, dict_offsets = do_it_fancy(df_mmc_cp, df_omc, kinematics, dict_offsets)
+        else:
+            for kinematic in kinematics:
+                val_omc = df_omc_cp[kinematic]
+                val_mmc = df_mmc_cp[kinematic]
+
+                mean_omc = np.mean(val_omc)
+                mean_mmc = np.mean(val_mmc)
+
+                df_mmc_cp[kinematic] = df_mmc_cp[kinematic] - mean_mmc + mean_omc
+
+                dict_offsets[kinematic] = mean_mmc + mean_omc
+
+        return df_mmc_cp, dict_offsets
+
+
+    def downsample_dataframe(df_, fps=60):
+        """
+        Taken from Marwens Masterthesis
+
+        https://github.com/cf-project-delta/Delta_3D_reconstruction/blob/d73315f5cac31be1c1fe621fdfa7cdce24a2cc2a/processing/reading_storing_processed_data.py#L410
+
+        :param df_:
+        :param fps:
+        :return:
+        """
+
+        # Convert the Timestamp column to a datetime format and set it as the index
+        df = df_.copy()
+        try:
+            df['time'] = pd.to_timedelta(df['time'], unit='s')
+        except:
+            df['time'] = pd.to_timedelta(df['time'], unit='s')
+        df = df.set_index('time')
+        # Get the numerical and non-numerical columns
+        num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        non_num_cols = df.select_dtypes(exclude=[np.number]).columns.tolist()
+        # Resample the numerical columns to the desired fps and compute the mean for each interval
+        # num_df = df[num_cols].resample(f'{1000/fps:.6f}ms').mean()
+        num_df = df[num_cols].resample(f'{1000 / fps:.6f}ms').mean().interpolate()  # Interpolate missing values
+        # Resample the non-numerical columns to the desired fps and compute the mode for each interval
+        non_num_df = df[non_num_cols].resample(f'{1000 / fps:.6f}ms').agg(lambda x: x.mode()[0])
+        # Merge the numerical and non-numerical dataframes
+        df_downsampled = pd.concat([num_df, non_num_df], axis=1)
+        # Reset the index to make the Timestamp column a regular column again
+        df_downsampled.reset_index(inplace=True)
+        return df_downsampled
+
+    def drop_last_rows_if_needed(df1, df2):
+        """
+        Taken from Marwens Masterthesis
+
+        https://github.com/cf-project-delta/Delta_3D_reconstruction/blob/d73315f5cac31be1c1fe621fdfa7cdce24a2cc2a/processing/reading_storing_processed_data.py#L410
+
+        :param df1:
+        :param df2:
+        :return:
+        """
+        len_diff = len(df1) - len(df2)
+        # Drop the last row from the dataframe with more rows
+        if len_diff > 0:
+            df1 = df1[:-len_diff]
+        elif len_diff < 0:
+            df2 = df2[:len(df1)]
+
+        return df1.copy(), df2.copy()
+
+    def update_offset_csv(csv_offset, id_s, id_p, id_t, dict_offsets):
+        """
+        Updates or writes csv file with offsets for each trial and kinematic
+
+        :param csv_offset:
+        :param id_s:
+        :param id_p:
+        :param id_t:
+        :param dict_offsets:
+        :return:
+        """
+        kinematics = list(dict_offsets.keys())
+
+        if os.path.isfile(csv_offset):
+            df_offset = pd.read_csv(csv_offset, sep=';')
+        else:
+            df_offset = pd.DataFrame(columns=['id_s', 'id_p', 'id_t'] + kinematics)
+
+        dict_new_row = {'id_s': id_s, 'id_p': id_p, 'id_t': id_t, **dict_offsets}
+
+        if len(df_offset[(df_offset['id_s'] == id_s) & (df_offset['id_p'] == id_p) & (df_offset['id_t'] == id_t)]) == 0:
+            df_offset = pd.concat([df_offset, pd.DataFrame(dict_new_row, index=[0])], ignore_index=True)
+        else:
+            #df_offset.loc[(df_offset['id_s'] == id_s) & (df_offset['id_p'] == id_p) & (df_offset['id_t'] == id_t)] = list(dict_new_row.values())
+            for key in dict_new_row.keys():
+                df_offset.loc[(df_offset['id_s'] == id_s) & (df_offset['id_p'] == id_p) & (df_offset['id_t'] == id_t), key] = dict_new_row[key]
+
+        df_offset.to_csv(csv_offset, sep=';', index=False)
+
+
+    dir_dat_in = os.path.join(dir_root, '03_data', 'preprocessed_data', '01_murphy_out')
+    dir_dat_out = os.path.join(dir_root, '03_data', 'preprocessed_data', '03_fully_preprocessed_dynamic') if correct == 'dynamic' \
+        else os.path.join(dir_root, '03_data', 'preprocessed_data', '02_fully_preprocessed')
+
+
+    csv_outliers = os.path.join(dir_root, '05_logs', 'outliers.csv')
+    csv_offset = os.path.join(dir_root, '03_data', 'preprocessed_data', 'offset.csv')
+
+    # get all omc_trials
+    omc_csvs = glob.glob(os.path.join(dir_dat_in, 'S15133_P*_T*.csv'))
+    # retrieve all p_ids and t_ids present in omc data.
+    p_ids = list(set([os.path.basename(omc_csv).split('_')[1] for omc_csv in omc_csvs]))
+
+    # get all s_ids except 'S15133'
+    s_ids = list(set([os.path.basename(file).split('_')[0] for file in os.listdir(dir_dat_in)]))
+    s_ids.remove('S15133')
+
+    total_count = len(p_ids)
+
+    if verbose >=1:
+        def get_total_for_process():
+            total = 0
+            for id_p in p_ids:
+                omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
+                t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
+                total += len(t_ids)
+            return total
+
+        if debug:
+            total_count = len(p_ids) * debug_c
+        else:
+
+            total_count = get_total_for_process()
+
+        process = tqdm(range(total_count), desc='Preprocessing', leave=True)
+
+    for id_p in p_ids:
+        omc_csvs_p = [omc_csv for omc_csv in omc_csvs if id_p in os.path.basename(omc_csv)]
+
+        t_ids = [os.path.basename(omc_csv).split('_')[2] for omc_csv in omc_csvs_p]
+
+        # check if MMC recording exists for id_p
+        found_files = []
+        for id_s in s_ids:
+            found_files.extend(glob.glob(os.path.join(dir_dat_in, f'{id_s}*{id_p}_*.csv')))
+
+        if len(found_files) == 0:
+            continue
+
+        if debug:
+            debug_count = 0
+
+        for id_t in t_ids:
+            if verbose >= 1:
+                process.set_description(f'Preprocessing {correct} - {id_p}_{id_t}')
+                process.update(1)
+
+            omc_csv = glob.glob(os.path.join(dir_dat_in, f'S15133_{id_p}_{id_t}*.csv'))[0]
+
+            mmc_files = []
+            for id_s in s_ids:
+                found_file = glob.glob(os.path.join(dir_dat_in, f'{id_s}*{id_p}_{id_t}*.csv'))
+                if len(found_file) > 0:
+                    mmc_files.append(found_file[0])
+
+            for mmc_csv in mmc_files:
+                id_s = os.path.basename(mmc_csv).split('_')[0]
+
+                try:
+                    df_omc = pd.read_csv(omc_csv, sep=';')
+                    df_mmc = pd.read_csv(mmc_csv, sep=';')
+                except Exception as e:
+                    print(f"Error in iDrinkStatisticalAnalysis.get_omc_mmc_error while reading csv file:\n"
+                          f"OMC-File:\t{omc_csv} \n"
+                          f"MMC-File:\t{mmc_csv}\n"
+                          f"\n"
+                          f"Error:\t{e}")
+                    continue
+
+                # Resample both DataFrames to 60Hz
+                df_omc = downsample_dataframe(df_omc)
+                df_mmc = downsample_dataframe(df_mmc)
+                #df_omc, df_mmc = drop_nan(df_omc, df_mmc)
+
+                # Drop last rows if needed
+                df_omc, df_mmc = drop_last_rows_if_needed(df_omc, df_mmc)
+
+                ## Correct on Elbow Angle:
+                kinematic_value = "elbow_flex_pos"
+                delay_time = fixing_decay_and_offset_trial_by_trial(df_omc, df_mmc,
+                                                                    kinematic_value, trial_identifier = f'{id_s}_{id_p}_{id_t}',print_able=print_able,
+                                                                    plot_debug=plot_debug, offset=False)
+
+                # Taken from Marwen Moknis Masterthesis
+                df_omc['time'] = np.around(
+                    np.linspace(0.01, len(df_omc) / 60, num=len(df_omc)), decimals=3)
+                df_mmc['time'] = np.around(
+                    np.linspace(0.01, len(df_omc) / 60, num=len(df_mmc)), decimals=3)
+
+                ## shifting the values of kinematics by the nb frames needed
+                time_step = df_omc["time"].iloc[1] - df_omc["time"].iloc[0]
+                frames = int(delay_time / time_step)
+                if frames < 0:
+                    nb_frames = -frames
+                    df_omc = df_omc[:-nb_frames]
+                    df_mmc = df_mmc[nb_frames:]
+                    df_mmc["time"] = np.array(df_omc["time"])
+                elif frames > 0:
+                    nb_frames = frames
+                    df_mmc = df_mmc[:-nb_frames]
+                    df_omc = df_omc[nb_frames:]
+                    df_omc["time"] = np.array(df_mmc["time"])
+
+                df_mmc, dict_offsets = handling_vertical_offset(df_omc, df_mmc, fancy=fancy_offset)
+
+                update_offset_csv(csv_offset, id_s, id_p, id_t, dict_offsets)
+
+    if verbose >= 1:
+        process.close()
+
 
 def normalize_data(dir_src, dynamic=False, verbose=1):
     """
@@ -2288,23 +2667,24 @@ if __name__ == '__main__':
 
     if test_timeseries:
 
-        """for correct in corrections:
+        for correct in corrections:
             debug = False
 
-            preprocess_timeseries(root_val,
+            """preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= det_outliers,
                                   joint_vel_thresh=thresh_elbowVelocity, hand_vel_thresh=hand_vel_thresh, correct=correct, fancy_offset=False,
-                                  verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug, debug_c=50)
-            dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
+                                  verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug, debug_c=50)"""
+            """dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
             normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)"""
 
         #get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=False, verbose=1, debug=debug)
-        get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1)
-        """get_rom_rmse_old(dir_results, overwrite_csvs=False, verbose=1)
+        """get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1)
+        get_rom_rmse_old(dir_results, overwrite_csvs=False, verbose=1)"""
         get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=False, verbose=1)
 
-        get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)"""
+        #get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
+
 
 
 

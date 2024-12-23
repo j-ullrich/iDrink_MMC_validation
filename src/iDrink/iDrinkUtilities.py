@@ -518,7 +518,7 @@ def get_drivepath():
 
     return drive
 
-def get_title_measure_name(measure):
+def get_title_measure_name(measure, add_unit = False):
     """returns a string based on the murphy measure for a figure_title"""
     match measure:
         case 'PeakVelocity_mms':
@@ -564,7 +564,13 @@ def get_title_measure_name(measure):
         case 'shoulder_abduction_pos':
             title = 'Shoulder Abduction'
         case _:
-            title = ''
+            title = measure
+
+    if add_unit:
+        unit = get_unit(measure)
+        if unit != '':
+            title = f"{title} [{unit}]"
+
     return title
 
 def get_unit(kin):
