@@ -549,19 +549,19 @@ def get_title_measure_name(measure, add_unit = False):
             title = 'Maximum Shoulder Abduction Reaching'
         case 'shoulderFlexionDrinking':
             title = 'Shoulder Flexion Drinking'
-        case 'hand_vel':
+        case 'hand_vel' | 'Hand Velocity [mm/s]':
             title = 'Hand Velocity'
-        case 'elbow_vel':
+        case 'elbow_vel' | 'Elbow Velocity [deg/s]':
             title = 'Elbow Velocity'
-        case 'trunk_disp':
+        case 'trunk_disp' | 'Trunk Displacement [mm]':
             title = 'Trunk Displacement'
         case 'trunk_ang':
             title = 'Trunk Angle'
-        case 'elbow_flex_pos':
+        case 'elbow_flex_pos' | 'Elbow Flexion [deg]':
             title = 'Elbow Flexion'
-        case 'shoulder_flex_pos':
+        case 'shoulder_flex_pos' | 'Shoulder Flexion [deg]':
             title = 'Shoulder Flexion'
-        case 'shoulder_abduction_pos':
+        case 'shoulder_abduction_pos' | 'Shoulder Abduction [deg]':
             title = 'Shoulder Abduction'
         case _:
             title = measure
@@ -575,16 +575,21 @@ def get_title_measure_name(measure, add_unit = False):
 
 def get_unit(kin):
 
-    cases_deg = ['trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos', 'shoulder_abduction_pos',
-                 'trunkDisplacementDEG', 'ShoulderFlexionReaching', 'ElbowExtension',
-                 'shoulderAbduction', 'shoulderFlexionDrinking']
+    cases_deg = ['trunk_ang',
+                 'elbow_flex_pos', 'Elbow Flexion', 'Elbow Flexion [deg]',
+                 'shoulder_flex_pos', 'Shoulder Flexion', 'Shoulder Flexion [deg]',
+                 'shoulder_abduction_pos', 'Shoulder Abduction', 'Shoulder Abduction [deg]',
+                 'trunkDisplacementDEG', 'trunk_ang',
+                 'ShoulderFlexionReaching', 'ElbowExtension',
+                 'shoulderAbduction', 'shoulderFlexionDrinking',
+                 ]
 
     match kin:
-        case 'hand_vel' | 'PeakVelocity_mms':
+        case 'hand_vel' | 'PeakVelocity_mms' | 'Hand Velocity'  | 'Hand Velocity [mm/s]':
             unit = 'mm/s'
-        case 'elbow_vel' | 'elbowVelocity':
+        case 'elbow_vel' | 'elbowVelocity' | 'Elbow Velocity' | 'Elbow Velocity [deg/s]':
             unit = 'deg/s'
-        case 'trunk_disp' | 'trunkDisplacementMM':
+        case 'trunk_disp' | 'trunkDisplacementMM' | 'Trunk Displacement [mm]':
             unit = 'mm'
         case k if k in cases_deg:
             unit = 'deg'
