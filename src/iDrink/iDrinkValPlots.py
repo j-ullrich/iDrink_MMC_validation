@@ -620,7 +620,7 @@ def plot_murphy_blandaltman_old(df_murphy, measured_value, id_s, id_p=None, plot
                     print(f'Filetype {extension} not supported. Please use .html, .svg, .jpg or .jpeg')
 
 
-def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1):
+def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap_yaxis=True, plot_patient=False, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1):
     """
     PLots boxplots for errors and rmse of Murphy measures.
 
@@ -692,6 +692,9 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
 
     progbar = tqdm(murphy_measures, desc='Plotting for ', unit='Measure', disable=verbose<1)
 
+    color_map = {"affected": "blue", "unaffected": "red"}
+    category_order = ["affected", "unaffected"]
+
     for measure in murphy_measures:
         progbar.set_description(f'Plotting for {measure}')
 
@@ -704,9 +707,13 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
         fig_box_error = go.Figure()
         fig_bar = go.Figure()
 
-        fig_box = px.box(df_rmse_nonan, x='id_s_name', y=measure, color='condition', title=f'RMSE for {measure_name} with CAD of {cad} {unit}',)
+        fig_box = px.box(df_rmse_nonan.sort_values(by='id_s'), x='id_s_name', y=measure, color='condition',
+                         color_discrete_map=color_map, category_orders={"condition": category_order},
+                         title=f'RMSE for {measure_name} with CAD of {cad} {unit}',)
 
-        fig_bar = px.bar(df_rmse_mean, x='id_s_name', y=measure, color='condition', title=f'Mean RMSE for {measure_name} with CAD of {cad} {unit}',)
+        fig_bar = px.bar(df_rmse_mean.sort_values(by='id_s'), x='id_s_name', y=measure, color='condition',
+                         color_discrete_map=color_map, category_orders={"condition": category_order},
+                         title=f'Mean RMSE for {measure_name} with CAD of {cad} {unit}',)
 
         # add horizontal line for cad
         if cad is not None:
@@ -714,8 +721,16 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
             fig_bar.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
 
 
-        fig_box.update_layout(title=f'<b>RMSE for {measure_name} with CAD of {cad}  {unit}<b>', xaxis_title='Setting', yaxis_title=f'RMSE {unit}')
-        fig_bar.update_layout(title=f'<b>mean RMSE for {measure_name} with CAD of {cad}  {unit}<b>', xaxis_title='Setting', yaxis_title=f'RMSE {unit}')
+        fig_box.update_layout(title=f'<b>RMSE for {measure_name} with CAD of {cad} {unit}<b>',
+                              xaxis_title='<b>Setting<b>',
+                              yaxis_title=f'<b>RMSE {unit}<b>')
+        fig_bar.update_layout(title=f'<b>mean RMSE for {measure_name} with CAD of {cad} {unit}<b>',
+                              xaxis_title='<b>Setting<b>',
+                              yaxis_title=f'<b>RMSE {unit}<b>')
+
+        if cap_yaxis:
+            fig_box.update_yaxes(range=[df_rmse_nonan[measure].min(), min(df_rmse_nonan[measure].max(), 5000)])
+            fig_bar.update_yaxes(range=[df_rmse_mean[measure].min(), min(df_rmse_mean[measure].max(), 5000)])
 
         if showfig:
             fig_box.show()
@@ -739,65 +754,69 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
             path = os.path.join(dir_out_bar_rmse, f'murphy_bar_{measure}_rmse{outlier_str}.png')
             fig_bar.write_image(path, scale=5)
 
-        for id_p in df_rmse_nonan['id_p'].unique():
+        if plot_patient:
 
-            progbar.set_description(f'Plotting Boxplots for {measure} of {id_p}')
-            fig_box = go.Figure()
-            fig_bar = go.Figure()
-            for condition, group in df_rmse_nonan[df_rmse_nonan['id_p'] == id_p].groupby('condition'):
-                offset  = 1 if condition == 'affected' else 0
-                fig_box.add_trace(go.Box(x=group['id_s'], y=group[measure], name=condition, offsetgroup=offset))
+            for id_p in df_rmse_nonan['id_p'].unique():
 
-            for condition, group in df_rmse_nonan[df_rmse_nonan['id_p'] == id_p].groupby('condition'):
-                fig_bar.add_trace(go.Bar(x=group['id_s'], y=group[measure], name=condition))
+                progbar.set_description(f'Plotting Boxplots for {measure} of {id_p}')
+                fig_box = go.Figure()
+                fig_bar = go.Figure()
+                for condition, group in df_rmse_nonan[df_rmse_nonan['id_p'] == id_p].groupby('condition'):
+                    offset  = 1 if condition == 'affected' else 0
+                    fig_box.add_trace(go.Box(x=group['id_s'], y=group[measure], name=condition, offsetgroup=offset))
 
-            fig_box_error = px.box(df_error[df_error['id_p'] == id_p], x='id_s_name', y=measure, color='condition',
-                                   title=f'Error for {measure_name} of {id_p} with CAD of {cad}',
-                                   labels={'condition': 'Condition', 'id_s': 'Setting', 'value': 'Error'})
+                for condition, group in df_rmse_nonan[df_rmse_nonan['id_p'] == id_p].groupby('condition'):
+                    fig_bar.add_trace(go.Bar(x=group['id_s'], y=group[measure], name=condition))
 
-            # add horicontal line for cad
-            if cad is not None:
-                fig_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
-                fig_bar.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
-                fig_box_error.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
-                fig_box_error.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
+                fig_box_error = px.box(df_error[df_error['id_p'] == id_p], x='id_s_name', y=measure, color='condition',
+                                       color_discrete_map={'affected': 'blue', 'unaffected': 'red'},
+                                       title=f'Error for {measure_name} of {id_p} with CAD of {cad}',
+                                       labels={'condition': 'Condition', 'id_s': 'Setting', 'value': 'Error'})
 
-            fig_box.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='RMSE')
-            fig_bar.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='RMSE')
-            fig_box_error.update_layout(title=f'Error for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='Error')
+                # add horicontal line for cad
+                if cad is not None:
+                    fig_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+                    fig_bar.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+                    fig_box_error.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
+                    fig_box_error.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
 
-            if showfig:
-                fig_box.show()
-                fig_bar.show()
-                fig_box_error.show()
+                fig_box.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='RMSE')
+                fig_bar.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='RMSE')
+                fig_box_error.update_layout(title=f'Error for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='Error')
 
-            if write_html:
-                path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.html')
-                fig_box.write_html(path)
-                path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.html')
-                fig_bar.write_html(path)
-                path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.html')
-                fig_box_error.write_html(path)
+                if showfig:
+                    fig_box.show()
+                    fig_bar.show()
+                    fig_box_error.show()
 
-            if write_svg:
-                path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.svg')
-                fig_box.write_image(path, scale=5)
-                path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.svg')
-                fig_bar.write_image(path, scale=5)
-                path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.svg')
-                fig_box_error.write_image(path, scale=5)
+                if write_html:
+                    path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.html')
+                    fig_box.write_html(path)
+                    path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.html')
+                    fig_bar.write_html(path)
+                    path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.html')
+                    fig_box_error.write_html(path)
 
-            if write_png:
-                path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.png')
-                fig_box.write_image(path, scale=5)
-                path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.png')
-                fig_bar.write_image(path, scale=5)
-                path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.png')
-                fig_box_error.write_image(path, scale=5)
+                if write_svg:
+                    path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.svg')
+                    fig_box.write_image(path, scale=5)
+                    path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.svg')
+                    fig_bar.write_image(path, scale=5)
+                    path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.svg')
+                    fig_box_error.write_image(path, scale=5)
+
+                if write_png:
+                    path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.png')
+                    fig_box.write_image(path, scale=5)
+                    path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.png')
+                    fig_bar.write_image(path, scale=5)
+                    path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.png')
+                    fig_box_error.write_image(path, scale=5)
 
         # Error
         unit = get_unit(measure)
         fig_error_box = px.box(df_error.sort_values(by='id_s'), x='id_s_name', y=measure, color='condition',
+                               color_discrete_map=color_map, category_orders={"condition": category_order},
                                title=f'<b>Error for {measure_name} with CAD of {cad}<b>',
                                labels={'condition': 'Condition', 'id_s_name': 'Setting', 'value': f'Error [{unit}]'})
 
@@ -805,7 +824,12 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, sho
             fig_error_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
             fig_error_box.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
 
-        fig_error_box.update_layout(title=f'<b>Error for {measure_name} with CAD of {cad}<b>', xaxis_title='Setting', yaxis_title=f'Error [{unit}]')
+        fig_error_box.update_layout(title=f'<b>Error for {measure_name} with CAD of {cad} {unit}<b>',
+                                    xaxis_title='<b>Setting<b>',
+                                    yaxis_title=f'<b>Error [{unit}]<b>')
+
+        if cap_yaxis:
+            fig_error_box.update_yaxes(range=[min(0, df_error[measure].min()), min(5000, df_error[measure].max())])
 
         if showfig:
             fig_error_box.show()
@@ -1968,12 +1992,12 @@ if __name__ == "__main__":
     calib_plots_dst = os.path.join(root_stat, '05_calibration')
     calibration_boxplot(csv_calib_errors, calib_plots_dst, verbose=1, show_fig=False)
 
-    plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)
+    plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)"""
 
     for corr in [False]:
-        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=True, write_png=True, outlier_corrected=corr)"""
+        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=False, write_png=True, outlier_corrected=corr)
 
-    """plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)"""
+    """plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)
 
     csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
@@ -2002,8 +2026,8 @@ if __name__ == "__main__":
         id_p = df_plottable['id_p'][i]
         id_t = df_plottable['id_t'][i]
 
-        """generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
-                                      showfig = False, write_html=False, write_svg=True)"""
+        generate_plots_for_timeseries(root_val, id_p_in = id_p, id_t_in = id_t, dynamic=dynamic,
+                                      showfig = False, write_html=False, write_svg=True)
 
 
         for kinematic in kinematics:
@@ -2011,7 +2035,7 @@ if __name__ == "__main__":
                                                        dynamic=dynamic_str,
                                                        write_html=False, write_svg=True, write_png=True,
                                                        show_plots=False)
-            pass
+            pass"""
 
 
 
