@@ -442,10 +442,7 @@ class MurphyMeasures:
         """
         Calculate the trunk displacement in mm.
         """
-
-        id_start, id_end = self.get_phase_ids("reaching", 'returning')
-        displacement = self.trunk_displacement[id_start:id_end]
-        max_displacement_mm = np.max(displacement)*1000
+        max_displacement_mm = np.max(self.trunk_displacement)
 
         return round(max_displacement_mm, 4)
 
@@ -835,6 +832,9 @@ class MurphyMeasures:
 
             return np.sqrt(np.sum(np.array([axis ** 2 for axis in data]), axis=0))
 
+        _, df = self.read_file(self.path_bodyparts_vel)
+        self.time = df['time'].values
+
         # set values for filtering
         if self.filt_fps is None:
             self.filt_fps = round(len(self.time)/self.time[-1])
@@ -851,11 +851,6 @@ class MurphyMeasures:
         if self.filt_order_vel is None:
             self.filt_order_vel = 4
 
-
-
-        _, df = self.read_file(self.path_bodyparts_vel)
-        self.time = df['time'].values
-
         # Get hand velocity in mm/s
         hand_vel = [df[f'hand_{self.side.lower()}_{axis}'].values for axis in ['x', 'y', 'z']]
         hand_vel = magnitude(hand_vel)
@@ -866,13 +861,14 @@ class MurphyMeasures:
                                                     order=self.filt_order_vel, normcutoff=False) * 1000
 
         # Get trunk displacement in mm
+        start_id, end_id = self.get_phase_ids("reaching", "returning")
         _, df = self.read_file(self.path_trunk_pos, standardize=False)
         trunk_pos = [df[f'chest_{axis}'].values for axis in ['x', 'y', 'z']]
         trunk_pos = self.use_butterworth_filter(trunk_pos,
                                                 cutoff=self.filt_cutoff_pos, fs=self.filt_fps,
                                                 order=self.filt_order_pos, normcutoff=False).transpose()
 
-        self.trunk_displacement = np.linalg.norm(trunk_pos[0] - trunk_pos, axis=1) * 1000
+        self.trunk_displacement = np.linalg.norm(trunk_pos[start_id] - trunk_pos, axis=1) * 1000
 
         _, df = self.read_file(self.path_bodyparts_pos)
         trunk_ang =[df[f'torso_{axis}'].values for axis in ['ox', 'oy', 'oz']]

@@ -20,7 +20,7 @@ from plotly.subplots import make_subplots
 import statsmodels.api as sm
 
 import iDrinkUtilities
-from iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name
+from iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name, get_measure_plot_num
 
 # idx_p to ignore for plotting
 ignore_id_p = []
@@ -33,11 +33,13 @@ murphy_measures = ["PeakVelocity_mms",
                    "tToFirstpeakV_rel",
                    "NumberMovementUnits",
                    "InterjointCoordination",
+                   "ElbowExtension",
+                   "ShoulderFlexionReaching",
+                   "shoulderFlexionDrinking",
+                   "shoulderAbduction",
                    "trunkDisplacementMM",
                    "trunkDisplacementDEG",
-                   "ShoulderFlexionReaching",
-                   "ElbowExtension",
-                   "shoulderAbduction"]
+                   ]
 
 rgba_mmc = '100, 149, 237'
 rgba_omc = '255, 165, 0'
@@ -102,6 +104,7 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
         """
 
         fig = go.Figure()
+        suff = get_measure_plot_num(measure)
 
         if id_p is None:
             for i_p in df['id_p'].unique():
@@ -217,6 +220,7 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
     progbar = tqdm(range(total), desc='Plotting Bland Altman', unit='Trial', disable=verbose<1)
 
     for measure in murphy_measures:
+        suff = get_measure_plot_num(measure)
         for id_s in sorted(idx_s):
             df_murphy_mmc_s = df_murphy_mmc[df_murphy_mmc['id_s'] == id_s]
 
@@ -329,12 +333,14 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                     # add cad to legend
                     fig.add_trace(go.Scatter(x=[mean_peak], y=[0], mode='lines', name='CAD', line=dict(color='red', dash='dash')))
 
-                    fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=1)
-                    fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
-                    fig.update_yaxes(title_text=f'Difference of MMC to OMC {unit}', row=1, col=1)
+                    fig.update_xaxes(title=dict(text=f'<b>Mean of {title_measure} {unit}<b>', font=dict(size=16)), row=1, col=1)
+                    fig.update_xaxes(title=dict(text=f'<b>Mean of {title_measure} {unit}<b>', font=dict(size=16)), row=1, col=2)
+                    fig.update_yaxes(title=dict(text=f'<b>Difference of MMC to OMC {unit}<b>', font=dict(size=16)), row=1, col=1)
 
-                    fig.update_layout(title=f'Averaged Timeseries for {title_measure} of setting {id_s_name} for {id_p}',
-                                      width=1200, height=600)
+                    fig.update_layout(title=dict(
+                        text=f'<b>Averaged Timeseries for {title_measure} of setting {id_s_name} for {id_p}<b>',
+                        font=dict(size=20)),
+                        width=1200, height=600)
 
                     if show_plots:
                         fig.show()
@@ -349,7 +355,7 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                         path = os.path.join(dir_out, f'{id_s}_{id_p}_{measure}_blandaltman.svg')
                         fig.write_image(path, scale=5)
                     if write_png:
-                        path = os.path.join(dir_out, f'{id_s}_{id_p}_{measure}_blandaltman.png')
+                        path = os.path.join(dir_out, f'{suff}{id_s}_{id_p}_{measure}_blandaltman.png')
                         fig.write_image(path, scale=5)
                 progbar.update(1)
 
@@ -428,11 +434,11 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                 fig.add_trace(
                     go.Scatter(x=[mean_peak], y=[0], mode='lines', name='CAD', line=dict(color='red', dash='dash')))
 
-                fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=1)
-                fig.update_xaxes(title_text=f'Mean of {title_measure} {unit}', row=1, col=2)
-                fig.update_yaxes(title_text=f'Difference of MMC from OMC {unit}', row=1, col=1)
+                fig.update_xaxes(title=dict(text=f'<b>Mean of {title_measure} {unit}<b>', font=dict(size=16)), row=1, col=1)
+                fig.update_xaxes(title=dict(text=f'<b>Mean of {title_measure} {unit}<b>',font=dict(size=16)), row=1, col=2)
+                fig.update_yaxes(title=dict(text=f'<b>Difference of MMC from OMC {unit}<b>', font=dict(size=16)), row=1, col=1)
 
-                fig.update_layout(title=f'Bland Altman for {title_measure} of {id_s_name} with a CAD of {cad} {unit}',
+                fig.update_layout(title=dict(text=f'<b>Bland Altman for {title_measure} of {id_s_name} with a CAD of {cad} {unit}<b>', font=dict(size=20)),
                                   width=1200, height=600)
 
                 if show_plots:
@@ -450,8 +456,9 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                     fig.write_image(path, scale=5)
 
                 if write_png:
-                    path = os.path.join(dir_out, f'{id_s}_{measure}_blandaltman.png')
+                    path = os.path.join(dir_out, f'{suff}{id_s}_{measure}_blandaltman.png')
                     fig.write_image(path, scale=5)
+                    pass
 
     progbar.close()
 
@@ -701,11 +708,13 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
         cad = get_cad(df_cad, measure)
         unit = get_unit(measure)
         measure_name = get_title_measure_name(measure)
+        suff = get_measure_plot_num(measure)
 
         # fig_rmse = px.box(df_rmse_nonan, x='id_s', y = measure, color='condition')
 
         fig_box_error = go.Figure()
         fig_bar = go.Figure()
+
 
         fig_box = px.box(df_rmse_nonan.sort_values(by='id_s'), x='id_s_name', y=measure, color='condition',
                          color_discrete_map=color_map, category_orders={"condition": category_order},
@@ -729,8 +738,12 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
                               yaxis_title=f'<b>RMSE {unit}<b>')
 
         if cap_yaxis:
-            fig_box.update_yaxes(range=[df_rmse_nonan[measure].min(), min(df_rmse_nonan[measure].max(), 5000)])
-            fig_bar.update_yaxes(range=[df_rmse_mean[measure].min(), min(df_rmse_mean[measure].max(), 5000)])
+            if cad is not None:
+                fig_box.update_yaxes(range=[0, min(max(df_rmse_nonan[measure].max(), cad+(cad*0.2)), 5000)])
+                fig_bar.update_yaxes(range=[0, min(max(df_rmse_mean[measure].max(), cad+(cad*0.2)), 5000)])
+            else:
+                fig_box.update_yaxes(range=[0, min(df_rmse_nonan[measure].max(), 5000)])
+                fig_bar.update_yaxes(range=[0, min(df_rmse_mean[measure].max(), 5000)])
 
         if showfig:
             fig_box.show()
@@ -749,9 +762,9 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
             fig_bar.write_image(path, scale=5)
 
         if write_png:
-            path = os.path.join(dir_out_box_rmse, f'murphy_box_{measure}_rmse{outlier_str}.png')
+            path = os.path.join(dir_out_box_rmse, f'{suff}murphy_box_{measure}_rmse{outlier_str}.png')
             fig_box.write_image(path, scale=5)
-            path = os.path.join(dir_out_bar_rmse, f'murphy_bar_{measure}_rmse{outlier_str}.png')
+            path = os.path.join(dir_out_bar_rmse, f'{suff}murphy_bar_{measure}_rmse{outlier_str}.png')
             fig_bar.write_image(path, scale=5)
 
         if plot_patient:
@@ -806,11 +819,11 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
                     fig_box_error.write_image(path, scale=5)
 
                 if write_png:
-                    path = os.path.join(dir_out_box_rmse, f'{id_p}_murphy_box_{measure}_rmse{outlier_str}.png')
+                    path = os.path.join(dir_out_box_rmse, f'{suff}{id_p}_murphy_box_{measure}_rmse{outlier_str}.png')
                     fig_box.write_image(path, scale=5)
-                    path = os.path.join(dir_out_bar_rmse, f'{id_p}_murphy_bar_{measure}_rmse{outlier_str}.png')
+                    path = os.path.join(dir_out_bar_rmse, f'{suff}{id_p}_murphy_bar_{measure}_rmse{outlier_str}.png')
                     fig_bar.write_image(path, scale=5)
-                    path = os.path.join(dir_out_box_error, f'{id_p}_murphy_box_{measure}_error{outlier_str}.png')
+                    path = os.path.join(dir_out_box_error, f'{suff}{id_p}_murphy_box_{measure}_error{outlier_str}.png')
                     fig_box_error.write_image(path, scale=5)
 
         # Error
@@ -829,7 +842,10 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
                                     yaxis_title=f'<b>Error [{unit}]<b>')
 
         if cap_yaxis:
-            fig_error_box.update_yaxes(range=[min(0, df_error[measure].min()), min(5000, df_error[measure].max())])
+            if cad is not None:
+                fig_error_box.update_yaxes(range=[min(0, max(df_error[measure].min(), -cad)), min(5000, max(df_error[measure].max(), cad+(cad*0.2)))])
+            else:
+                fig_error_box.update_yaxes(range=[min(0, df_error[measure].min()), min(5000, df_error[measure].max())])
 
         if showfig:
             fig_error_box.show()
@@ -843,7 +859,7 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
             fig_error_box.write_image(path, scale=5)
 
         if write_png:
-            path = os.path.join(dir_out_box_error, f'murphy_box_{measure}_error{outlier_str}.png')
+            path = os.path.join(dir_out_box_error, f'{suff}murphy_box_{measure}_error{outlier_str}.png')
             fig_error_box.write_image(path, scale=5)
 
 
@@ -1990,12 +2006,12 @@ if __name__ == "__main__":
 
     """csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
     calib_plots_dst = os.path.join(root_stat, '05_calibration')
-    calibration_boxplot(csv_calib_errors, calib_plots_dst, verbose=1, show_fig=False)
+    calibration_boxplot(csv_calib_errors, calib_plots_dst, verbose=1, show_fig=False)"""
 
-    plot_murphy_blandaltman(root_stat, write_html=True, write_svg=True, write_png=True, show_plots=False, verbose=1)"""
+    plot_murphy_blandaltman(root_stat, write_html=False, write_svg=False, write_png=True, show_plots=False, verbose=1)
 
     for corr in [False]:
-        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=True, write_svg=False, write_png=True, outlier_corrected=corr)
+        plot_murphy_error_rmse_box_bar_plot(root_val, write_html=False, write_svg=False, write_png=True, outlier_corrected=corr)
 
     """plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)
 

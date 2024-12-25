@@ -530,9 +530,9 @@ def get_title_measure_name(measure, add_unit = False):
         case 'tToFirstpeakV_s':
             title = 'Time to First Peak Velocity'
         case 'tTopeakV_rel':
-            title = 'Relative time to Peak Velocity relative'
+            title = 'Relative Time to Peak Velocity'
         case 'tToFirstpeakV_rel':
-            title = 'Relative time to First Peak Velocity'
+            title = 'Relative Time to First Peak Velocity'
         case 'NumberMovementUnits':
             title = 'Number of Movement Units'
         case 'InterjointCoordination':
@@ -733,6 +733,41 @@ def get_measure_short_name(measure):
             return 'arm_flex_drink'
         case _:
             return measure
+
+
+
+def get_measure_plot_num(measure):
+    '''Returns the number for the plot_suffix for overleaf'''
+
+    match measure:
+        case 'PeakVelocity_mms':
+            return '0321_'
+        case 'elbowVelocity':
+            return '0322_'
+        case 'tTopeakV_s':
+            return '0323_'
+        case 'tToFirstpeakV_s':
+            return '0324_'
+        case 'tTopeakV_rel':
+            return '0325_'
+        case 'tToFirstpeakV_rel':
+            return '0326_'
+        case 'NumberMovementUnits':
+            return '0327_'
+        case 'InterjointCoordination':
+            return '0328_'
+        case 'trunkDisplacementMM':
+            return '0329_'
+        case 'ShoulderFlexionReaching':
+            return '03210_'
+        case 'ElbowExtension':
+            return '03211_'
+        case 'shoulderAbduction':
+            return '03212_'
+        case 'shoulderFlexionDrinking':
+            return '03213_'
+        case _:
+            return ''
 
 
 if __name__ == '__main__':

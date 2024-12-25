@@ -32,11 +32,13 @@ murphy_measures = ["PeakVelocity_mms",
                    "tToFirstpeakV_rel",
                    "NumberMovementUnits",
                    "InterjointCoordination",
+                   "ElbowExtension",
+                   "ShoulderFlexionReaching",
+                   "shoulderFlexionDrinking",
+                   "shoulderAbduction",
                    "trunkDisplacementMM",
                    "trunkDisplacementDEG",
-                   "ShoulderFlexionReaching",
-                   "ElbowExtension",
-                   "shoulderAbduction"]
+                   ]
 
 ignore_id_p = ['P11', 'P19']
 idx_s_singlecam = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
@@ -286,6 +288,7 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
                   'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel', 'NumberMovementUnits',
                   'InterjointCoordination', 'trunkDisplacementMM', 'trunkDisplacementDEG', 'ShoulderFlexionReaching',
                   'ElbowExtension', 'shoulderAbduction', 'shoulderFlexionDrinking']
+
     df_murphy_omc = df_murphy[df_murphy['id_s'] == 'S15133']
     df_murphy_mmc = df_murphy[df_murphy['id_s'] != 'S15133']
 
@@ -296,7 +299,8 @@ def runs_statistics_discrete(path_csv_murphy, root_stat,
     if outlier_iqr:
         mask_iqr, df_murphy_mmc = detect_outliers_iqr(df_murphy_mmc, cols_error)
     else:
-        df_murphy_mmc = df_murphy_mmc[(np.abs(zscore(df_murphy_mmc[cols_error])) < 3).all(axis=1)].reindex()
+        # If after z_score Nan values are present, they are replaced by z0 to have no influence on the outcome
+        df_murphy_mmc = df_murphy_mmc[(np.abs(zscore(df_murphy_mmc[cols_error]).fillna(0)) < 3).all(axis=1)].reindex()
         df_murphy_omc = df_murphy_omc[(np.abs(zscore(df_murphy_omc[cols_error])) < 3).all(axis=1)].reindex()
 
     df_murphy = pd.concat([df_murphy_omc, df_murphy_mmc])
@@ -2692,7 +2696,7 @@ if __name__ == '__main__':
     else:
 
         runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
-                                 thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None, reduced_analysis=True, outlier_iqr=False)
+                                 thresh_PeakVelocity_mms=None, thresh_elbowVelocity=None, reduced_analysis=False, outlier_iqr=False)
 
         """runs_statistics_discrete(path_csv_murphy_measures, root_stat, make_plots=True,
                                  thresh_PeakVelocity_mms=hand_vel_thresh, thresh_elbowVelocity=thresh_elbowVelocity)"""
