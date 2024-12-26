@@ -19,6 +19,8 @@ from plotly.subplots import make_subplots
 
 import statsmodels.api as sm
 
+from scipy.stats import pearsonr, zscore
+
 import iDrinkUtilities
 from iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name, get_measure_plot_num
 
@@ -202,6 +204,15 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
     df_murphy_omc = df_murphy[df_murphy['id_s'] == id_s_omc]
 
     df_murphy_mmc = df_murphy[df_murphy['id_s'] != id_s_omc]
+
+    cols_error = ['TotalMovementTime', 'PeakVelocity_mms', 'elbowVelocity', 'tTopeakV_s',
+                  'tToFirstpeakV_s', 'tTopeakV_rel', 'tToFirstpeakV_rel', 'NumberMovementUnits',
+                  'InterjointCoordination', 'trunkDisplacementMM', 'trunkDisplacementDEG', 'ShoulderFlexionReaching',
+                  'ElbowExtension', 'shoulderAbduction', 'shoulderFlexionDrinking']
+
+    df_murphy_mmc = df_murphy_mmc[(np.abs(zscore(df_murphy_mmc[cols_error]).fillna(0)) < 3).all(axis=1)].reindex()
+    df_murphy_omc = df_murphy_omc[(np.abs(zscore(df_murphy_omc[cols_error])) < 3).all(axis=1)].reindex()
+
     idx_s_murph_mmc = sorted(df_murphy_mmc['id_s'].unique())
 
     # Use only id_s that are also in
@@ -831,7 +842,7 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
         fig_error_box = px.box(df_error.sort_values(by='id_s'), x='id_s_name', y=measure, color='condition',
                                color_discrete_map=color_map, category_orders={"condition": category_order},
                                title=f'<b>Error for {measure_name} with CAD of {cad}<b>',
-                               labels={'condition': 'Condition', 'id_s_name': 'Setting', 'value': f'Error [{unit}]'})
+                               labels={'condition': 'Condition', 'id_s_name': 'Setting', 'value': f'Error {unit}'})
 
         if cad is not None:
             fig_error_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
@@ -839,11 +850,11 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
 
         fig_error_box.update_layout(title=f'<b>Error for {measure_name} with CAD of {cad} {unit}<b>',
                                     xaxis_title='<b>Setting<b>',
-                                    yaxis_title=f'<b>Error [{unit}]<b>')
+                                    yaxis_title=f'<b>Error {unit}<b>')
 
         if cap_yaxis:
             if cad is not None:
-                fig_error_box.update_yaxes(range=[min(0, max(df_error[measure].min(), -cad)), min(5000, max(df_error[measure].max(), cad+(cad*0.2)))])
+                fig_error_box.update_yaxes(range=[min(0, min(df_error[measure].min(), -cad-(cad*0.2))), min(5000, max(df_error[measure].max(), cad+(cad*0.2)))])
             else:
                 fig_error_box.update_yaxes(range=[min(0, df_error[measure].min()), min(5000, df_error[measure].max())])
 
@@ -861,9 +872,6 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
         if write_png:
             path = os.path.join(dir_out_box_error, f'{suff}murphy_box_{measure}_error{outlier_str}.png')
             fig_error_box.write_image(path, scale=5)
-
-
-
 
         progbar.update(1)
 
