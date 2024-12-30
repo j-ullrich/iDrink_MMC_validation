@@ -419,13 +419,16 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                 std_unaff = np.std(df_unaff_s['mmc'] - df_unaff_s['omc'])
                 std_aff = np.std(df_aff_s['mmc'] - df_aff_s['omc'])
 
+                mean_unaff = np.mean(df_unaff_s['mmc'] - df_unaff_s['omc'])
+                mean_aff = np.mean(df_aff_s['mmc'] - df_aff_s['omc'])
+
                 sd = 1.96
 
-                upper_limit_unaff = + sd * std_unaff
-                lower_limit_unaff = - sd * std_unaff
+                upper_limit_unaff = mean_unaff + sd * std_unaff
+                lower_limit_unaff = mean_unaff - sd * std_unaff
 
-                upper_limit_aff = + sd * std_aff
-                lower_limit_aff = - sd * std_aff
+                upper_limit_aff = mean_aff + sd * std_aff
+                lower_limit_aff = mean_aff - sd * std_aff
 
                 fig.add_hline(y=upper_limit_unaff, line_dash='dash', line_color='orange', name=f'Upper Limit ({sd} SD)',
                               row=1, col=1)
@@ -449,7 +452,7 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                 fig.update_xaxes(title=dict(text=f'<b>Mean of {title_measure} {unit}<b>',font=dict(size=16)), row=1, col=2)
                 fig.update_yaxes(title=dict(text=f'<b>Difference of MMC from OMC {unit}<b>', font=dict(size=16)), row=1, col=1)
 
-                fig.update_layout(title=dict(text=f'<b>Bland Altman for {title_measure} of {id_s_name} with a CAD of {cad} {unit}<b>', font=dict(size=20)),
+                fig.update_layout(title=dict(text=f'<b>Bland Altman for {title_measure} of {id_s_name} <br>CAD = {cad} {unit}<b>', font=dict(size=20)),
                                   width=1200, height=600)
 
                 if show_plots:
@@ -470,6 +473,12 @@ def plot_murphy_blandaltman(root_stat, write_html=False, write_svg=True, show_pl
                     path = os.path.join(dir_out, f'{suff}{id_s}_{measure}_blandaltman.png')
                     fig.write_image(path, scale=5)
                     pass
+
+                if measure == 'PeakVelocity_mms':
+                    fig.update_yaxes(range=[-400, 400])
+                    fig.update_xaxes(range=[-50, 1600])
+                    path = os.path.join(dir_out, f'{suff}{id_s}_{measure}_blandaltman_zoomed.png')
+                    fig.write_image(path, scale=5)
 
     progbar.close()
 
@@ -741,12 +750,12 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
             fig_bar.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
 
 
-        fig_box.update_layout(title=f'<b>RMSE for {measure_name} with CAD of {cad} {unit}<b>',
-                              xaxis_title='<b>Setting<b>',
-                              yaxis_title=f'<b>RMSE {unit}<b>')
-        fig_bar.update_layout(title=f'<b>mean RMSE for {measure_name} with CAD of {cad} {unit}<b>',
-                              xaxis_title='<b>Setting<b>',
-                              yaxis_title=f'<b>RMSE {unit}<b>')
+        fig_box.update_layout(title=dict(text=f'<b>RMSE for {measure_name} <br>CAD = {cad} {unit}<b>', font=dict(size=20)),
+                              xaxis_title=dict(text='<b>Setting<b>', font=dict(size=16)),
+                              yaxis_title=dict(text=f'<b>RMSE {unit}<b>', font=dict(size=16)))
+        fig_bar.update_layout(title=dict(text=f'<b>mean RMSE for {measure_name} <br>CAD = {cad} {unit}<b>', font=dict(size=20)),
+                              xaxis_title=dict(text='<b>Setting<b>', font=dict(size=16)),
+                              yaxis_title=dict(text=f'<b>RMSE {unit}<b>', font=dict(size=16)))
 
         if cap_yaxis:
             if cad is not None:
@@ -804,9 +813,14 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
                     fig_box_error.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
                     fig_box_error.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
 
-                fig_box.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='RMSE')
+                fig_box.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}',
+                                      xaxis_title='Setting',
+                                      yaxis_title='RMSE')
+
+
                 fig_bar.update_layout(title=f'RMSE for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='RMSE')
                 fig_box_error.update_layout(title=f'Error for {measure_name} of {id_p} with CAD of {cad}', xaxis_title='Setting', yaxis_title='Error')
+
 
                 if showfig:
                     fig_box.show()
@@ -848,9 +862,9 @@ def plot_murphy_error_rmse_box_bar_plot(dir_root, outlier_corrected = False, cap
             fig_error_box.add_hline(y=cad, line_dash='dash', line_color='red', name='CAD')
             fig_error_box.add_hline(y=-cad, line_dash='dash', line_color='red', name='CAD')
 
-        fig_error_box.update_layout(title=f'<b>Error for {measure_name} with CAD of {cad} {unit}<b>',
-                                    xaxis_title='<b>Setting<b>',
-                                    yaxis_title=f'<b>Error {unit}<b>')
+        fig_error_box.update_layout(title=dict(text=f'<b>Error for {measure_name} <br>CAD = {cad} {unit}<b>', font = dict(size=20)),
+                                    xaxis_title=dict(text='<b>Setting<b>', font=dict(size=16)),
+                                    yaxis_title=dict(text=f'<b>Error {unit}<b>', font=dict(size=16)))
 
         if cap_yaxis:
             if cad is not None:
@@ -1337,9 +1351,10 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                            line=dict(color=f'rgba({rgba_omc}, 0.4)'), showlegend=False))
 
             id_s_name = get_setting_axis_name(id_s)
-            fig.update_layout(title=f'Averaged Timeseries for {kinematic_name} <br>of {id_s_name} for {id_p} - {side} - {affected}',
-                              xaxis_title='Normalized Time',
-                              yaxis_title=f'{kinematic_name} [{unit}]', )
+            fig.update_layout(title=dict(text=f'<b>Averaged Timeseries for {kinematic_name} <br>of {id_s_name} for {id_p} - {side} - {affected}<b>', font = dict(size=20),
+                                         y=0.95, yanchor='top'),
+                              xaxis_title=dict(text='Normalized Time', font = dict(size=16)),
+                              yaxis_title=dict(text=f'{kinematic_name} [{unit}]', font = dict(size=16)))
 
             if fig_show:
                 fig.show()
@@ -1410,13 +1425,13 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                 fig.add_trace(fig_aff.data[i], row=1, col=2)
 
             id_s_name = get_setting_axis_name(id_s)
-            fig.update_layout(title=dict(text= f'Averaged Timeseries for {kinematic_name} <br>of {id_s_name} and {id_p}', font = dict(size=24),
+            fig.update_layout(title=dict(text= f'<b>Averaged Timeseries for {kinematic_name} <br>of {id_s_name} and {id_p}<b>', font = dict(size=24),
                                          y=0.95, yanchor='top'),
                               xaxis_title=dict(text= 'Normalized Time', font = dict(size=18)),
-                              yaxis_title=dict(text= f'{kinematic_name} [{unit}]'), font = dict(size=15))
+                              yaxis_title=dict(text= f'{kinematic_name} [{unit}]'), font = dict(size=20))
 
-            fig.update_xaxes(title_text='Normalized Time', row=1, col=1)
-            fig.update_xaxes(title_text='Normalized Time', row=1, col=2)
+            fig.update_xaxes(title=dict(text='Normalized Time', font = dict(size=20)), row=1, col=1)
+            fig.update_xaxes(title=dict(text='Normalized Time', font = dict(size=20)), row=1, col=2)
 
 
 
@@ -1597,8 +1612,10 @@ def calibration_boxplot(csv_calib_errors, dir_dst, verbose=1, show_fig=False):
                  title=f'Calibration Errors for camera setups',
                  hover_name='id_p')
 
-    fig.update_layout(xaxis_title = 'Camera Setup',
-                      yaxis_title = 'Reprojection Error')
+    fig.update_layout(title = dict(text='<b>Calibration Errors for camera setups<b>', font=dict(size=20)),
+                      xaxis_title = dict(text='Camera Setup', font=dict(size=18)),
+                      yaxis_title = dict(text='Reprojection Error', font=dict(size=18))
+                      )
     fig.update(layout_showlegend=False)
 
     if show_fig:
@@ -2014,14 +2031,14 @@ if __name__ == "__main__":
 
     """csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
     calib_plots_dst = os.path.join(root_stat, '05_calibration')
-    calibration_boxplot(csv_calib_errors, calib_plots_dst, verbose=1, show_fig=False)"""
+    calibration_boxplot(csv_calib_errors, calib_plots_dst, verbose=1, show_fig=False)
 
-    plot_murphy_blandaltman(root_stat, write_html=False, write_svg=False, write_png=True, show_plots=False, verbose=1)
+    plot_murphy_blandaltman(root_stat, write_html=False, write_svg=False, write_png=True, show_plots=False, verbose=1)"""
 
-    for corr in [False]:
+    """for corr in [False]:
         plot_murphy_error_rmse_box_bar_plot(root_val, write_html=False, write_svg=False, write_png=True, outlier_corrected=corr)
 
-    """plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)
+    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)"""
 
     csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
@@ -2035,7 +2052,7 @@ if __name__ == "__main__":
         progbar_tuple.update(1)
     progbar_tuple.close()
 
-    df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='unaffected', verbose=1)
+    """df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='unaffected', verbose=1)
 
     kinematics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos',
                   'shoulder_abduction_pos']

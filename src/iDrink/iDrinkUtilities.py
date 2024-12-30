@@ -546,7 +546,7 @@ def get_title_measure_name(measure, add_unit = False):
         case 'ElbowExtension':
             title = 'Maximum Elbow Extension Reaching'
         case 'shoulderAbduction':
-            title = 'Maximum Shoulder Abduction Reaching'
+            title = 'Maximum Shoulder Abduction Drinking'
         case 'shoulderFlexionDrinking':
             title = 'Shoulder Flexion Drinking'
         case 'hand_vel' | 'Hand Velocity [mm/s]':

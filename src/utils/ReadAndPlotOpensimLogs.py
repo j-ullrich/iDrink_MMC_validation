@@ -390,10 +390,10 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
             setting_name = 'OMC-data' if id_s == 'S15133' else id_s_name
 
             if log_y:
-                title = f"log({legendnames_for_column_names[column]}) for {id_s_name}"
+                title = f"<b>log({legendnames_for_column_names[column]}) for {id_s_name}<b>"
 
             else:
-                title = f"{legendnames_for_column_names[column]} for {id_s_name}"
+                title = f"<b>{legendnames_for_column_names[column]} for {id_s_name}<b>"
 
             fig = px.box(df, x='id_p', y=column, title=title, log_y=log_y)
 
@@ -404,9 +404,9 @@ def plot_means(dir_opensim_logs, dir_plots, id_s, plot_patients=False, plot_sett
                 fig.add_hline(y=0.02, line_width=1, line_dash='dash', line_color='orange')
 
 
-            fig.update_layout(title=dict(text=title, font=dict(size=28)),
-                              xaxis_title=dict(text=f'Participants', font=dict(size=24)),
-                              yaxis_title=dict(text=f'{legendnames_for_column_names[column]} (m)', font=dict(size=24)),
+            fig.update_layout(title=dict(text=title, font=dict(size=20)),
+                              xaxis_title=dict(text=f'Participants', font=dict(size=16)),
+                              yaxis_title=dict(text=f'{legendnames_for_column_names[column]} (m)', font=dict(size=16)),
                               )
 
             if showfig:
