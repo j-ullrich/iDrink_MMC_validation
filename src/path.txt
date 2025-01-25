@@ -1,0 +1,5 @@
+# Lines starting with '#' mark a comment.
+
+root_iDrink;D:\iDrink
+root_MMC;D:\iDrink\Delta
+root_OMC;D:\iDrink\OMC_data_newStruct

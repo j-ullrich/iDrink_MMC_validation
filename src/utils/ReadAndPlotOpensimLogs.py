@@ -519,12 +519,13 @@ def plot_individual_trial(dir_opensim_logs, dir_plots, id_s, showfig=False):
 
 if __name__ == '__main__':
 
-    drive = iDrinkUtilities.get_drivepath()
-    dir_opensim_logs = os.path.join(drive, 'iDrink', "validation_root", "05_logs", 'opensim')
+    root_iDrink, root_MMC, root_OMC = iDrinkUtilities.get_paths_from_textfile()
+
+    dir_opensim_logs = os.path.join(root_iDrink, "validation_root", "05_logs", 'opensim')
 
     dir_plots = os.path.join(dir_opensim_logs, 'plots')
-    dir_opensim_results = os.path.join(drive, 'iDrink', "validation_root", '04_statistics', '03_opensim', '01_results')
-    dir_plots = os.path.join(drive, 'iDrink', "validation_root", '04_statistics', '03_opensim', '02_plots')
+    dir_opensim_results = os.path.join(root_iDrink, "validation_root", '04_statistics', '03_opensim', '01_results')
+    dir_plots = os.path.join(root_iDrink, "validation_root", '04_statistics', '03_opensim', '02_plots')
 
     for dir in [dir_plots, dir_opensim_results]:
         os.makedirs(dir, exist_ok=True)

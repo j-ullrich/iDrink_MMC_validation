@@ -58,11 +58,8 @@ parser.add_argument('--verbose', metavar='v', type=int, default=1,
 parser.add_argument('--DEBUG', action='store_true', default=False,
                     help='Debug mode')
 
-drive = iDrinkUtilities.get_drivepath()
+root_iDrink, root_MMC, root_OMC = iDrinkUtilities.get_paths_from_textfile()
 
-root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
-root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
-root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
 root_HPE = os.path.join(root_val, "02_pose_estimation")  # Root directory of all Pose Estimation Data
@@ -71,7 +68,7 @@ root_stat = os.path.join(root_val, '04_Statistics')
 root_logs = os.path.join(root_val, "05_logs")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 metrabs_models_dir = os.path.join(root_val, "06_metrabs_models")  # Directory containing the Metrabs Models
 
-for dir in [root_MMC, root_OMC, root_val, default_dir, root_HPE, root_data, root_stat, root_logs, metrabs_models_dir]:
+for dir in [root_MMC, root_OMC, root_val, default_dir, root_HPE, root_data, root_stat, root_logs]:
     if not os.path.isdir(dir):
         os.makedirs(dir, exist_ok=True)
 
@@ -1023,8 +1020,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.DEBUG or sys.gettrace() is not None:
-        print("Debug Mode is activated\n"
-              "Starting debugging script.")
+        print("Debug Mode is activated\n")
 
     modes = {1: "calibration",
              2: "pose_estimation",

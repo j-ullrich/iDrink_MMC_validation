@@ -499,24 +499,6 @@ def get_valid_trials(csv_murphy):
         valid_trials.append(f"{id_p}*T{id_t}")
     return valid_trials
 
-def get_drivepath():
-    """
-    Returns the drive path based on the machine the code is run on.
-    :return:
-    """
-    import platform
-    drives = ['C:', 'D:', 'E:', 'I:']
-
-    # Get drive based on machines validation is run on
-    match platform.uname().node:
-        case 'DESKTOP-N3R93K5':
-            drive = drives[1] + '\\'
-        case 'DESKTOP-0GLASVD':
-            drive = drives[2] + '\\'
-        case _:  # Default case
-            drive = drives[3] + '\\'
-
-    return drive
 
 def get_title_measure_name(measure, add_unit = False):
     """returns a string based on the murphy measure for a figure_title"""
@@ -768,6 +750,70 @@ def get_measure_plot_num(measure):
             return '03213_'
         case _:
             return ''
+
+
+def get_drivepath():
+    """
+    Returns the drive path based on the machine the code is run on.
+
+    I added this function because the code was meant to run on multiple machines.
+
+    Use the command platform.uname() to get your machines name and add it to the match statement.
+
+    :return:
+    """
+    import platform
+    drives = ['C:', 'D:', 'E:', 'I:']
+
+    # Get drive based on machines validation is run on
+    match platform.uname().node:
+        case 'DESKTOP-N3R93K5':
+            drive = drives[1] + '\\'
+        case 'DESKTOP-0GLASVD':
+            drive = drives[2] + '\\'
+        case _:  # Default case
+            drive = drives[3] + '\\'
+
+    return drive
+
+
+def get_paths_from_textfile():
+    """
+    Reads text file containing paths for iDrink directory, MMC directory and OMC directory.
+
+    If any of these 3 paths are not found, a FileNotFoundError is raised.
+    """
+
+    paths_txt = os.path.realpath(os.path.join(os.path.dirname(__file__), 'path.txt'))
+
+    # Set all paths None that are meant to be in text-file
+    root_iDrink = None
+    root_MMC = None
+    root_OMC = None
+
+    if os.path.isfile(paths_txt):
+        with open(paths_txt, 'r') as file:
+            lines = file.readlines()
+
+        for line in lines:
+            if line.startswith('#'):
+                print(line)
+            elif line.startswith('\n'):
+                continue
+            elif line.startswith('root_iDrink'):
+                root_iDrink = line.split(';')[1].strip()  # Root directory of all iDrink Data
+            elif line.startswith('root_MMC'):
+                root_MMC = line.split(';')[
+                    1].strip()  # Root directory of all MMC-Data --> Videos and Openpose json files
+            elif line.startswith('root_OMC'):
+                root_OMC = line.split(';')[1].strip()  # Root directory of all OMC-Data --> trc of trials.
+            else:
+                raise ValueError(f"Unknown line in path.txt: {line}")
+
+    if any([not root_iDrink, not root_MMC, not root_OMC]):
+        raise FileNotFoundError("Path.txt does not contain all necessary paths.")
+
+    return root_iDrink, root_MMC, root_OMC
 
 
 if __name__ == '__main__':

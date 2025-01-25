@@ -1244,7 +1244,7 @@ def plot_timeseries_barplot_error_rmse(root_val):
         identifier
 
 def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False,
-                             write_html=False, write_svg=True, write_png=True,
+                             write_html=False, write_svg=False, write_png=True,
                              verbose = 1):
     """
     Plots averaged timeseries of all trials for a given setting and participant.
@@ -1425,13 +1425,13 @@ def plot_timeseries_averaged(root_val, id_s, id_p, dynamic=False, fig_show=False
                 fig.add_trace(fig_aff.data[i], row=1, col=2)
 
             id_s_name = get_setting_axis_name(id_s)
-            fig.update_layout(title=dict(text= f'<b>Averaged Timeseries for {kinematic_name} <br>of {id_s_name} and {id_p}<b>', font = dict(size=24),
+            fig.update_layout(title=dict(text= f'<b>Averaged Timeseries for {kinematic_name} <br>of {id_s_name} and {id_p}<b>', font = dict(size=20),
                                          y=0.95, yanchor='top'),
                               xaxis_title=dict(text= 'Normalized Time', font = dict(size=18)),
-                              yaxis_title=dict(text= f'{kinematic_name} [{unit}]'), font = dict(size=20))
+                              yaxis_title=dict(text= f'{kinematic_name} [{unit}]'), font = dict(size=18))
 
-            fig.update_xaxes(title=dict(text='Normalized Time', font = dict(size=20)), row=1, col=1)
-            fig.update_xaxes(title=dict(text='Normalized Time', font = dict(size=20)), row=1, col=2)
+            fig.update_xaxes(title=dict(text='Normalized Time', font = dict(size=18)), row=1, col=1)
+            fig.update_xaxes(title=dict(text='Normalized Time', font = dict(size=18)), row=1, col=2)
 
 
 
