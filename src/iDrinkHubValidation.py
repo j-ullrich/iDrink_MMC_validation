@@ -58,7 +58,7 @@ parser.add_argument('--verbose', metavar='v', type=int, default=1,
 parser.add_argument('--DEBUG', action='store_true', default=False,
                     help='Debug mode')
 
-root_iDrink, root_MMC, root_OMC = iDrinkUtilities.get_paths_from_textfile()
+root_iDrink, root_MMC, root_OMC = iDrinkUtilities.get_paths_from_textfile(dir_path=os.path.join(os.path.dirname(__file__)))
 
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
@@ -239,7 +239,7 @@ def create_trial_objects():
             id_s = f"S{setting_id:03d}"  # get Setting ID for use as Session ID in the Pipeline
             cam_setting = df_settings.loc[df_settings["setting_id"] == setting_id, "cam_setting"].values[0]
             # Check whether Cam is used for Setting
-            cams_tuple = eval(df_settings.loc[df_settings["setting_id"] == setting_id, "cams"].values[ 0])  # Get the tuple of cams for the setting¨
+            cams_tuple = eval(df_settings.loc[df_settings["setting_id"] == setting_id, "cams"].values[0])  # Get the tuple of cams for the setting¨
 
             if type(cams_tuple) == int:
                 cams_tuple = [cams_tuple]
@@ -981,7 +981,7 @@ def run_mode(no_calib = False):
                 df_trials = run_calibrations(trial_list)
 
             case "pose_estimation":  # Runs only the Pose Estimation
-                if args.poseback == "metrabs_multi":
+                if "metrabs_multi" in args.poseback:
                     if not no_calib:
                         df_trials = run_calibrations(trial_list)
 
@@ -1034,7 +1034,7 @@ if __name__ == '__main__':
 
     args.poseback = ['metrabs_multi']
     args.verbose = 2
-    args.only_single_cam_trials = False
+    args.only_single_cam_trials = True
 
     # [patients[key] for key in [5]]
     patients = ['P07', 'P08', 'P10', 'P11', 'P12', 'P241', 'P242', 'P251', 'P252'] # still needed 251 and 252

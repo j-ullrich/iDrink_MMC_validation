@@ -49,7 +49,7 @@ from importlib_metadata import metadata
 from keras.src.utils.file_utils import exists
 from sympy.logic.algorithms.dpll import find_pure_symbol
 
-from src.iDrink.iDrinkStatisticalAnalysis import murphy_measures
+from iDrink.iDrinkStatisticalAnalysis import murphy_measures
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial

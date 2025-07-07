@@ -36,8 +36,8 @@ def prepare_opensim(self, filterflag="filt"):
         self.get_opensim_path(self.find_file(os.path.join(self.dir_trial, "pose-3d"), ".trc", flag=filterflag)))[
                               0] + ".mot"
 
-    self.opensim_scaling_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered,
-                                                          frame_range=[0, 20], as_string=True)
+    # self.opensim_scaling_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered, frame_range=[0, 20], as_string=True) # 20 frames for scaling
+    self.opensim_scaling_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=True)
     self.opensim_IK_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=True)
     self.opensim_ana_init_t = str(
         self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=False)[0])
@@ -110,7 +110,7 @@ def run_opensim_OMC(stabilize_hip=True):
                            }
             p_list_full = ["P07", "P08", "P10", "P11", "P12"]
 
-    p_list = dict_p_list[2]
+    p_list = ["P07"]
 
     if verbose >=2:
         print(f"p_list: \n"

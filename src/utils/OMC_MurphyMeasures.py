@@ -11,7 +11,7 @@ from tqdm import tqdm
 import argparse
 import pandas as pd
 
-from src.iDrink.iDrinkPoseEstimation import filt_p2s_pose
+#from src.iDrink.iDrinkPoseEstimation import filt_p2s_pose
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial, iDrinkOpenSim, iDrinkUtilities, iDrinkLog, iDrinkMurphyMeasures

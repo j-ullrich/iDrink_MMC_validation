@@ -2029,16 +2029,16 @@ if __name__ == "__main__":
 
     verbose = 1
 
-    """csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
+    csv_calib_errors = os.path.join(root_logs, 'calib_errors.csv')
     calib_plots_dst = os.path.join(root_stat, '05_calibration')
     calibration_boxplot(csv_calib_errors, calib_plots_dst, verbose=1, show_fig=False)
 
-    plot_murphy_blandaltman(root_stat, write_html=False, write_svg=False, write_png=True, show_plots=False, verbose=1)"""
+    plot_murphy_blandaltman(root_stat, write_html=False, write_svg=False, write_png=True, show_plots=False, verbose=1)
 
-    """for corr in [False]:
+    for corr in [False]:
         plot_murphy_error_rmse_box_bar_plot(root_val, write_html=False, write_svg=False, write_png=True, outlier_corrected=corr)
 
-    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)"""
+    plot_timeseries_boxplot_error_rmse(root_val, showfig=False, write_html=False, write_svg=True, write_png=True, verbose=1)
 
     csv_plottable, set_sp_tuples = write_plottable_identifier(root_val, dir_processed,
                                                to_plot='preprocessed_timeseries', verbose=1)
@@ -2052,7 +2052,7 @@ if __name__ == "__main__":
         progbar_tuple.update(1)
     progbar_tuple.close()
 
-    """df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='unaffected', verbose=1)
+    df_plottable = get_plottable_timeseries_kinematics(csv_plottable, 2, affected='unaffected', verbose=1)
 
     kinematics = ['hand_vel', 'elbow_vel', 'trunk_disp', 'trunk_ang', 'elbow_flex_pos', 'shoulder_flex_pos',
                   'shoulder_abduction_pos']
@@ -2076,7 +2076,7 @@ if __name__ == "__main__":
                                                        dynamic=dynamic_str,
                                                        write_html=False, write_svg=True, write_png=True,
                                                        show_plots=False)
-            pass"""
+            pass
 
 
 

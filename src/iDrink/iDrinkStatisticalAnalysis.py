@@ -2138,8 +2138,8 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
                 path_mmc_out = os.path.join(dir_dat_out,
                                             f'{id_s}_{id_p}_{id_t}_{condition}_{side}_{correct}_preprocessed.csv')
 
-                #df_omc.to_csv(path_omc_out, sep=';')
-                #df_mmc.to_csv(path_mmc_out, sep=';')
+                df_omc.to_csv(path_omc_out, sep=';')
+                df_mmc.to_csv(path_mmc_out, sep=';')
 
                 if verbose >= 2:
                     print(f"Preprocessed:\t{path_omc_out}\n"
@@ -2660,7 +2660,7 @@ if __name__ == '__main__':
 
     df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-    test_timeseries = True
+    test_timeseries = False
     corrections = ['fixed', 'dynamic']
 
     dir_processed = os.path.join(root_data, 'preprocessed_data')
@@ -2674,20 +2674,23 @@ if __name__ == '__main__':
         for correct in corrections:
             debug = False
 
-            """preprocess_timeseries(root_val,
+            preprocess_timeseries(root_val,
                                   downsample=True, drop_last_rows=False, detect_outliers= det_outliers,
                                   joint_vel_thresh=thresh_elbowVelocity, hand_vel_thresh=hand_vel_thresh, correct=correct, fancy_offset=False,
-                                  verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug, debug_c=50)"""
-            """dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
+                                  verbose=1, plot_debug=False, print_able=False, empty_dst=True, debug=debug, debug_c=50)
+            dir_src = '02_fully_preprocessed' if correct == 'fixed' else '03_fully_preprocessed_dynamic'
             dir_src = os.path.join(root_data, 'preprocessed_data', dir_src)
-            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)"""
+            normalize_data(dir_src=dir_src, dynamic = True if correct == 'dynamic' else False, verbose=1)
+        
+        
 
-        #get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=False, verbose=1, debug=debug)
-        """get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1)
-        get_rom_rmse_old(dir_results, overwrite_csvs=False, verbose=1)"""
+        get_error_timeseries(dir_processed = dir_processed, dir_results = dir_results, empty_dst=False, verbose=1, debug=debug)
+        get_error_mean_rmse(dir_results, overwrite_csvs=False, verbose=1)
+        get_rom_rmse_old(dir_results, overwrite_csvs=False, verbose=1)
         get_timeseries_correlations(dir_processed, dir_results, overwrite_csvs=False, verbose=1)
+        get_rom_rmse(dir_results, overwrite_csvs=False, verbose=1)
 
-        #get_rom_rmse(dir_results, overwrite_csvs=True, verbose=1)
+        
 
 
 

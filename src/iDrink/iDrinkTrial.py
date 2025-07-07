@@ -678,8 +678,9 @@ class Trial:
             self.get_opensim_path(self.find_file(os.path.join(self.dir_trial, "pose-3d"), ".trc", flag="filt")))[
                                   0] + ".mot"
 
-        self.opensim_scaling_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered,
-                                                              frame_range=[0, 1], as_string=True)
+        """self.opensim_scaling_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered,
+                                                              frame_range=[0, 1], as_string=True)"""
+        self.opensim_scaling_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=True) # Changed to use the whole recording for scaling might mitigate errors in the scaling process
         self.opensim_IK_time_range = self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=True)
         self.opensim_ana_init_t = str(
             self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=False)[0])

@@ -768,7 +768,7 @@ def get_drivepath():
     # Get drive based on machines validation is run on
     match platform.uname().node:
         case 'DESKTOP-N3R93K5':
-            drive = drives[1] + '\\'
+            drive = drives[2] + '\\'
         case 'DESKTOP-0GLASVD':
             drive = drives[2] + '\\'
         case _:  # Default case
@@ -777,14 +777,14 @@ def get_drivepath():
     return drive
 
 
-def get_paths_from_textfile():
+def get_paths_from_textfile(dir_path):
     """
     Reads text file containing paths for iDrink directory, MMC directory and OMC directory.
 
     If any of these 3 paths are not found, a FileNotFoundError is raised.
     """
 
-    paths_txt = os.path.realpath(os.path.join(os.path.dirname(__file__), 'path.txt'))
+    paths_txt = os.path.realpath(os.path.join(dir_path, 'path.txt'))
 
     # Set all paths None that are meant to be in text-file
     root_iDrink = None
@@ -811,7 +811,7 @@ def get_paths_from_textfile():
                 raise ValueError(f"Unknown line in path.txt: {line}")
 
     if any([not root_iDrink, not root_MMC, not root_OMC]):
-        raise FileNotFoundError("Path.txt does not contain all necessary paths.")
+        raise FileNotFoundError("path.txt does not contain all necessary paths.")
 
     return root_iDrink, root_MMC, root_OMC
 

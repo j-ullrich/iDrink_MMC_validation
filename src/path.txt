@@ -1,5 +1,5 @@
 # Lines starting with '#' mark a comment.
 
-root_iDrink;D:\iDrink
-root_MMC;D:\iDrink\Delta
-root_OMC;D:\iDrink\OMC_data_newStruct
+root_iDrink;E:\iDrink
+root_MMC;E:\iDrink\Delta\data_newStruc
+root_OMC;E:\iDrink\OMC_data_newStruct
