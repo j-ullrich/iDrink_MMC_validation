@@ -3,7 +3,7 @@
 root_iDrink = "/data/iDrink"
 # root_MMC defaults to <root_iDrink>/Delta/data_newStruc
 # root_OMC defaults to <root_iDrink>/OMC_data_newStruct
-# mmpose_config_dir = "/path/to/mmpose/configs"
+mmpose_config_dir = "/path/to/mmpose/configs"  # only for MMPose
 
 [run]
 patients = ["P07", "P08", "P10", "P11", "P12", "P241", "P242", "P251", "P252"]

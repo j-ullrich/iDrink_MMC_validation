@@ -406,7 +406,12 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
 
 
 if __name__ == '__main__':
-    paths = glob.glob(os.path.join(r"I:\iDrink\validation_root\03_data\OMC_new\S15133", '*', '*', 'movement_analysis', 'ik_tool', '*_Kinematics_pos.csv'))
+    try:
+        from iDrink import iDrinkConfig
+    except ImportError:
+        import iDrinkConfig
+    root_data = iDrinkConfig.load_config().root_data
+    paths = glob.glob(os.path.join(root_data, "OMC_new", "S15133", '*', '*', 'movement_analysis', 'ik_tool', '*_Kinematics_pos.csv'))
 
     progress = tqdm(total=len(paths), desc="Calculating Joint Velocity and Acceleration", unit="Trial")
     for path in paths:

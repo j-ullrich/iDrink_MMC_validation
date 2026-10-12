@@ -20,6 +20,15 @@ from mmpose.visualization import Pose3dLocalVisualizer, PoseLocalVisualizer
 
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
 from iDrink.iDrinkUtilities import pack_as_zip
+from iDrink import iDrinkConfig
+
+
+def _mmpose_config_dir():
+    """Directory of the mmpose configs, set as mmpose_config_dir in config.toml."""
+    d = iDrinkConfig.load_config().mmpose_config_dir
+    if d is None:
+        raise FileNotFoundError("mmpose_config_dir is not set in config.toml (path to the 'configs' folder of mmpose).")
+    return str(d)
 
 import queue
 import threading
@@ -527,7 +536,7 @@ def main():
                    'hair drier', 'toothbrush']
 
     #############  POSE2D MODEL  ################
-    model_cfg = r"C:\Users\johan\OneDrive\Dokumente\Studium\LLUI_Praktikum\05 iDrink\mmpose\configs\body_2d_keypoint\topdown_heatmap\coco\td-hm_hrnet-w48_8xb32-210e_coco-256x192.py"
+    model_cfg = os.path.join(_mmpose_config_dir(), "body_2d_keypoint", "topdown_heatmap", "coco", "td-hm_hrnet-w48_8xb32-210e_coco-256x192.py")
     ckpt = 'https://download.openmmlab.com/mmpose/v1/body_2d_keypoint/topdown_heatmap/coco/td-hm_hrnet-w48_dark-8xb32-210e_coco-256x192-e1ebdd6f_20220913.pth'
     device = 'cpu'
 
@@ -542,7 +551,7 @@ def main():
     visualizer_2d.set_dataset_meta(model_pose.dataset_meta)
 
     ############## LIFT2D3D MODEL  ################
-    model_cfg = r"C:\Users\johan\OneDrive\Dokumente\Studium\LLUI_Praktikum\05 iDrink\mmpose\configs\body_3d_keypoint\video_pose_lift\h36m\video-pose-lift_tcn-27frm-supv_8xb128-160e_h36m.py"
+    model_cfg = os.path.join(_mmpose_config_dir(), "body_3d_keypoint", "video_pose_lift", "h36m", "video-pose-lift_tcn-27frm-supv_8xb128-160e_h36m.py")
 
     ckpt = 'https://download.openmmlab.com/mmpose/body3d/videopose/videopose_h36m_27frames_fullconv_supervised-fe8fbba9_20210527.pth'
     device = 'cpu'

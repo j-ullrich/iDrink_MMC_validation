@@ -264,7 +264,11 @@ if __name__ == '__main__':
     import time
 
     #calibrate_vids_in_directory(r"I:\Delta\data_newStruc\P13\01_Measurement\04_Video\05_Calib_before")
-    root = r"D:\iDrink\Delta\data_newStruc_full"
+    try:
+        from iDrink import iDrinkConfig
+    except ImportError:
+        import iDrinkConfig
+    root = os.path.join(iDrinkConfig.load_config().root_iDrink, "Delta", "data_newStruc_full")
     d = glob.glob(os.path.join(root, "*", "01_Measurement", "04_Video", "05_Calib_before"))
 
     for directory in d:

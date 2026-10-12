@@ -147,21 +147,16 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
     from . import iDrinkTrial
     import ast
 
-    def correct_drive(path, drive):
+    from .iDrinkConfig import rebase_path
+
+    # root_data = <root_iDrink>/validation_root/03_data
+    root_iDrink = os.path.dirname(os.path.dirname(os.path.realpath(root_data)))
+
+    def local_path(path):
+        """Map paths stored in the csv (possibly written on another machine/OS) below the local root_iDrink."""
         if type(path) is list:
-            path = [correct_drive(p, drive) for p in path]
-            return path
-        if os.path.splitdrive(path)[0] != drive:
-            path = os.path.join(drive+os.path.splitdrive(path)[1])
-        return path
-
-    # get Drive in use
-    drive = os.path.splitdrive(root_data)[0]
-
-    if os.name == 'posix':
-        drive = drive + '/'
-    elif os.name == 'nt':
-        drive = drive + '\\'
+            return [local_path(p) for p in path]
+        return os.path.realpath(rebase_path(path, root_iDrink))
 
     trial_list = []
     if args.verbose >= 1:
@@ -177,36 +172,12 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
 
         pose_model = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", id_s).group()), "pose_model"].values[0]
 
-        # Drive in path
-        dir_session = os.path.realpath(correct_drive(row["dir_session"], drive))
-        dir_participant = os.path.realpath(correct_drive(row["dir_participant"], drive))
-        dir_trial = os.path.realpath(correct_drive(row["dir_trial"], drive))
-        video_files = [os.path.realpath(file) for file in correct_drive(ast.literal_eval(row["video_files"]), drive)]
-        dir_calib = os.path.realpath(correct_drive(row["dir_calib"], drive))
-        dir_calib_videos = os.path.realpath(correct_drive(row["dir_calib_videos"], drive))
-
-        # Convert paths from Windows to Linux or vice versa
-        if os.name == 'posix' and '\\' in dir_trial:
-            # Replace backslashes with forward slashes
-            base = root_data.split('iDrink')[0]
-
-            dir_trial = os.path.join(base, 'iDrink', dir_trial.replace('\\', '/').split('iDrink/')[1])
-            dir_participant = os.path.join(base, 'iDrink', dir_participant.replace('\\', '/').split('iDrink/')[1])
-            dir_session = os.path.join(base, 'iDrink', dir_session.replace('\\', '/').split('iDrink/')[1])
-            dir_calib = os.path.join(base, 'iDrink', dir_calib.replace('\\', '/').split('iDrink/')[1])
-            dir_calib_videos = os.path.join(base, 'iDrink', dir_calib_videos.replace('\\', '/').split('iDrink/')[1])
-            video_files = [os.path.join(base, 'iDrink', video_file.replace('\\', '/').split('iDrink/')[1]) for video_file in video_files]
-        elif os.name == 'nt' and '/' in dir_trial:
-            # Replace forward slashes with backslashes
-            base = root_data.split('iDrink')[0]
-
-            dir_trial = os.path.join(base, 'iDrink', dir_trial.replace('/', '\\').split('iDrink\\')[1])
-            dir_participant = os.path.join(base, 'iDrink', dir_participant.replace('/', '\\').split('iDrink\\')[1])
-            dir_session = os.path.join(base, 'iDrink', dir_session.replace('/', '\\').split('iDrink\\')[1])
-            dir_calib = os.path.join(base, 'iDrink', dir_calib.replace('/', '\\').split('iDrink\\')[1])
-            dir_calib_videos = os.path.join(base, 'iDrink', dir_calib_videos.replace('/', '\\').split('iDrink\\')[1])
-            video_files = [os.path.join(base, 'iDrink', video_file.replace('/', '\\').split('iDrink\\')[1]) for video_file in video_files]
-
+        dir_session = local_path(row["dir_session"])
+        dir_participant = local_path(row["dir_participant"])
+        dir_trial = local_path(row["dir_trial"])
+        video_files = local_path(ast.literal_eval(row["video_files"]))
+        dir_calib = local_path(row["dir_calib"])
+        dir_calib_videos = local_path(row["dir_calib_videos"])
 
         # Create the trial object
         trial = iDrinkTrial.Trial(identifier=identifier, id_s=id_s, id_p=id_p, id_t=id_t,

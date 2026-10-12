@@ -1035,15 +1035,16 @@ if __name__ == '__main__':
     For now, the main is only for debugging the script with a hardcoded participant.
     """
     # TODO: Add argparse so file could be used standalone to get the measures when .csv file and directory is given.
-    if os.name == 'posix':  # Running on Linux
-        drive = '/media/devteam-dart/Extreme SSD'
-        root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
-    else:
-        path_phases = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_measures.csv"  # Path to the .csv file containing murphy measures
-        path_timestamps = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_timestamps.csv" # Path to the .csv file containing timestamps
-        root_data = r"I:\iDrink\validation_root\03_data"  # Root directory of all iDrink Data
-        root_data_omc = r"I:\iDrink\validation_root\03_data\OMC"
-        dir_trials = r"I:\iDrink\validation_root\03_data\OMC_old\S15133\S15133_P01" # Directory containing folders of P01
+    try:
+        from iDrink import iDrinkConfig
+    except ImportError:
+        import iDrinkConfig
+    cfg = iDrinkConfig.load_config()
+    path_phases = os.path.join(cfg.root_stat, '02_categorical', 'murphy_measures.csv')  # Path to the .csv file containing murphy measures
+    path_timestamps = os.path.join(cfg.root_stat, '02_categorical', 'murphy_timestamps.csv')  # Path to the .csv file containing timestamps
+    root_data = str(cfg.root_data)  # Root directory of all iDrink Data
+    root_data_omc = os.path.join(root_data, 'OMC')
+    dir_trials = os.path.join(root_data, 'OMC_old', 'S15133', 'S15133_P01')  # Directory containing folders of P01
 
     path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
                                      f'S15133_P01_T001_filtered.csv')

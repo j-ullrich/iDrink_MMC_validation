@@ -14,10 +14,19 @@ The project implements a pipeline that reconstructs 3D-keypoints from several vi
 ## Installation
 
 1. Create a conda environment from one of the exported files (`iDrink_env.yml`, `env1.yaml`, `env2.yml`; these are UTF-16 exports and the authoritative one is yet to be consolidated).
-2. Set the data root in `src/path.txt` (`key;value` format).
-3. Model weights (`*.pt`, e.g. `yolov8m.pt`) are no longer tracked in git; download them separately and place them in `src/` and `src/Metrabs_PoseEstimation/`.
+2. Configure the data location: set `IDRINK_ROOT` (and optionally `IDRINK_MMC`, `IDRINK_OMC`), or copy `src/config.example.toml` to `src/config.toml` and edit it. The legacy `src/path.txt` is still read as a fallback.
+3. Model weights (`*.pt`, e.g. `yolov8m.pt`) are not tracked in git; download them separately and place them in `src/` and `src/Metrabs_PoseEstimation/`.
 
 ## Usage
 
-The entry point is `src/iDrinkHubValidation.py`. Run it from `src/`. The stages are: calibration, pose estimation, triangulation, OpenSim, Murphy measures and statistics.
-Note: the stage, patients and pose backend are currently set in the `__main__` block of that file rather than on the command line.
+Run from `src/`:
+
+```
+python iDrinkHubValidation.py --stages murphy_measures --poseback metrabs_multi --patients P07,P08 --settings S027,S028
+python iDrinkHubValidation.py --stages opensim --only-single-cam --dry-run   # only list the trials
+```
+
+Stages: `calibration, pose_estimation, pose2sim, opensim, murphy_measures, statistics, full` (comma separated).
+Patients and settings default to the `[run]` section of `config.toml`, otherwise all trials are processed. See `--help` for all options.
+
+Tests: `pytest tests`

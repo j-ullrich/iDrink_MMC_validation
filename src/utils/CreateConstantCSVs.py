@@ -2,15 +2,14 @@ import pandas as pd
 import os
 import numpy as np
 
+import sys
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
+from iDrink.iDrinkUtilities import get_root_iDrink
+
 
 """Set Root Paths for Processing"""
-drives=['C:', 'D:', 'E:', 'I:']
-if os.name=='posix':  # Running on Linux
-    drive = '/media/devteam-dart/Extreme SSD'
-else:
-    drive = drives[1] + '\\'
 
-root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
+root_iDrink = get_root_iDrink()  # Root directory of all iDrink Data
 root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.

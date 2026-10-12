@@ -2640,9 +2640,8 @@ if __name__ == '__main__':
               "Starting debugging script.")
         debug=True
 
-    drive = iDrinkUtilities.get_drivepath()
 
-    root_iDrink = os.path.join(drive, 'iDrink')
+    root_iDrink = iDrinkUtilities.get_root_iDrink()
     root_val = os.path.join(root_iDrink, "validation_root")
     root_stat = os.path.join(root_val, '04_Statistics')
     root_omc = os.path.join(root_val, '03_data', 'OMC_new', 'S15133')

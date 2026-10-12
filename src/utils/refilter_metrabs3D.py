@@ -298,9 +298,8 @@ def get_unfiltered_trc_files(root_hpe, fps, cutoff, order,  remove_old_files=Fal
 
 if __name__ == '__main__':
     """Set Root Paths for Processing"""
-    drive = iDrinkUtilities.get_drivepath()
 
-    root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
+    root_iDrink = iDrinkUtilities.get_root_iDrink()  # Root directory of all iDrink Data
     root_MMC = os.path.join(root_iDrink, "Delta",
                             "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
     root_val = os.path.join(root_iDrink,
