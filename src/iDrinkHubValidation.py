@@ -11,7 +11,7 @@ from tqdm import tqdm
 import argparse
 import pandas as pd
 
-from iDrink import iDrinkTrial, iDrinkPoseEstimation, iDrinkLog, iDrinkOpenSim, iDrinkUtilities, iDrinkMurphyMeasures, iDrinkStatisticalAnalysis
+from iDrink import iDrinkConfig, iDrinkTrial, iDrinkPoseEstimation, iDrinkLog, iDrinkOpenSim, iDrinkUtilities, iDrinkMurphyMeasures, iDrinkStatisticalAnalysis
 from iDrink.iDrinkCalibration import delta_calibration_val, delta_full_calibration_val
 
 
@@ -45,57 +45,92 @@ When creating the trial objects, a csv file is created, which contains all the s
 
 """ The Folder Structure is as explained on this table: https://miro.com/app/board/uXjVKzgWI8c=/"""
 
-# Command-line interface definition 6112qg
-parser = argparse.ArgumentParser(description='Extract marker locations from C3D files and save in TRC format.')
-parser.add_argument('--mode', metavar='m', default=None,
-                    help='"pose_estimation", "pose2sim", "opensim", "murphy_measures", "statistics", or "full"')
-parser.add_argument('--poseback', metavar='hpe', type=str, default='mmpose',
-                    help='Method for Pose Estimation: "openpose", "mmpose", "pose2sim", "metrabs_multi", "all"')
-parser.add_argument('--identifier', metavar='id', type=str, default=None,
+# Command-line interface definition
+STAGES = ["calibration", "pose_estimation", "pose2sim", "opensim", "murphy_measures", "statistics", "full"]
+
+parser = argparse.ArgumentParser(description='Run the iDrink validation pipeline.')
+parser.add_argument('--stages', '--mode', dest='mode', metavar='S', default=None,
+                    help='Comma separated stages to run, any of: ' + ', '.join(STAGES))
+parser.add_argument('--poseback', '--pose-backend', dest='poseback', metavar='hpe', default='metrabs_multi',
+                    help='Comma separated Methods for Pose Estimation: "mmpose", "pose2sim", "metrabs_multi", "all"')
+parser.add_argument('--identifier', dest='single_identifier', metavar='id', default=False,
                     help='Trial identifier if only one single trial should be processed')
+parser.add_argument('--patients', default=None,
+                    help='Comma separated patient ids to process, e.g. P07,P08. Default: [run] patients of config.toml, else all.')
+parser.add_argument('--settings', default=None,
+                    help='Comma separated setting ids to process, e.g. S027,S028. Default: [run] settings of config.toml, else all.')
+parser.add_argument('--only-single-cam', dest='only_single_cam_trials', action='store_true', default=False,
+                    help='Only process trials recorded with a single camera')
+parser.add_argument('--run-again', action='store_true', default=False,
+                    help='Process trials again that are already done')
 parser.add_argument('--verbose', metavar='v', type=int, default=1,
-                    help='Verbosity level: 0, 1, 2 default: 0')
+                    help='Verbosity level: 0, 1, 2 default: 1')
+parser.add_argument('--config', default=None,
+                    help='Path to config.toml (default: IDRINK_CONFIG or src/config.toml)')
+parser.add_argument('--dry-run', action='store_true', default=False,
+                    help='Only list the trials that would be processed')
 parser.add_argument('--DEBUG', action='store_true', default=False,
                     help='Debug mode')
 
-root_iDrink, root_MMC, root_OMC = iDrinkUtilities.get_paths_from_textfile(dir_path=os.path.join(os.path.dirname(__file__)))
 
-root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
-default_dir = os.path.join(root_val, "01_default_files")  # Default Files for the iDrink Validation
-root_HPE = os.path.join(root_val, "02_pose_estimation")  # Root directory of all Pose Estimation Data
-root_data = os.path.join(root_val, "03_data")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
-root_stat = os.path.join(root_val, '04_Statistics')
-root_logs = os.path.join(root_val, "05_logs")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
-metrabs_models_dir = os.path.join(root_val, "06_metrabs_models")  # Directory containing the Metrabs Models
-
-for dir in [root_MMC, root_OMC, root_val, default_dir, root_HPE, root_data, root_stat, root_logs]:
-    if not os.path.isdir(dir):
-        os.makedirs(dir, exist_ok=True)
-
-# Prepare Logging Paths
-log_val_settings = os.path.join(root_logs, "validation_settings.csv")
-log_val_trials = os.path.join(root_logs, "validation_trials.csv")
-log_val_errors = os.path.join(root_logs, "validation_errors.csv")
-
-log_calib = os.path.join(root_logs, "calib_errors.csv")
-log_calib_full = os.path.join(root_logs, "calib_errors_full.csv")
-
-os.environ['DATA_ROOT'] = root_iDrink  # Set the DATA_ROOT Environment Variable for Metrabs
-os.environ['ROOT_DIR'] = root_iDrink # Set the ROOT_DIR Environment Variable for Metrabs
-
-# prepare statistic paths
-path_csv_murphy_timestamps = os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv')
-path_csv_murphy_measures = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
+def _csv_list(value):
+    return [v.strip() for v in value.split(',') if v.strip()] if value else None
 
 
+def prepare_args(args):
+    """Normalise the parsed arguments to the attributes the run_* functions read."""
+    args.mode = _csv_list(args.mode)
+    if args.mode is not None:
+        invalid = [m for m in args.mode if m not in STAGES]
+        if invalid:
+            parser.error(f"Unknown stage(s) {invalid}. Choose from {STAGES}")
+    args.poseback = _csv_list(args.poseback)
+    args.single_patient = _csv_list(args.patients) or (list(config.patients) or False)
+    args.single_setting = _csv_list(args.settings) or (list(config.settings) or False)
+    return args
 
-df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
 
-try:
-    df_trials = pd.read_csv(log_val_trials, sep=';')  # csv containing information for the various settings in use.
-except FileNotFoundError:
-    print("No .csv file for trials found.")
-    df_trials = None
+def setup(config_file=None):
+    """
+    Resolve paths, create the directory tree and load the settings/trials csv.
+
+    Populates the module level path variables and dataframes used by the run_* functions.
+    Formerly done at import time.
+    """
+    global root_iDrink, root_MMC, root_OMC, root_val, default_dir, root_HPE, root_data, root_stat, root_logs
+    global metrabs_models_dir, log_val_settings, log_val_trials, log_val_errors, log_calib, log_calib_full
+    global path_csv_murphy_timestamps, path_csv_murphy_measures, df_settings, df_trials, config
+
+    config = iDrinkConfig.load_config(config_file)
+    iDrinkConfig.ensure_dirs(config)
+
+    root_iDrink, root_MMC, root_OMC = str(config.root_iDrink), str(config.root_MMC), str(config.root_OMC)
+    root_val = str(config.root_val)  # Contains all the files necessary for Pose2Sim and Opensim and their Output.
+    default_dir = str(config.default_dir)  # Default Files for the iDrink Validation
+    root_HPE = str(config.root_HPE)  # Root directory of all Pose Estimation Data
+    root_data = str(config.root_data)
+    root_stat = str(config.root_stat)
+    root_logs = str(config.root_logs)
+    metrabs_models_dir = str(config.metrabs_models_dir)  # Directory containing the Metrabs Models
+
+    log_val_settings = str(config.log_val_settings)
+    log_val_trials = str(config.log_val_trials)
+    log_val_errors = str(config.log_val_errors)
+    log_calib = str(config.log_calib)
+    log_calib_full = str(config.log_calib_full)
+
+    os.environ['DATA_ROOT'] = root_iDrink  # Set the DATA_ROOT Environment Variable for Metrabs
+    os.environ['ROOT_DIR'] = root_iDrink  # Set the ROOT_DIR Environment Variable for Metrabs
+
+    path_csv_murphy_timestamps = os.path.join(root_stat, '02_categorical', 'murphy_timestamps.csv')
+    path_csv_murphy_measures = os.path.join(root_stat, '02_categorical', 'murphy_measures.csv')
+
+    df_settings = pd.read_csv(log_val_settings, sep=';')  # csv containing information for the various settings in use.
+    try:
+        df_trials = pd.read_csv(log_val_trials, sep=';')
+    except FileNotFoundError:
+        print("No .csv file for trials found.")
+        df_trials = None
 
 
 ignore_id_p = ['P11', 'P19']
@@ -1015,43 +1050,30 @@ def run_mode(no_calib = False):
                 sys.exit(1)
 
 
-if __name__ == '__main__':
-    # Parse command line arguments
-    args = parser.parse_args()
+def main(argv=None):
+    global args
+
+    args = parser.parse_args(argv)
 
     if args.DEBUG or sys.gettrace() is not None:
         print("Debug Mode is activated\n")
 
-    modes = {1: "calibration",
-             2: "pose_estimation",
-             3: "pose2sim",
-             4: "opensim",
-             5: "murphy_measures",
-             6: "statistics",
-             7: "full"}
+    setup(args.config)
+    args = prepare_args(args)
 
-    args.mode = [modes[key] for key in [5]]
+    if args.mode is None:
+        parser.error("No stage given. Use --stages, e.g. --stages murphy_measures")
 
-    args.poseback = ['metrabs_multi']
-    args.verbose = 2
-    args.only_single_cam_trials = True
+    print("Starting with Mode: ", args.mode)
+    if args.dry_run:
+        trial_list = create_trial_objects()
+        print(f"Dry run: stages {args.mode} would process {len(trial_list)} trials:")
+        for trial in trial_list:
+            print("  ", trial.identifier)
+        return
 
-    # [patients[key] for key in [5]]
-    patients = ['P07', 'P08', 'P10', 'P11', 'P12', 'P241', 'P242', 'P251', 'P252'] # still needed 251 and 252
-    args.single_patient = False
-
-    settings = ['S027', 'S028']
-    args.single_setting = False
-
-    args.single_identifier = False
-    args.run_again = False
+    run_mode(no_calib=False)
 
 
-
-
-    if args.mode is not None:
-        print("Starting with Mode: ", args.mode)
-        run_mode(no_calib=False)
-    else:
-        print("No Mode was given. Please specify a mode.")
-        sys.exit(1)
+if __name__ == '__main__':
+    main()

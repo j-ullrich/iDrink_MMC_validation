@@ -107,3 +107,7 @@ __pycache__/
 *.bkp
 *.partial
 *.pt
+
+# Local configuration
+config.toml
+src/path.txt
