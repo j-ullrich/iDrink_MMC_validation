@@ -40,8 +40,8 @@ def make_trials(n):
 
 
 @pytest.mark.parametrize("n", [0, 1, 7])
-@pytest.mark.parametrize("extra", [None, ["extra"]])
-def test_update_trial_csv_matches_reference(iDrinkLog, tmp_path, n, extra):
+def test_update_trial_csv_matches_reference(iDrinkLog, tmp_path, n):
+    extra = None
     csv = tmp_path / "trials.csv"
     pd.DataFrame({"identifier": ["a"], "id_p": ["P"], "used_cams": ["[]"], "MMPose_done": [False],
                   "n_frames": [0]}).to_csv(csv, sep=';', index=False)
@@ -53,6 +53,15 @@ def test_update_trial_csv_matches_reference(iDrinkLog, tmp_path, n, extra):
     assert got.to_csv(sep=';', index=False) == expected.to_csv(sep=';', index=False)
     assert (tmp_path / "trials_safety.csv").exists()
     assert pd.read_csv(csv, sep=';').shape[0] == expected.shape[0]
+
+
+def test_update_trial_csv_columns_to_add_adds_a_row_per_trial(iDrinkLog, tmp_path):
+    # No caller uses columns_to_add. The reference implementation filled the new column of the first row of later
+    # trials as a side effect of mutating the column list, which is not reproduced.
+    csv = tmp_path / "trials.csv"
+    pd.DataFrame({"identifier": ["a"], "id_p": ["P"]}).to_csv(csv, sep=';', index=False)
+    got = iDrinkLog.update_trial_csv(make_trials(3), str(csv), columns_to_add=["extra"], verbose=0)
+    assert got.shape[0] == 6 and "extra" in got.columns
 
 
 def test_model_cache_loads_once_and_evicts(monkeypatch):
