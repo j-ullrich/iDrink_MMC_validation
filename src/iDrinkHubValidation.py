@@ -133,32 +133,6 @@ def setup(config_file=None):
         df_trials = None
 
 
-ignore_id_p = ['P11', 'P19']
-idx_s_singlecam_full = ['S017', 'S018', 'S019', 'S020', 'S021', 'S022', 'S023', 'S024', 'S025', 'S026']
-idx_s_singlecam = ['S017', 'S018']
-idx_s_multicam = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008', 'S009', 'S010', 'S011', 'S012', 'S013', 'S014', 'S015', 'S016']
-idx_s_multicam_reduced = ['S001', 'S002']
-idx_s_reduced = idx_s_multicam_reduced + idx_s_singlecam
-idx_s_full = idx_s_multicam + idx_s_singlecam
-
-
-
-def run_full_pipeline(trial_list, mode):
-    """
-    Runs the pipeline for the given trial list.
-
-    :param trial_list:
-    :return:
-    """
-    for trial in trial_list:
-        print(f"Running Pipeline for {trial.identifier}")
-        # Pose Estimation
-        if mode == "pose_estimation":
-            print("Running Pose Estimation")
-
-
-
-
 def create_trial_objects():
     """
     Creates the trial Objects that will be use in the following Pipelines.
@@ -480,11 +454,8 @@ def run_HPE(trial_list):
     for poseback in args.poseback:
         match poseback:
             case "openpose":
-                print("Running Openpose")
-                # trial_list = create_trial_objects(mode)
-                raise NotImplementedError("Openpose is not yet implemented")
-
                 # TODO: Move Openpose Data from DataNewStruc to pose estimation data folder
+                raise NotImplementedError("Openpose is not yet implemented")
 
             case "mmpose":
                 print("Pose Estimation mode: MMPose starting.")
@@ -575,14 +546,6 @@ def run_HPE(trial_list):
 
                             # Filter json_files and packing them to .zip file
                             iDrinkPoseEstimation.filt_p2s_pose(trial, root_val, verbose=args.verbose)
-
-                            """dir_unfilt =
-                            dir_filt ="""
-
-                            unfilt_dir = os.path.realpath(
-                                os.path.join(root_val, "02_pose_estimation", "01_unfiltered"))
-                            filt_dir = os.path.realpath(
-                                os.path.join(root_val, "02_pose_estimation", "02_filtered"))
 
                             trial.config_dict['pose']['pose_model'] = trial.pose_model
 
@@ -1047,7 +1010,6 @@ def run_mode(no_calib = False):
 
             case _:  # If no mode is given
                 raise ValueError("Invalid Mode was given. Please specify a valid mode.")
-                sys.exit(1)
 
 
 def main(argv=None):

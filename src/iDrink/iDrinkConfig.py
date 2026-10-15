@@ -24,7 +24,6 @@ class Paths:
     root_iDrink: Path
     root_MMC: Path
     root_OMC: Path
-    mmpose_config_dir: Path | None = None
     patients: tuple = ()
     settings: tuple = ()
 
@@ -94,11 +93,9 @@ def load_config(config_file=None, env=None):
                                 "(see config.example.toml).")
 
     root = Path(values['root_iDrink'])
-    mmpose = values.get('mmpose_config_dir')
     return Paths(root_iDrink=root,
                  root_MMC=Path(values['root_MMC']) if values.get('root_MMC') else root / "Delta" / "data_newStruc",
                  root_OMC=Path(values['root_OMC']) if values.get('root_OMC') else root / "OMC_data_newStruct",
-                 mmpose_config_dir=Path(mmpose) if mmpose else None,
                  patients=tuple(run.get('patients', ())),
                  settings=tuple(run.get('settings', ())))
 
