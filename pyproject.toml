@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "idrink-mmc-validation"
+version = "0.1.0"
+description = "Pipeline to validate markerless motion capture (MMC) against optical motion capture for upper limb movement quality (iDrink)."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "plotly",
+    "tqdm",
+    "toml",
+    "openpyxl",
+    "statsmodels",
+]
+
+[project.optional-dependencies]
+# Heavy, hardware specific dependencies are installed separately (see README), these extras only name them.
+pose = ["torch", "torchvision", "opencv-python", "mmpose", "mmdet", "simplepyutils", "trc"]
+opensim = ["opensim"]
+test = ["pytest"]
+
+[project.scripts]
+idrink = "iDrinkHubValidation:main"
+
+[tool.setuptools]
+py-modules = ["iDrinkHubValidation"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["iDrink*", "Pose2Sim*", "Metrabs_PoseEstimation*"]
+namespaces = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

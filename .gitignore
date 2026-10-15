@@ -111,3 +111,5 @@ __pycache__/
 # Local configuration
 config.toml
 src/path.txt
+build/
+*.egg-info/

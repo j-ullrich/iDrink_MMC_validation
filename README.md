@@ -14,16 +14,17 @@ The project implements a pipeline that reconstructs 3D-keypoints from several vi
 ## Installation
 
 1. Create a conda environment from one of the exported files (`iDrink_env.yml`, `env1.yaml`, `env2.yml`; these are UTF-16 exports and the authoritative one is yet to be consolidated).
-2. Configure the data location: set `IDRINK_ROOT` (and optionally `IDRINK_MMC`, `IDRINK_OMC`), or copy `src/config.example.toml` to `src/config.toml` and edit it. The legacy `src/path.txt` is still read as a fallback.
-3. Model weights (`*.pt`, e.g. `yolov8m.pt`) are not tracked in git; download them separately and place them in `src/` and `src/Metrabs_PoseEstimation/`.
+2. Install the package in editable mode: `pip install -e .` (add `.[pose]`, `.[opensim]` for the heavy extras). This provides the `idrink` command. Running `python iDrinkHubValidation.py` from `src/` also works without installing.
+3. Configure the data location: set `IDRINK_ROOT` (and optionally `IDRINK_MMC`, `IDRINK_OMC`), or copy `src/config.example.toml` to `src/config.toml` and edit it. The legacy `src/path.txt` is still read as a fallback.
+4. Model weights (`*.pt`, e.g. `yolov8m.pt`) are not tracked in git; download them separately and place them in `src/` and `src/Metrabs_PoseEstimation/`.
 
 ## Usage
 
-Run from `src/`:
+Run `idrink` (or `python iDrinkHubValidation.py` from `src/`):
 
 ```
-python iDrinkHubValidation.py --stages murphy_measures --poseback metrabs_multi --patients P07,P08 --settings S027,S028
-python iDrinkHubValidation.py --stages opensim --only-single-cam --dry-run   # only list the trials
+idrink --stages murphy_measures --poseback metrabs_multi --patients P07,P08 --settings S027,S028
+idrink --stages opensim --only-single-cam --dry-run   # only list the trials
 ```
 
 Stages: `calibration, pose_estimation, pose2sim, opensim, murphy_measures, statistics, full` (comma separated).

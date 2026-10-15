@@ -106,8 +106,7 @@ def get_joint_velocity_acceleration(csv_pos, dir_out=None, filter_pos=True, verb
     :param dir_out:
     :return:
     """
-    sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-    from iDrinkAnalytics import use_butterworth_filter
+    from iDrink.iDrinkAnalytics import use_butterworth_filter
 
     if dir_out is None:
         dir_out = os.path.dirname(csv_pos)
@@ -406,10 +405,7 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
 
 
 if __name__ == '__main__':
-    try:
-        from iDrink import iDrinkConfig
-    except ImportError:
-        import iDrinkConfig
+    from iDrink import iDrinkConfig
     root_data = iDrinkConfig.load_config().root_data
     paths = glob.glob(os.path.join(root_data, "OMC_new", "S15133", '*', '*', 'movement_analysis', 'ik_tool', '*_Kinematics_pos.csv'))
 

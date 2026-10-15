@@ -754,19 +754,13 @@ def get_measure_plot_num(measure):
 
 def get_root_iDrink():
     """Returns root_iDrink as str. See iDrinkConfig.load_config for how it is resolved."""
-    try:
-        from iDrink import iDrinkConfig
-    except ImportError:  # iDrink directory itself is on sys.path
-        import iDrinkConfig
+    from iDrink import iDrinkConfig
     return str(iDrinkConfig.load_config().root_iDrink)
 
 
 def get_paths_from_textfile(dir_path=None):
     """Deprecated: use iDrinkConfig.load_config. Kept for old scripts. dir_path is ignored."""
-    try:
-        from iDrink import iDrinkConfig
-    except ImportError:
-        import iDrinkConfig
+    from iDrink import iDrinkConfig
     c = iDrinkConfig.load_config()
     return str(c.root_iDrink), str(c.root_MMC), str(c.root_OMC)
 

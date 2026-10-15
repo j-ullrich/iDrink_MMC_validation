@@ -21,8 +21,8 @@ import statsmodels.api as sm
 
 from scipy.stats import pearsonr, zscore
 
-import iDrinkUtilities
-from iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name, get_measure_plot_num
+from iDrink import iDrinkUtilities
+from iDrink.iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name, get_measure_plot_num
 
 # idx_p to ignore for plotting
 ignore_id_p = []
@@ -2006,7 +2006,6 @@ if __name__ == "__main__":
     id_s = 'S001'
 
     """Set Root Paths for Processing"""
-    import iDrinkUtilities
 
     root_iDrink = iDrinkUtilities.get_root_iDrink()
     root_val = os.path.join(root_iDrink, "validation_root")

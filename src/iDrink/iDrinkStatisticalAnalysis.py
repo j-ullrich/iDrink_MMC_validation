@@ -18,11 +18,10 @@ import scipy as sp
 
 from scipy.stats import pearsonr, zscore
 
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-from iDrinkOpenSim import read_opensim_file
-import iDrinkValPlots as iDrinkVP
-import iDrinkUtilities
-from iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name
+from iDrink.iDrinkOpenSim import read_opensim_file
+from iDrink import iDrinkValPlots as iDrinkVP
+from iDrink import iDrinkUtilities
+from iDrink.iDrinkUtilities import get_title_measure_name, get_unit, get_cad, get_setting_axis_name
 
 murphy_measures = ["PeakVelocity_mms",
                    "elbowVelocity",

@@ -47,11 +47,9 @@ from fuzzywuzzy import process
 
 from importlib_metadata import metadata
 from keras.src.utils.file_utils import exists
-from sympy.logic.algorithms.dpll import find_pure_symbol
 
 from iDrink.iDrinkStatisticalAnalysis import murphy_measures
 
-sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial
 
 col_measures = ["identifier",
@@ -1035,10 +1033,7 @@ if __name__ == '__main__':
     For now, the main is only for debugging the script with a hardcoded participant.
     """
     # TODO: Add argparse so file could be used standalone to get the measures when .csv file and directory is given.
-    try:
-        from iDrink import iDrinkConfig
-    except ImportError:
-        import iDrinkConfig
+    from iDrink import iDrinkConfig
     cfg = iDrinkConfig.load_config()
     path_phases = os.path.join(cfg.root_stat, '02_categorical', 'murphy_measures.csv')  # Path to the .csv file containing murphy measures
     path_timestamps = os.path.join(cfg.root_stat, '02_categorical', 'murphy_timestamps.csv')  # Path to the .csv file containing timestamps

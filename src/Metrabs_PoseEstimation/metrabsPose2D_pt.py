@@ -24,8 +24,7 @@ import posepile.joint_info
 from metrabs_pytorch.multiperson import multiperson_model
 from metrabs_pytorch.util import get_config
 
-sys.path.append(os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "iDrink")))
-from iDrinkUtilities import pack_as_zip
+from iDrink.iDrinkUtilities import pack_as_zip
 
 parser = argparse.ArgumentParser(description='Metrabs 2D Pose Estimation for iDrink using Pytorch')
 parser.add_argument('--identifier', metavar='id', type=str, help='Identifier for the trial')
@@ -267,8 +266,7 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
 
     import pandas as pd
     from scipy.signal import medfilt
-    sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), '..', 'iDrink')))
-    from iDrinkAnalytics import use_butterworth_filter, smooth_timeseries
+    from iDrink.iDrinkAnalytics import use_butterworth_filter, smooth_timeseries
 
     json_files = [filename for filename in os.listdir(json_dir) if filename.endswith('.json')]
     array_created = False

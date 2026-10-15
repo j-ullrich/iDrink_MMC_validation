@@ -17,7 +17,6 @@ from mmpose.apis import init_model, inference_topdown
 from mmpose.visualization import PoseLocalVisualizer
 
 
-sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
 from iDrink.iDrinkUtilities import pack_as_zip
 
 
