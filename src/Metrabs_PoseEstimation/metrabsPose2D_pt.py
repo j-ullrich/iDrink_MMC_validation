@@ -24,8 +24,10 @@ import posepile.joint_info
 from metrabs_pytorch.multiperson import multiperson_model
 from metrabs_pytorch.util import get_config
 
-sys.path.append(os.path.realpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "iDrink")))
-from iDrinkUtilities import pack_as_zip
+from iDrink.iDrinkUtilities import pack_as_zip
+
+from metrabs_common import df_to_trc, get_column_names, add_to_dataframe
+from metrabs_pt_models import load_multiperson_model, load_crop_model, get_model
 
 parser = argparse.ArgumentParser(description='Metrabs 2D Pose Estimation for iDrink using Pytorch')
 parser.add_argument('--identifier', metavar='id', type=str, help='Identifier for the trial')
@@ -40,34 +42,6 @@ parser.add_argument('--model_path', metavar='m', type=str,
                     help=f'Path to the model to use for pose estimation. \n'
                          f'Default: {os.path.join(os.getcwd(), "metrabs_models")}')
 parser.add_argument('--DEBUG', metavar='d', type=bool, default=False, help='Debug Mode, Default: False')
-
-
-def load_multiperson_model(model_path):
-    model_pytorch = load_crop_model(model_path)
-    skeleton_infos = spu.load_pickle(f'{model_path}/skeleton_infos.pkl')
-    joint_transform_matrix = np.load(f'{model_path}/joint_transform_matrix.npy')
-
-    with torch.device('cuda'):
-        return multiperson_model.Pose3dEstimator(
-            model_pytorch.cuda(), skeleton_infos, joint_transform_matrix)
-
-
-def load_crop_model(model_path):
-    cfg = get_config()
-    ji_np = np.load(f'{model_path}/joint_info.npz')
-    ji = posepile.joint_info.JointInfo(ji_np['joint_names'], ji_np['joint_edges'])
-    backbone_raw = getattr(effnet_pt, f'efficientnet_v2_{cfg.efficientnet_size}')()
-    preproc_layer = effnet_pt.PreprocLayer()
-    backbone = torch.nn.Sequential(preproc_layer, backbone_raw.features)
-    model = metrabs_pt.Metrabs(backbone, ji)
-    model.eval()
-
-    inp = torch.zeros((1, 3, cfg.proc_side, cfg.proc_side), dtype=torch.float32)
-    intr = torch.eye(3, dtype=torch.float32)[np.newaxis]
-
-    model((inp, intr))
-    model.load_state_dict(torch.load(f'{model_path}/ckpt.pt'))
-    return model
 
 
 def filter_df(df_unfiltered, fs, verbose, normcutoff=False):
@@ -121,95 +95,6 @@ def filter_df(df_unfiltered, fs, verbose, normcutoff=False):
         progress.close()
 
     return df_filtered
-
-
-def df_to_trc(df, trc_file, identifier, fps, n_frames, n_markers, verbose=1):
-    """
-    Converts the DataFrame to a .trc file according to nomenclature used by Pose2Sim.
-
-    Writes to trc file to given path.
-
-    :param df: DataFrame with 3D coordinates
-    """
-    trc = TRCData()
-
-    if verbose >= 1:
-        print(f"Writing .trc file {os.path.basename(trc_file)}")
-
-    trc['PathFileType'] = '4'
-    trc['DataFormat'] = '(X/Y/Z)'
-    trc['FileName'] = f'{identifier}.trc'
-    trc['DataRate'] = fps
-    trc['CameraRate'] = fps
-    trc['NumFrames'] = n_frames
-    trc['NumMarkers'] = n_markers
-    trc['Units'] = 'm'
-    trc['OrigDataRate'] = fps
-    trc['OrigDataStartFrame'] = 0
-    trc['OrigNumFrames'] = n_frames
-    trc['Frame#'] = [i for i in range(n_frames)]
-    trc['Time'] = [round(i / fps, 3) for i in range(n_frames)]
-    trc['Markers'] = df.columns.tolist()
-
-    for column in df.columns:
-        trc[column] = df[column].tolist()
-
-    if verbose >= 2:
-        print(f'columns added to {os.path.basename(trc_file)}')
-
-    for column in tqdm(df.columns, desc="Writing .trc file", position=0, leave=True):
-        trc[column] = df[column].tolist()
-
-    for i in range(n_frames):
-        trc[i] = [trc['Time'][i], df.iloc[i, :].tolist()]
-
-    if verbose >= 2:
-        print(f'Timestamps added to {os.path.basename(trc_file)}')
-
-    trc.save(trc_file)
-    if verbose >= 1:
-        print(f"Saved .trc file {os.path.basename(trc_file)}")
-
-
-def get_column_names(joint_names, verbose=1):
-    """
-    Uses the list of joint names to create a list of column names for the DataFrame
-
-    e.g. neck --> neck_x, neck_y, neck_z
-
-    Input: joint_names: List of joint names
-    Output: List of column names for x, y, and z axis
-    """
-    columns = []
-    """
-    # Old version might be used if x, y, z coordinates need to be split up in DataFrame
-    for joint in joint_names:
-        for axis in ['x', 'y', 'z']:
-            columns.append(f"{joint}_{axis}")"""
-
-    for joint in joint_names:
-        columns.append(joint)
-
-    if verbose >= 2:
-        print(f'Columns created: {columns}')
-
-    return columns
-
-
-def add_to_dataframe(df, pose_result_3d):
-    """
-    Add 3D  Keypoints to DataFrame
-
-    Returns DataFrame with added 3D keypoints
-    """
-
-    temp = []
-    for i in range(pose_result_3d.shape[1]):
-        temp.append([x / 1000 for x in pose_result_3d[0][i].tolist()])
-
-    df.loc[len(df)] = temp
-
-    return df
 
 
 def pose_data_to_json(pose_data_samples):
@@ -267,8 +152,7 @@ def filter_2d_pose_data(curr_trial, json_dir, json_dir_filt, filter='butter', ve
 
     import pandas as pd
     from scipy.signal import medfilt
-    sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), '..', 'iDrink')))
-    from iDrinkAnalytics import use_butterworth_filter, smooth_timeseries
+    from iDrink.iDrinkAnalytics import use_butterworth_filter, smooth_timeseries
 
     json_files = [filename for filename in os.listdir(json_dir) if filename.endswith('.json')]
     array_created = False
@@ -384,7 +268,7 @@ def plot_results_2d(image, pred, joint_names, joint_edges, show=False):
 def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_path, identifier, root_val,
                                skeleton='bml_movi_87', write_video=False, verbose=1, DEBUG=False):
     get_config(os.path.realpath(os.path.join(model_path, 'config.yaml')))
-    multiperson_model_pt = load_multiperson_model(model_path).cuda()
+    multiperson_model_pt = get_model(model_path)  # loaded once per process, not once per trial
 
     joint_names = multiperson_model_pt.per_skeleton_joint_names[skeleton]
     joint_edges = multiperson_model_pt.per_skeleton_joint_edges[skeleton].cpu().numpy()

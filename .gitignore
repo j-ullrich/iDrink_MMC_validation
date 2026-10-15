@@ -100,3 +100,16 @@ src/Pose2Sim/__pycache__/triangulation.cpython-311.pyc
 *.pyc
 *.pyc
 *.pyc
+
+# Build/editor artefacts
+__pycache__/
+.idea/
+*.bkp
+*.partial
+*.pt
+
+# Local configuration
+config.toml
+src/path.txt
+build/
+*.egg-info/

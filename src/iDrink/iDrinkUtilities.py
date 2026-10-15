@@ -752,72 +752,21 @@ def get_measure_plot_num(measure):
             return ''
 
 
-def get_drivepath():
-    """
-    Returns the drive path based on the machine the code is run on.
-
-    I added this function because the code was meant to run on multiple machines.
-
-    Use the command platform.uname() to get your machines name and add it to the match statement.
-
-    :return:
-    """
-    import platform
-    drives = ['C:', 'D:', 'E:', 'I:']
-
-    # Get drive based on machines validation is run on
-    match platform.uname().node:
-        case 'DESKTOP-N3R93K5':
-            drive = drives[2] + '\\'
-        case 'DESKTOP-0GLASVD':
-            drive = drives[2] + '\\'
-        case _:  # Default case
-            drive = drives[3] + '\\'
-
-    return drive
+def get_root_iDrink():
+    """Returns root_iDrink as str. See iDrinkConfig.load_config for how it is resolved."""
+    from iDrink import iDrinkConfig
+    return str(iDrinkConfig.load_config().root_iDrink)
 
 
-def get_paths_from_textfile(dir_path):
-    """
-    Reads text file containing paths for iDrink directory, MMC directory and OMC directory.
-
-    If any of these 3 paths are not found, a FileNotFoundError is raised.
-    """
-
-    paths_txt = os.path.realpath(os.path.join(dir_path, 'path.txt'))
-
-    # Set all paths None that are meant to be in text-file
-    root_iDrink = None
-    root_MMC = None
-    root_OMC = None
-
-    if os.path.isfile(paths_txt):
-        with open(paths_txt, 'r') as file:
-            lines = file.readlines()
-
-        for line in lines:
-            if line.startswith('#'):
-                print(line)
-            elif line.startswith('\n'):
-                continue
-            elif line.startswith('root_iDrink'):
-                root_iDrink = line.split(';')[1].strip()  # Root directory of all iDrink Data
-            elif line.startswith('root_MMC'):
-                root_MMC = line.split(';')[
-                    1].strip()  # Root directory of all MMC-Data --> Videos and Openpose json files
-            elif line.startswith('root_OMC'):
-                root_OMC = line.split(';')[1].strip()  # Root directory of all OMC-Data --> trc of trials.
-            else:
-                raise ValueError(f"Unknown line in path.txt: {line}")
-
-    if any([not root_iDrink, not root_MMC, not root_OMC]):
-        raise FileNotFoundError("path.txt does not contain all necessary paths.")
-
-    return root_iDrink, root_MMC, root_OMC
+def get_paths_from_textfile(dir_path=None):
+    """Deprecated: use iDrinkConfig.load_config. Kept for old scripts. dir_path is ignored."""
+    from iDrink import iDrinkConfig
+    c = iDrinkConfig.load_config()
+    return str(c.root_iDrink), str(c.root_MMC), str(c.root_OMC)
 
 
 if __name__ == '__main__':
-    csv = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_measures.csv"
+    csv = os.path.join(get_root_iDrink(), "validation_root", "04_Statistics", "02_categorical", "murphy_measures.csv")
 
     get_valid_trials(csv)
 

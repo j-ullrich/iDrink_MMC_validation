@@ -209,7 +209,7 @@ def calibrate_vids_in_directory(directory, path_error_csv, overwrite=False, verb
 
     """Calibrates videos in given directory."""
 
-    p_id = re.search("P\d+", directory).group()
+    p_id = re.search(r"P\d+", directory).group()
     calib_file = os.path.join(directory, f'{p_id}_calibration.toml')
 
     # prepare Log of Calibration errors
@@ -264,7 +264,8 @@ if __name__ == '__main__':
     import time
 
     #calibrate_vids_in_directory(r"I:\Delta\data_newStruc\P13\01_Measurement\04_Video\05_Calib_before")
-    root = r"D:\iDrink\Delta\data_newStruc_full"
+    from iDrink import iDrinkConfig
+    root = os.path.join(iDrinkConfig.load_config().root_iDrink, "Delta", "data_newStruc_full")
     d = glob.glob(os.path.join(root, "*", "01_Measurement", "04_Video", "05_Calib_before"))
 
     for directory in d:

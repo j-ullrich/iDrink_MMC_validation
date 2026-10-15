@@ -45,13 +45,8 @@ import numpy as np
 import scipy
 from fuzzywuzzy import process
 
-from importlib_metadata import metadata
-from keras.src.utils.file_utils import exists
-from sympy.logic.algorithms.dpll import find_pure_symbol
 
-from iDrink.iDrinkStatisticalAnalysis import murphy_measures
 
-sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial
 
 col_measures = ["identifier",
@@ -963,7 +958,7 @@ class MurphyMeasures:
         try:
             for column in columns_of_interest:
                 self.__setattr__(column, df.loc[df['identifier'] == self.trial_id, column].values[0])
-        except:
+        except (IndexError, KeyError):
             """
             Trial not in form of iDrink Trial_id
             csv containts only trials of single Participant and the trial number is in the form of TXXX.
@@ -1029,21 +1024,56 @@ class MurphyMeasures:
 
         self.df_measures = df_measures
 
+def compute_measures_rows(job):
+    """
+    Calculates the Murphy measures of one trial without touching the shared measures csv.
+    Module level and picklable, so it can run in a worker process (--jobs).
+
+    :param job: (trial, csv_timestamps, path_mov_data)
+    :return: list of dicts, one per row of col_measures. Empty if the trial has invalid data.
+    """
+    trial, csv_timestamps, path_mov_data = job
+    m = MurphyMeasures(trial=trial, trial_id=trial.identifier, csv_timestamps=csv_timestamps, csv_measures=None,
+                       write_mov_data=True, path_mov_data=path_mov_data,
+                       filt_fps=60, filt_cutoff_vel=4, filt_cutoff_pos=4, filt_order_pos=4, filt_order_vel=6)
+    return m.df_measures[col_measures].to_dict('records')
+
+
+def merge_measures(csv_measures, rows):
+    """
+    Writes rows (see compute_measures_rows) into csv_measures: existing identifiers are updated, new ones appended.
+    The file is read and written once.
+    """
+    if os.path.isfile(csv_measures):
+        df = pd.read_csv(csv_measures, sep=';')
+    else:
+        df = pd.DataFrame(columns=col_measures)
+
+    for row in rows:
+        mask = df['identifier'] == row['identifier']
+        if mask.any():
+            for column in col_measures:
+                df.loc[mask, column] = row[column]
+        else:
+            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+
+    df.to_csv(csv_measures, sep=';', index=False)
+    return df
+
+
 if __name__ == '__main__':
 
     """
     For now, the main is only for debugging the script with a hardcoded participant.
     """
     # TODO: Add argparse so file could be used standalone to get the measures when .csv file and directory is given.
-    if os.name == 'posix':  # Running on Linux
-        drive = '/media/devteam-dart/Extreme SSD'
-        root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
-    else:
-        path_phases = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_measures.csv"  # Path to the .csv file containing murphy measures
-        path_timestamps = r"I:\iDrink\validation_root\04_statistics\02_categorical\murphy_timestamps.csv" # Path to the .csv file containing timestamps
-        root_data = r"I:\iDrink\validation_root\03_data"  # Root directory of all iDrink Data
-        root_data_omc = r"I:\iDrink\validation_root\03_data\OMC"
-        dir_trials = r"I:\iDrink\validation_root\03_data\OMC_old\S15133\S15133_P01" # Directory containing folders of P01
+    from iDrink import iDrinkConfig
+    cfg = iDrinkConfig.load_config()
+    path_phases = os.path.join(cfg.root_stat, '02_categorical', 'murphy_measures.csv')  # Path to the .csv file containing murphy measures
+    path_timestamps = os.path.join(cfg.root_stat, '02_categorical', 'murphy_timestamps.csv')  # Path to the .csv file containing timestamps
+    root_data = str(cfg.root_data)  # Root directory of all iDrink Data
+    root_data_omc = os.path.join(root_data, 'OMC')
+    dir_trials = os.path.join(root_data, 'OMC_old', 'S15133', 'S15133_P01')  # Directory containing folders of P01
 
     path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out',
                                      f'S15133_P01_T001_filtered.csv')

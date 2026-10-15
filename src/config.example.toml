@@ -1,0 +1,9 @@
+# Copy to config.toml (git-ignored) and adjust. Environment variables IDRINK_ROOT / IDRINK_MMC / IDRINK_OMC override these.
+[paths]
+root_iDrink = "/data/iDrink"
+# root_MMC defaults to <root_iDrink>/Delta/data_newStruc
+# root_OMC defaults to <root_iDrink>/OMC_data_newStruct
+
+[run]
+patients = ["P07", "P08", "P10", "P11", "P12", "P241", "P242", "P251", "P252"]
+settings = ["S027", "S028"]

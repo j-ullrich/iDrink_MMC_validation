@@ -4,7 +4,6 @@ import sys
 import time
 import re
 import shutil
-from operator import index
 import platform
 
 from tqdm import tqdm
@@ -14,6 +13,8 @@ import pandas as pd
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial, iDrinkOpenSim, iDrinkUtilities, iDrinkLog
 
+# Kept separate from Trial.prepare_opensim (iDrinkTrial.py) on purpose: OMC trials use a configurable filter flag and
+# opensim_model_scaled is a bare file name here, not a path inside dir_trial.
 def prepare_opensim(self, filterflag="filt"):
     # Copy Geometry from default to trial folder
     dir_geom = os.path.realpath(os.path.join(self.dir_default, "Geometry"))
@@ -45,8 +46,7 @@ def prepare_opensim(self, filterflag="filt"):
         self.get_time_range(path_trc_file=self.opensim_marker_filtered, as_string=False)[1])
 
 
-drive = iDrinkUtilities.get_drivepath()
-root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
+root_iDrink = iDrinkUtilities.get_root_iDrink()  # Root directory of all iDrink Data
 root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct", "Data")  # Root directory of all OMC-Data --> trc of trials.
 root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.
 root_dat_out = os.path.join(root_val, "03_data", "OMC")  # Root directory of all the data for the validation
@@ -130,7 +130,7 @@ def run_opensim_OMC(stabilize_hip=True):
             print(f"trc_files for {p_id}: \n"
                   f"{trc_files}")
         for trc_file in sorted(trc_files):
-            id_t = re.search("\d+", os.path.basename(trc_file)).group()
+            id_t = re.search(r"\d+", os.path.basename(trc_file)).group()
             id_t = f"T{int(id_t):03d}"
             identifier = f"{id_s}_{p_id}_{id_t}"
 

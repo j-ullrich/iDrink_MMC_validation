@@ -25,7 +25,7 @@ def get_new_row(trial, columns):
     for column in columns:
         try:
             new_row[column] = getattr(trial, column)
-        except:
+        except (ValueError, TypeError):
             new_row[column] = ', '.join(getattr(trial, column))
     return new_row
 
@@ -43,21 +43,25 @@ def update_trial_csv(trial_list, csv_path, columns_to_add = None, verbose=1):
 
     # write safety file
     df_trials_old.to_csv(csv_path.split(".csv")[0] + "_safety.csv", sep=';', index=False)
-    df_trials = pd.DataFrame(columns=df_trials_old.columns)
+    columns = df_trials_old.columns
 
     if verbose >= 1:
         progress = tqdm(total=len(trial_list), desc="Updating CSV", unit="Trial")
+    rows = []
     for trial in trial_list:
-        df_trials = pd.concat([df_trials, get_new_row(trial, df_trials.columns).to_frame().T], axis=0, ignore_index=True)
+        rows.append(get_new_row(trial, columns))
 
         if columns_to_add is not None:
-            df_trials = pd.concat([df_trials, get_new_row(trial, columns_to_add).to_frame().T], axis=0,
-                                  ignore_index=True)
+            rows.append(get_new_row(trial, columns_to_add))
         if verbose >= 1:
             progress.update(1)
 
     if verbose >= 1:
         progress.close()
+
+    # One concat instead of one per trial (quadratic)
+    df_trials = pd.concat([pd.DataFrame(columns=columns)] + [row.to_frame().T for row in rows], axis=0,
+                          ignore_index=True)
 
     df_trials.to_csv(csv_path, sep=';', index=False)
     return df_trials
@@ -147,21 +151,16 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
     from . import iDrinkTrial
     import ast
 
-    def correct_drive(path, drive):
+    from .iDrinkConfig import rebase_path
+
+    # root_data = <root_iDrink>/validation_root/03_data
+    root_iDrink = os.path.dirname(os.path.dirname(os.path.realpath(root_data)))
+
+    def local_path(path):
+        """Map paths stored in the csv (possibly written on another machine/OS) below the local root_iDrink."""
         if type(path) is list:
-            path = [correct_drive(p, drive) for p in path]
-            return path
-        if os.path.splitdrive(path)[0] != drive:
-            path = os.path.join(drive+os.path.splitdrive(path)[1])
-        return path
-
-    # get Drive in use
-    drive = os.path.splitdrive(root_data)[0]
-
-    if os.name == 'posix':
-        drive = drive + '/'
-    elif os.name == 'nt':
-        drive = drive + '\\'
+            return [local_path(p) for p in path]
+        return os.path.realpath(rebase_path(path, root_iDrink))
 
     trial_list = []
     if args.verbose >= 1:
@@ -175,38 +174,14 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         affected = row["affected"]
         measured_side = row["measured_side"]
 
-        pose_model = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", id_s).group()), "pose_model"].values[0]
+        pose_model = df_settings.loc[df_settings["setting_id"] == int(re.search(r"\d+", id_s).group()), "pose_model"].values[0]
 
-        # Drive in path
-        dir_session = os.path.realpath(correct_drive(row["dir_session"], drive))
-        dir_participant = os.path.realpath(correct_drive(row["dir_participant"], drive))
-        dir_trial = os.path.realpath(correct_drive(row["dir_trial"], drive))
-        video_files = [os.path.realpath(file) for file in correct_drive(ast.literal_eval(row["video_files"]), drive)]
-        dir_calib = os.path.realpath(correct_drive(row["dir_calib"], drive))
-        dir_calib_videos = os.path.realpath(correct_drive(row["dir_calib_videos"], drive))
-
-        # Convert paths from Windows to Linux or vice versa
-        if os.name == 'posix' and '\\' in dir_trial:
-            # Replace backslashes with forward slashes
-            base = root_data.split('iDrink')[0]
-
-            dir_trial = os.path.join(base, 'iDrink', dir_trial.replace('\\', '/').split('iDrink/')[1])
-            dir_participant = os.path.join(base, 'iDrink', dir_participant.replace('\\', '/').split('iDrink/')[1])
-            dir_session = os.path.join(base, 'iDrink', dir_session.replace('\\', '/').split('iDrink/')[1])
-            dir_calib = os.path.join(base, 'iDrink', dir_calib.replace('\\', '/').split('iDrink/')[1])
-            dir_calib_videos = os.path.join(base, 'iDrink', dir_calib_videos.replace('\\', '/').split('iDrink/')[1])
-            video_files = [os.path.join(base, 'iDrink', video_file.replace('\\', '/').split('iDrink/')[1]) for video_file in video_files]
-        elif os.name == 'nt' and '/' in dir_trial:
-            # Replace forward slashes with backslashes
-            base = root_data.split('iDrink')[0]
-
-            dir_trial = os.path.join(base, 'iDrink', dir_trial.replace('/', '\\').split('iDrink\\')[1])
-            dir_participant = os.path.join(base, 'iDrink', dir_participant.replace('/', '\\').split('iDrink\\')[1])
-            dir_session = os.path.join(base, 'iDrink', dir_session.replace('/', '\\').split('iDrink\\')[1])
-            dir_calib = os.path.join(base, 'iDrink', dir_calib.replace('/', '\\').split('iDrink\\')[1])
-            dir_calib_videos = os.path.join(base, 'iDrink', dir_calib_videos.replace('/', '\\').split('iDrink\\')[1])
-            video_files = [os.path.join(base, 'iDrink', video_file.replace('/', '\\').split('iDrink\\')[1]) for video_file in video_files]
-
+        dir_session = local_path(row["dir_session"])
+        dir_participant = local_path(row["dir_participant"])
+        dir_trial = local_path(row["dir_trial"])
+        video_files = local_path(ast.literal_eval(row["video_files"]))
+        dir_calib = local_path(row["dir_calib"])
+        dir_calib_videos = local_path(row["dir_calib_videos"])
 
         # Create the trial object
         trial = iDrinkTrial.Trial(identifier=identifier, id_s=id_s, id_p=id_p, id_t=id_t,
@@ -408,6 +383,14 @@ def log_error(args, trial, exception, stage, pose, csv_path):
     new_row["exception"] = exception
     df_log = pd.concat([df_log, new_row.to_frame().T], axis=0, ignore_index=True)
     df_log.to_csv(csv_path, sep=';', index=False)
+
+    # The csv only keeps the message. Keep the full traceback in a text file next to it.
+    if isinstance(exception, BaseException) and (exception.__traceback__ is not None
+                                                  or getattr(exception, '__notes__', None)):
+        import traceback
+        with open(os.path.splitext(csv_path)[0] + '_tracebacks.log', 'a') as f:
+            f.write(f"--- {new_row['date']} {new_row['time']} {trial.identifier} {stage} {pose}\n")
+            f.write(''.join(traceback.format_exception(exception)))
 
     return df_log
 

@@ -7,15 +7,13 @@ import numpy as np
 
 from tqdm import tqdm
 
+sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
+from iDrink.iDrinkUtilities import get_root_iDrink
+
 def run():
     # Define the root directory of the iDrink Data
-    drives=['C:', 'D:', 'E:', 'F:', 'I:']
-    if os.name=='posix':  # Running on Linux
-        drive = '/media/devteam-dart/Extreme SSD'
-    else:
-        drive = drives[3] + '\\'
 
-    root_iDrink = os.path.join(drive, 'iDrink')  # Root directory of all iDrink Data
+    root_iDrink = get_root_iDrink()  # Root directory of all iDrink Data
     root_MMC = os.path.join(root_iDrink, "Delta", "data_newStruc")  # Root directory of all MMC-Data --> Videos and Openpose json files
     root_OMC = os.path.join(root_iDrink, "OMC_data_newStruct")  # Root directory of all OMC-Data --> trc of trials.
     root_val = os.path.join(root_iDrink, "validation_root")  # Root directory of all iDrink Data for the validation --> Contains all the files necessary for Pose2Sim and Opensim and their Output.

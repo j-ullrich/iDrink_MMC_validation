@@ -20,9 +20,8 @@ if sys.gettrace() is not None:
     print("Debug Mode is activated\n"
           "Starting debugging script.")
 
-drive = iDrinkUtilities.get_drivepath()
 
-root_iDrink = os.path.join(drive, 'iDrink')
+root_iDrink = iDrinkUtilities.get_root_iDrink()
 root_val = os.path.join(root_iDrink, "validation_root")
 root_stat = os.path.join(root_val, '04_Statistics')
 root_data = os.path.join(root_val, "03_data")
