@@ -23,6 +23,26 @@ def load_multiperson_model(model_path):
             model_pytorch.cuda(), skeleton_infos, joint_transform_matrix)
 
 
+_model_cache = {}
+
+
+def get_model(model_path):
+    """
+    Returns the multiperson model for model_path, loading it only once per process.
+
+    Only one model is kept. Asking for another path evicts the old one and frees its GPU memory.
+    """
+    key = os.path.realpath(model_path)
+    if key not in _model_cache:
+        if _model_cache:
+            _model_cache.clear()
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+        _model_cache[key] = load_multiperson_model(model_path).cuda()
+    return _model_cache[key]
+
+
 def load_crop_model(model_path):
     cfg = get_config()
     ji_np = np.load(f'{model_path}/joint_info.npz')

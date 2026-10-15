@@ -43,21 +43,25 @@ def update_trial_csv(trial_list, csv_path, columns_to_add = None, verbose=1):
 
     # write safety file
     df_trials_old.to_csv(csv_path.split(".csv")[0] + "_safety.csv", sep=';', index=False)
-    df_trials = pd.DataFrame(columns=df_trials_old.columns)
+    columns = df_trials_old.columns
 
     if verbose >= 1:
         progress = tqdm(total=len(trial_list), desc="Updating CSV", unit="Trial")
+    rows = []
     for trial in trial_list:
-        df_trials = pd.concat([df_trials, get_new_row(trial, df_trials.columns).to_frame().T], axis=0, ignore_index=True)
+        rows.append(get_new_row(trial, columns))
 
         if columns_to_add is not None:
-            df_trials = pd.concat([df_trials, get_new_row(trial, columns_to_add).to_frame().T], axis=0,
-                                  ignore_index=True)
+            rows.append(get_new_row(trial, columns_to_add))
         if verbose >= 1:
             progress.update(1)
 
     if verbose >= 1:
         progress.close()
+
+    # One concat instead of one per trial (quadratic)
+    df_trials = pd.concat([pd.DataFrame(columns=columns)] + [row.to_frame().T for row in rows], axis=0,
+                          ignore_index=True)
 
     df_trials.to_csv(csv_path, sep=';', index=False)
     return df_trials

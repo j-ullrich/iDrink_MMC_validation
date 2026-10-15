@@ -10,6 +10,7 @@ Only root_iDrink is mandatory. root_MMC and root_OMC default to the folders used
 Nothing in this module touches the file system unless ensure_dirs() is called.
 """
 import os
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -91,6 +92,13 @@ def load_config(config_file=None, env=None):
     if not values.get('root_iDrink'):
         raise FileNotFoundError("root_iDrink is not set. Set IDRINK_ROOT, or create config.toml "
                                 "(see config.example.toml).")
+
+    if os.name == 'posix':
+        for key in _ENV_KEYS:
+            v = values.get(key)
+            if v and (re.match(r"^[A-Za-z]:[\\/]", v) or '\\' in v):
+                raise ValueError(f"{key} is a Windows path ({v!r}) but this is not Windows. Set IDRINK_ROOT / "
+                                 f"IDRINK_MMC / IDRINK_OMC or config.toml for this machine.")
 
     root = Path(values['root_iDrink'])
     return Paths(root_iDrink=root,

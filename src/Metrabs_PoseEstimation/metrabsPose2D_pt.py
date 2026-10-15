@@ -27,7 +27,7 @@ from metrabs_pytorch.util import get_config
 from iDrink.iDrinkUtilities import pack_as_zip
 
 from metrabs_common import df_to_trc, get_column_names, add_to_dataframe
-from metrabs_pt_models import load_multiperson_model, load_crop_model
+from metrabs_pt_models import load_multiperson_model, load_crop_model, get_model
 
 parser = argparse.ArgumentParser(description='Metrabs 2D Pose Estimation for iDrink using Pytorch')
 parser.add_argument('--identifier', metavar='id', type=str, help='Identifier for the trial')
@@ -268,7 +268,7 @@ def plot_results_2d(image, pred, joint_names, joint_edges, show=False):
 def metrabs_pose_estimation_2d_val(curr_trial, video_files, calib_file, model_path, identifier, root_val,
                                skeleton='bml_movi_87', write_video=False, verbose=1, DEBUG=False):
     get_config(os.path.realpath(os.path.join(model_path, 'config.yaml')))
-    multiperson_model_pt = load_multiperson_model(model_path).cuda()
+    multiperson_model_pt = get_model(model_path)  # loaded once per process, not once per trial
 
     joint_names = multiperson_model_pt.per_skeleton_joint_names[skeleton]
     joint_edges = multiperson_model_pt.per_skeleton_joint_edges[skeleton].cpu().numpy()
