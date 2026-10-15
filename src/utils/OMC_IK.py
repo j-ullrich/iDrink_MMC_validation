@@ -130,7 +130,7 @@ def run_opensim_OMC(stabilize_hip=True):
             print(f"trc_files for {p_id}: \n"
                   f"{trc_files}")
         for trc_file in sorted(trc_files):
-            id_t = re.search("\d+", os.path.basename(trc_file)).group()
+            id_t = re.search(r"\d+", os.path.basename(trc_file)).group()
             id_t = f"T{int(id_t):03d}"
             identifier = f"{id_s}_{p_id}_{id_t}"
 

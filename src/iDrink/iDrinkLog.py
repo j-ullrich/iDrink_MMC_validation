@@ -174,7 +174,7 @@ def trials_from_csv(args, df_trials, df_settings, root_data, default_dir):
         affected = row["affected"]
         measured_side = row["measured_side"]
 
-        pose_model = df_settings.loc[df_settings["setting_id"] == int(re.search("\d+", id_s).group()), "pose_model"].values[0]
+        pose_model = df_settings.loc[df_settings["setting_id"] == int(re.search(r"\d+", id_s).group()), "pose_model"].values[0]
 
         dir_session = local_path(row["dir_session"])
         dir_participant = local_path(row["dir_participant"])
@@ -385,7 +385,8 @@ def log_error(args, trial, exception, stage, pose, csv_path):
     df_log.to_csv(csv_path, sep=';', index=False)
 
     # The csv only keeps the message. Keep the full traceback in a text file next to it.
-    if isinstance(exception, BaseException) and exception.__traceback__ is not None:
+    if isinstance(exception, BaseException) and (exception.__traceback__ is not None
+                                                  or getattr(exception, '__notes__', None)):
         import traceback
         with open(os.path.splitext(csv_path)[0] + '_tracebacks.log', 'a') as f:
             f.write(f"--- {new_row['date']} {new_row['time']} {trial.identifier} {stage} {pose}\n")

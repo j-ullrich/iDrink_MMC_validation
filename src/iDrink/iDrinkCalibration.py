@@ -209,7 +209,7 @@ def calibrate_vids_in_directory(directory, path_error_csv, overwrite=False, verb
 
     """Calibrates videos in given directory."""
 
-    p_id = re.search("P\d+", directory).group()
+    p_id = re.search(r"P\d+", directory).group()
     calib_file = os.path.join(directory, f'{p_id}_calibration.toml')
 
     # prepare Log of Calibration errors

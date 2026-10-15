@@ -13,6 +13,7 @@ import pandas as pd
 
 from iDrink import iDrinkConfig, iDrinkTrial, iDrinkPoseEstimation, iDrinkLog, iDrinkOpenSim, iDrinkUtilities, iDrinkMurphyMeasures, iDrinkStatisticalAnalysis
 from iDrink.iDrinkCalibration import delta_calibration_val, delta_full_calibration_val
+from iDrink.iDrinkParallel import run_parallel
 from iDrink.iDrinkPipeline import PipelineContext, STAGES, selected, steps_for_mode
 
 
@@ -61,7 +62,10 @@ parser.add_argument('--settings', default=None,
 parser.add_argument('--only-single-cam', dest='only_single_cam_trials', action='store_true', default=False,
                     help='Only process trials recorded with a single camera')
 parser.add_argument('--run-again', action='store_true', default=False,
-                    help='Process trials again that are already done')
+                    help='Process trials again that are already done (includes Murphy measures that already have a row)')
+parser.add_argument('--jobs', type=int, default=1,
+                    help='Number of worker processes for the opensim and murphy_measures stages. Default 1 runs '
+                         'everything in this process. The other stages always run serially.')
 parser.add_argument('--verbose', metavar='v', type=int, default=1,
                     help='Verbosity level: 0, 1, 2 default: 1')
 parser.add_argument('--config', default=None,
@@ -598,9 +602,9 @@ def run_triangulation(ctx, trial_list):
 
         # Get Pose method from settings dataframe
         pose = df_settings.loc[
-            df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
+            df_settings["setting_id"] == int(re.search(r"\d+", trial.id_s).group()), "pose_estimation"].values[0]
         filt = df_settings.loc[
-            df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
+            df_settings["setting_id"] == int(re.search(r"\d+", trial.id_s).group()), "filtered_2d_keypoints"].values[0]
 
         if len(trial.used_cams) == 1:
             move_metrabs3d_trc(trial, filt, root_HPE)
@@ -723,32 +727,19 @@ def write_txt_with_timestamps(directory, phase, identifier):
 def run_opensim(ctx, trial_list):
     args = ctx.args
     df_settings = ctx.df_settings
-    df_trials = ctx.df_trials
     log_val_errors = ctx.log_val_errors
     log_val_trials = ctx.log_val_trials
     root_logs = ctx.root_logs
     root_val = ctx.root_val
+    jobs = getattr(args, 'jobs', 1)
 
-
-
-    if args.verbose >= 1:
-        opensim_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Opensim", unit="Trial")
-    for i, trial in enumerate(trial_list):
-        opensim_progress.set_description(f"Running Opensim for: {trial.identifier}")
-        """if trial.identifier != 'S003_P15_T079':
-            continue"""
-
-        if args.verbose >= 1:
-            opensim_progress.update(1)
-        pose = df_settings.loc[
-            df_settings["setting_id"] == int(re.search("\d+", trial.id_s).group()), "pose_estimation"].values[0]
-
+    # Decide which trials have to run
+    todo = []
+    for trial in tqdm(trial_list, desc="Checking Opensim", unit="Trial", disable=args.verbose < 1):
         if not selected(trial, args):
-            opensim_progress.update(1)
             continue
 
         if args.only_single_cam_trials and len(trial.used_cams) > 1:
-            opensim_progress.update(1)
             continue
 
         joint_kin_exist = iDrinkLog.files_exist(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool'), '.csv')
@@ -757,38 +748,42 @@ def run_opensim(ctx, trial_list):
 
         trial.OS_done = joint_kin_exist and chest_pos_exist
 
-        write_txt_with_timestamps(root_val, 'Opensim', trial.identifier)
+        if jobs <= 1:
+            write_txt_with_timestamps(root_val, 'Opensim', trial.identifier)
 
         if trial.OS_done:
             if args.verbose >= 2:
                 print(f"Opensim for {trial.identifier} already done.")
-            continue
         else:
-            try:
-                trial.prepare_opensim()
-                iDrinkOpenSim.open_sim_pipeline(trial, os.path.join(root_logs, 'opensim'), args.verbose)
-                """
-                mmpose: Coco17_UpperBody
-                pose2sim: Coco17_UpperBody
-                metrabs_multi: bml_movi_87
-                """
+            todo.append(trial)
 
-                trial.OS_done = True
-            except Exception as e:
-                if args.verbose >= 2:
-                    print(f"Error in openSim\n"
-                          f"Trial: {trial.identifier}\n"
-                          f"{e}")
+    log_dir = os.path.join(root_logs, 'opensim')
+    progress = tqdm(total=len(todo), desc="Running Opensim", unit="Trial", disable=args.verbose < 1)
 
-                iDrinkLog.log_error(args, trial, e, 'Opensim', pose, log_val_errors)
+    # Serial: one process, as before. --jobs N: worker processes, results are collected here.
+    results = run_parallel(iDrinkOpenSim.run_opensim_trial, [(t, log_dir, args.verbose) for t in todo],
+                           jobs=jobs, progress=progress.update)
+    progress.close()
 
-                trial.OS_done = False
+    for trial, result in zip(todo, results):
+        if result.ok:
+            trial.OS_done = True
+            continue
 
-            iDrinkUtilities.del_geometry_from_trial(trial, verbose=args.verbose)
+        e = result.error
+        if args.verbose >= 2:
+            print(f"Error in openSim\n"
+                  f"Trial: {trial.identifier}\n"
+                  f"{e}")
 
-    if args.verbose >= 1:
-        opensim_progress.close()
-    ctx.df_trials = df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+        pose = df_settings.loc[
+            df_settings["setting_id"] == int(re.search(r"\d+", trial.id_s).group()), "pose_estimation"].values[0]
+        iDrinkLog.log_error(args, trial, e, 'Opensim', pose, log_val_errors)
+
+        trial.OS_done = False
+
+    ctx.df_trials = iDrinkLog.update_trial_csv(trial_list, log_val_trials)
+
 
 def run_murphy_measures(ctx, trial_list):
     args = ctx.args
@@ -796,16 +791,21 @@ def run_murphy_measures(ctx, trial_list):
     path_csv_murphy_measures = ctx.path_csv_murphy_measures
     path_csv_murphy_timestamps = ctx.path_csv_murphy_timestamps
     root_data = ctx.root_data
+    jobs = getattr(args, 'jobs', 1)
 
-    if args.verbose >= 1:
-        murphy_progress = tqdm(total=len(trial_list), iterable=trial_list, desc="Running Murphy Measuresfor: ",
-                               unit="Trial")
+    path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out')
 
+    # Trials that already have a row in the measures csv are skipped unless --run-again.
+    done = set()
+    if not args.run_again and os.path.isfile(path_csv_murphy_measures):
+        done = set(pd.read_csv(path_csv_murphy_measures, sep=';')['identifier'])
+
+    todo = []
     for trial in trial_list:
-        if args.verbose >= 1:
-            murphy_progress.set_description(f"Running Murphy Measures for: {trial.identifier}")
-            murphy_progress.update(1)
-
+        if trial.identifier in done:
+            if args.verbose >= 2:
+                print(f"Murphy Measures for {trial.identifier} already done.")
+            continue
 
         # check that .sto files exist
         mov_files = glob.glob(os.path.join(trial.dir_trial, 'movement_analysis', 'ik_tool', f'*.csv'))
@@ -815,32 +815,54 @@ def run_murphy_measures(ctx, trial_list):
 
         if not mov_files or not chest_files:
             if args.verbose >= 1:
-                murphy_progress.set_description(f"No Mov data for for: {trial.identifier}")
+                print(f"No Mov data for: {trial.identifier}")
             continue
 
+        todo.append(trial)
 
-        try:
-            path_preprocessed = os.path.join(root_data, 'preprocessed_data', '01_murphy_out')
+    progress = tqdm(total=len(todo), desc="Running Murphy Measures", unit="Trial", disable=args.verbose < 1)
+    jobs_list = [(t, path_csv_murphy_timestamps, path_preprocessed) for t in todo]
 
-            iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
-                                                csv_timestamps=path_csv_murphy_timestamps,
-                                                csv_measures=path_csv_murphy_measures,
-                                                write_mov_data=True,
-                                                path_mov_data=path_preprocessed,
-                                                filt_fps=60,
-                                                filt_cutoff_vel=4, filt_cutoff_pos=4,
-                                                filt_order_pos=4, filt_order_vel=6,
-                                                )
-        except Exception as e:
-            if args.verbose >= 2:
-                print(f"Error in murphy_measures\n"
-                      f"Trial: {trial.identifier}\n"
-                      f"{e}")
+    if jobs <= 1:
+        # Serial: each trial reads and rewrites the measures csv, so an interrupted run keeps its progress.
+        for trial in todo:
+            try:
+                iDrinkMurphyMeasures.MurphyMeasures(trial=trial, trial_id=trial.identifier,
+                                                    csv_timestamps=path_csv_murphy_timestamps,
+                                                    csv_measures=path_csv_murphy_measures,
+                                                    write_mov_data=True,
+                                                    path_mov_data=path_preprocessed,
+                                                    filt_fps=60,
+                                                    filt_cutoff_vel=4, filt_cutoff_pos=4,
+                                                    filt_order_pos=4, filt_order_vel=6,
+                                                    )
+            except Exception as e:
+                if args.verbose >= 2:
+                    print(f"Error in murphy_measures\n"
+                          f"Trial: {trial.identifier}\n"
+                          f"{e}")
 
-            iDrinkLog.log_error(args, trial, e, 'Murphy', '', log_val_errors)
+                iDrinkLog.log_error(args, trial, e, 'Murphy', '', log_val_errors)
+            progress.update(1)
+    else:
+        # Workers only compute. The shared csv is written once here, so there is no read-modify-write race.
+        results = run_parallel(iDrinkMurphyMeasures.compute_measures_rows, jobs_list, jobs=jobs,
+                               progress=progress.update)
+        rows = []
+        for trial, result in zip(todo, results):
+            if result.ok:
+                rows += result.value
+            else:
+                if args.verbose >= 2:
+                    print(f"Error in murphy_measures\n"
+                          f"Trial: {trial.identifier}\n"
+                          f"{result.error}")
+                iDrinkLog.log_error(args, trial, result.error, 'Murphy', '', log_val_errors)
 
-    if args.verbose >= 1:
-        murphy_progress.close()
+        if rows:
+            iDrinkMurphyMeasures.merge_measures(path_csv_murphy_measures, rows)
+
+    progress.close()
 
 
 def run_statistics(ctx):

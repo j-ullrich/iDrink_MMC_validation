@@ -45,10 +45,7 @@ import numpy as np
 import scipy
 from fuzzywuzzy import process
 
-from importlib_metadata import metadata
-from keras.src.utils.file_utils import exists
 
-from iDrink.iDrinkStatisticalAnalysis import murphy_measures
 
 from iDrink import iDrinkTrial
 
@@ -1026,6 +1023,43 @@ class MurphyMeasures:
 
 
         self.df_measures = df_measures
+
+def compute_measures_rows(job):
+    """
+    Calculates the Murphy measures of one trial without touching the shared measures csv.
+    Module level and picklable, so it can run in a worker process (--jobs).
+
+    :param job: (trial, csv_timestamps, path_mov_data)
+    :return: list of dicts, one per row of col_measures. Empty if the trial has invalid data.
+    """
+    trial, csv_timestamps, path_mov_data = job
+    m = MurphyMeasures(trial=trial, trial_id=trial.identifier, csv_timestamps=csv_timestamps, csv_measures=None,
+                       write_mov_data=True, path_mov_data=path_mov_data,
+                       filt_fps=60, filt_cutoff_vel=4, filt_cutoff_pos=4, filt_order_pos=4, filt_order_vel=6)
+    return m.df_measures[col_measures].to_dict('records')
+
+
+def merge_measures(csv_measures, rows):
+    """
+    Writes rows (see compute_measures_rows) into csv_measures: existing identifiers are updated, new ones appended.
+    The file is read and written once.
+    """
+    if os.path.isfile(csv_measures):
+        df = pd.read_csv(csv_measures, sep=';')
+    else:
+        df = pd.DataFrame(columns=col_measures)
+
+    for row in rows:
+        mask = df['identifier'] == row['identifier']
+        if mask.any():
+            for column in col_measures:
+                df.loc[mask, column] = row[column]
+        else:
+            df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+
+    df.to_csv(csv_measures, sep=';', index=False)
+    return df
+
 
 if __name__ == '__main__':
 

@@ -27,7 +27,11 @@ idrink --stages murphy_measures --poseback metrabs_multi --patients P07,P08 --se
 idrink --stages opensim --only-single-cam --dry-run   # only list the trials
 ```
 
+`--jobs N` runs the `opensim` and `murphy_measures` stages in N worker processes (default 1 = everything in the main process, the tested path). Trials that already have a Murphy measures row are skipped unless `--run-again` is given.
+
 Stages: `calibration, pose_estimation, pose2sim, opensim, murphy_measures, statistics, full` (comma separated).
 Patients and settings default to the `[run]` section of `config.toml`, otherwise all trials are processed. See `--help` for all options.
 
 Tests: `pytest tests`
+
+Continuous integration (`.github/workflows/ci.yml`) runs the tests with the heavy dependencies stubbed. Known issue: the `statistics` stage of the hub refers to names it never defines and fails until fixed.

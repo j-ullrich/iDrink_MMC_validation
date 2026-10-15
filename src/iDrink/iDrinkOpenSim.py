@@ -404,6 +404,25 @@ def open_sim_pipeline(curr_trial, log_dir = None, verbose=1):
 
 
 
+def run_opensim_trial(job):
+    """
+    Runs OpenSim for one trial. Module level and picklable, so it can run in a worker process (--jobs).
+
+    :param job: (trial, log_dir, verbose)
+    :return: the trial, because attributes set by prepare_opensim/OS_done live on the copy in the worker.
+    """
+    from iDrink import iDrinkUtilities  # imported here so that workers do not need it at import time
+
+    trial, log_dir, verbose = job
+    try:
+        trial.prepare_opensim()
+        open_sim_pipeline(trial, log_dir, verbose)
+        trial.OS_done = True
+    finally:
+        iDrinkUtilities.del_geometry_from_trial(trial, verbose=verbose)
+    return trial
+
+
 if __name__ == '__main__':
     from iDrink import iDrinkConfig
     root_data = iDrinkConfig.load_config().root_data
