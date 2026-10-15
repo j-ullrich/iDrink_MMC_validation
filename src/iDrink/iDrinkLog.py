@@ -25,7 +25,7 @@ def get_new_row(trial, columns):
     for column in columns:
         try:
             new_row[column] = getattr(trial, column)
-        except:
+        except (ValueError, TypeError):
             new_row[column] = ', '.join(getattr(trial, column))
     return new_row
 
@@ -379,6 +379,13 @@ def log_error(args, trial, exception, stage, pose, csv_path):
     new_row["exception"] = exception
     df_log = pd.concat([df_log, new_row.to_frame().T], axis=0, ignore_index=True)
     df_log.to_csv(csv_path, sep=';', index=False)
+
+    # The csv only keeps the message. Keep the full traceback in a text file next to it.
+    if isinstance(exception, BaseException) and exception.__traceback__ is not None:
+        import traceback
+        with open(os.path.splitext(csv_path)[0] + '_tracebacks.log', 'a') as f:
+            f.write(f"--- {new_row['date']} {new_row['time']} {trial.identifier} {stage} {pose}\n")
+            f.write(''.join(traceback.format_exception(exception)))
 
     return df_log
 

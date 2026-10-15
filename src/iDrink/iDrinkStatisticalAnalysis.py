@@ -1704,10 +1704,7 @@ def preprocess_timeseries(dir_root, downsample = True, drop_last_rows = False, c
 
         # Convert the Timestamp column to a datetime format and set it as the index
         df = df_.copy()
-        try:
-            df['time'] = pd.to_timedelta(df['time'], unit='s')
-        except:
-            df['time'] = pd.to_timedelta(df['time'], unit='s')
+        df['time'] = pd.to_timedelta(df['time'], unit='s')
         df = df.set_index('time')
         # Get the numerical and non-numerical columns
         num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -2274,10 +2271,7 @@ def get_offset_unfancy(dir_root, downsample = True, drop_last_rows = False, corr
 
         # Convert the Timestamp column to a datetime format and set it as the index
         df = df_.copy()
-        try:
-            df['time'] = pd.to_timedelta(df['time'], unit='s')
-        except:
-            df['time'] = pd.to_timedelta(df['time'], unit='s')
+        df['time'] = pd.to_timedelta(df['time'], unit='s')
         df = df.set_index('time')
         # Get the numerical and non-numerical columns
         num_cols = df.select_dtypes(include=[np.number]).columns.tolist()

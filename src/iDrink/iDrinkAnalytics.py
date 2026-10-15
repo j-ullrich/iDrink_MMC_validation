@@ -170,7 +170,7 @@ def calculate_bodykin_vel_acc(curr_trial, save_file=True, DEBUG=False):
     try:
         time = df_pos["# times"]
         df_pos.drop(columns=["# times"], inplace=True)
-    except:
+    except KeyError:
         # If this .csv File ha already been changed, we have to take out "Frame#" and "Time"
         time = df_pos["Time"]
         df_pos.drop(columns=["Frame#", "Time"], inplace=True)
@@ -586,7 +586,7 @@ def get_phases_idrink(curr_trial, output_file=None, plot_plots=False):
             # Now, use these values to set the y-ticks
             try:
                 plt.yticks(np.arange(0, max(dist_hand_face), step))
-            except:
+            except Exception:
                 pass
             plt.plot(np.zeros_like(dist_hand_face), "--", color="gray")
             plt.savefig(os.path.join(curr_trial.dir_murphy_measures,
@@ -750,7 +750,7 @@ def run_full_analysis(curr_trial):
 
         try:
             get_murphy_measures(curr_trial)
-        except:
+        except Exception:
             import traceback
             print(traceback.format_exc())
             print(f"Murphy Measures could not be calculated.\n"

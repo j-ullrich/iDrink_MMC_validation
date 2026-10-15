@@ -963,7 +963,7 @@ class MurphyMeasures:
         try:
             for column in columns_of_interest:
                 self.__setattr__(column, df.loc[df['identifier'] == self.trial_id, column].values[0])
-        except:
+        except (IndexError, KeyError):
             """
             Trial not in form of iDrink Trial_id
             csv containts only trials of single Participant and the trial number is in the form of TXXX.

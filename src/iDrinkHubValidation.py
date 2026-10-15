@@ -297,7 +297,7 @@ def create_trial_objects(ctx):
 
                     try:
                         affected = re.search(r'unaffected', video_file).group(0)
-                    except:
+                    except AttributeError:
                         affected = 'affected'
 
                     side = re.search(r'[RL]', video_file).group(0)
@@ -644,7 +644,7 @@ def run_triangulation(ctx, trial_list):
                             trial.config_dict['personAssociation']['single_person']['tracked_keypoint'] = 'thor'
                         try:
                             trial.run_pose2sim(only_triangulation=False)
-                        except:
+                        except Exception:
                             trial.config_dict['triangulation']['reproj_error_threshold_triangulation'] = 40
                             trial.config_dict['triangulation']['interp_if_gap_smaller_than'] = 100
                             trial.save_configuration()
@@ -881,6 +881,14 @@ def run_statistics(ctx):
                              thresh_PeakVelocity_mms=hand_vel_thresh, thresh_elbowVelocity=thresh_elbowVelocity)
     # generate Plots
 
+def _n_logged_errors(ctx):
+    """Number of rows in the error csv, to report how many errors a run added."""
+    try:
+        return len(pd.read_csv(ctx.log_val_errors, sep=';'))
+    except (FileNotFoundError, pd.errors.EmptyDataError):
+        return 0
+
+
 STEPS = {"calibration": run_calibrations,
          "hpe": run_HPE,
          "triangulation": run_triangulation,
@@ -901,6 +909,8 @@ def run_mode(ctx, no_calib=False):
     trial_list = create_trial_objects(ctx)
     trial_list.sort(key=lambda x: x.id_s, reverse=False)
 
+    n_errors_before = _n_logged_errors(ctx)
+
     if type(args.mode) == str:
         args.mode = [args.mode]
 
@@ -912,6 +922,11 @@ def run_mode(ctx, no_calib=False):
                 ctx.df_trials = run_calibrations(ctx, trial_list)
             else:
                 STEPS[step](ctx, trial_list)
+
+    n_new = _n_logged_errors(ctx) - n_errors_before
+    if n_new > 0:
+        print(f"{n_new} error(s) were logged during this run, see {ctx.log_val_errors} "
+              f"(full tracebacks in the *_tracebacks.log next to it).")
 
 
 def main(argv=None):
