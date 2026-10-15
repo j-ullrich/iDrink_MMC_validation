@@ -4,7 +4,6 @@ import sys
 import time
 import re
 import shutil
-from operator import index
 import platform
 
 from tqdm import tqdm
@@ -14,6 +13,8 @@ import pandas as pd
 sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__), "..")))
 from iDrink import iDrinkTrial, iDrinkOpenSim, iDrinkUtilities, iDrinkLog
 
+# Kept separate from Trial.prepare_opensim (iDrinkTrial.py) on purpose: OMC trials use a configurable filter flag and
+# opensim_model_scaled is a bare file name here, not a path inside dir_trial.
 def prepare_opensim(self, filterflag="filt"):
     # Copy Geometry from default to trial folder
     dir_geom = os.path.realpath(os.path.join(self.dir_default, "Geometry"))
